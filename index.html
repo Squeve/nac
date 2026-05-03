@@ -6266,48 +6266,104 @@ function renderDashEmptyState(active) {
 function renderDashActivityFeed() {
   const el = document.getElementById('dash-activity');
   if (!el) return;
-  const events = [];
   const now = Date.now();
+
   const fmt = ms => {
     const d = Math.floor((now - ms) / 60000);
-    if (d < 1)  return 'just now';
+    if (d < 2)  return 'just now';
     if (d < 60) return d + 'm ago';
     const h = Math.floor(d / 60);
     if (h < 24) return h + 'h ago';
+    if (h < 48) return 'Yesterday';
     return Math.floor(h/24) + 'd ago';
   };
-  // Collect events from payLog and callLog
+
+  const SEVEN_DAYS = 7 * 86400000;
+  const THREE_DAYS = 3 * 86400000;
+  const events = [];
+
   (state.borrowers||[]).forEach(b => {
+    const firstName = (b.name||'').split(' ')[0];
+
+    // ── Payments (most reliable source) ──────────────────────
     (b.payLog||[]).forEach(p => {
-      if (!p.date) return;
+      if (!p.date || !p.amount) return;
       const ms = new Date(p.date).getTime();
-      if (now - ms > 7 * 86400000) return; // last 7 days only
-      events.push({ ms, icon:'💰', text: `${b.name.split(' ')[0]} paid ${fmtC(p.amount||0)}`, time: fmt(ms), id: b.id });
+      if (isNaN(ms) || now - ms > SEVEN_DAYS) return;
+      const isPaid = (b.amountPaid||0) >= (b.loanDue||1);
+      events.push({
+        ms, id: b.id,
+        icon: isPaid ? '🎉' : '💰',
+        text: isPaid
+          ? `${firstName} fully paid! ${fmtC(p.amount)}`
+          : `${firstName} paid ${fmtC(p.amount)}`
+      });
     });
+
+    // ── Calls — only real agent-initiated calls, not WA taps ──
     (b.callLog||[]).forEach(c => {
       if (!c.date) return;
+      // Skip auto-logged WA/SMS dispatch events
+      if ((c.type||'') === 'WA/SMS' || (c.note||'').includes('Dispatched')) return;
       const ms = new Date(c.date).getTime();
-      if (now - ms > 3 * 86400000) return; // last 3 days for calls
-      events.push({ ms, icon:'📞', text: `Called ${b.name.split(' ')[0]}${c.outcome?' — '+c.outcome:''}`, time: fmt(ms), id: b.id });
+      if (isNaN(ms) || now - ms > THREE_DAYS) return;
+      const outcomeLabel = c.outcome
+        ? ` — ${c.outcome.replace(/_/g,' ')}`
+        : c.note ? ` — ${c.note}` : '';
+      events.push({
+        ms, id: b.id,
+        icon: c.outcome === 'promised' ? '🤝' : c.outcome === 'no_answer' ? '📵' : '📞',
+        text: `Called ${firstName}${outcomeLabel}`
+      });
     });
+
+    // ── PTPs — only promises SET recently (not future dates) ─
     if (b.promisedToPay && b.promiseDate) {
+      // Only surface if the promise was SET in last 24h (use createdAt if available)
+      const setAt = b.promiseCreatedAt ? new Date(b.promiseCreatedAt).getTime() : null;
+      if (setAt && now - setAt < 86400000) {
+        const dueDate = (b.promiseDate||'').split(' ')[0];
+        events.push({
+          ms: setAt, id: b.id,
+          icon: '🤝',
+          text: `${firstName} promised to pay on ${dueDate}`
+        });
+      }
+    }
+
+    // ── PTP honours (paid today via ptpOutcome) ───────────────
+    if (b.ptpOutcome === 'paid' && b.promiseDate) {
       const ms = new Date(b.promiseDate).getTime();
-      if (Math.abs(now - ms) < 2 * 86400000) {
-        events.push({ ms, icon:'🤝', text: `${b.name.split(' ')[0]} promised to pay`, time: fmt(ms), id: b.id });
+      if (!isNaN(ms) && now - ms < 86400000 && ms <= now) {
+        events.push({
+          ms, id: b.id,
+          icon: '✅',
+          text: `${firstName} honoured their promise`
+        });
       }
     }
   });
+
+  // Sort newest first, deduplicate same borrower+icon within 1 hour
   events.sort((a,b) => b.ms - a.ms);
-  const recent = events.slice(0, 8);
+  const seen = new Set();
+  const deduped = events.filter(e => {
+    const key = `${e.id}_${e.icon}_${Math.floor(e.ms / 3600000)}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  const recent = deduped.slice(0, 10);
   if (!recent.length) { el.innerHTML = ''; return; }
+
   el.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;overflow:hidden">
       <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">⚡ Recent Activity</div>
       ${recent.map(e => `
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${e.id}')">
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.12s" onclick="_pushModal();openBorrowerDetail('${e.id}')" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
           <span style="font-size:15px;flex-shrink:0">${e.icon}</span>
           <span style="font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(e.text)}</span>
-          <span style="font-size:10px;color:var(--text3);flex-shrink:0">${e.time}</span>
+          <span style="font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap">${fmt(e.ms)}</span>
         </div>`).join('')}
     </div>`;
 }
@@ -7585,6 +7641,11 @@ function renderDispatch() {
   });
   document.getElementById('dispatch-list').innerHTML = html;
 
+  // Re-apply fade to any rows already marked as contacted this session
+  requestAnimationFrame(() => {
+    (window._dispatchContactedIds || new Set()).forEach(id => _applyDispatchFade(id));
+  });
+
   // If a message was pre-loaded from Message Bank / suggested messages, fill & show the custom panel
   if (window._pendingDispatchMsg) {
     const ta   = document.getElementById('dispatch-custom-msg');
@@ -7607,26 +7668,50 @@ function copyDispatchMsg(id) {
   });
 }
 
+// Session-level set of dispatch-contacted borrower IDs — persists across re-renders
+window._dispatchContactedIds = window._dispatchContactedIds || new Set();
+
 function markDispatchContacted(id) {
-  // Visually fade the row to show it's been handled this session
-  const row = document.getElementById('drow-' + id);
-  if (!row) return;
-  row.style.opacity = '0.4';
-  row.style.filter  = 'grayscale(0.6)';
-  // Log call without navigating away
+  // Store in session set so fade survives re-renders
+  window._dispatchContactedIds.add(id);
+  _applyDispatchFade(id);
+
+  // Log a real call entry only if it's a non-WA-tap action (the ✓ button)
+  // WA/SMS links already fire this; we always record the contact
   const b = state.borrowers.find(x => x.id === id);
   if (b) {
     if (!b.callLog) b.callLog = [];
-    const today = new Date().toISOString();
-    // Only log if not already logged today
-    const todayStr = today.split('T')[0];
-    const alreadyLogged = b.callLog.some(c => (c.date||'').startsWith(todayStr));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const alreadyLogged = b.callLog.some(c =>
+      (c.date||'').startsWith(todayStr) && (c.type||'') === 'WA/SMS'
+    );
     if (!alreadyLogged) {
-      b.callLog.push({ date: today, type: 'WA/SMS', note: 'Dispatched via message queue' });
+      b.callLog.push({
+        date: new Date().toISOString(),
+        type: 'WA/SMS',
+        note: 'Dispatched via message queue'
+      });
       saveState();
     }
   }
   haptic('light');
+}
+
+function _applyDispatchFade(id) {
+  const row = document.getElementById('drow-' + id);
+  if (!row) return;
+  row.style.transition = 'opacity 0.3s ease, filter 0.3s ease';
+  row.style.opacity = '0.38';
+  row.style.filter  = 'grayscale(0.7)';
+  // Show a small ✓ tick overlay on the row
+  if (!row.querySelector('.dispatched-tick')) {
+    const tick = document.createElement('div');
+    tick.className = 'dispatched-tick';
+    tick.textContent = '✓ Sent';
+    tick.style.cssText = 'position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:2px 7px;pointer-events:none';
+    row.style.position = 'relative';
+    row.appendChild(tick);
+  }
 }
 
 // ── DAILY LOG ──────────────────────────────────────────
@@ -9827,6 +9912,7 @@ function savePromise(id, isEdit = false) {
   b.promisedToPay = true;
   b.promiseDate = date + (time ? ' ' + time : '');
   b.promiseNote = note;
+  b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
   if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
   haptic('light');
   saveState();
@@ -10584,6 +10670,11 @@ function navigate(page) {
 
   currentPage = page;
   _modalStack = [];  // clear modal stack on navigation
+
+  // Clear dispatch session state when leaving dispatch
+  if (page !== 'dispatch') {
+    window._dispatchContactedIds = new Set();
+  }
 
   // Clear all active states immediately
   document.querySelectorAll('.page').forEach(p => {
