@@ -5399,6 +5399,7 @@ function initState() {
     discountRate: 0.30, monthlyTarget: 0, agedOutLog: [], archive: [],
     hitList: [], callLog: {}, rankingHistory: [], undoHistory: [], pendingSyncCount: 0,
     offlineQueue: [], customMessages: [], archivedBorrowers: [],
+    ptpHistory: [], templatePerf: {}, scoreHistory: [], messageBank: [],
     agentProfile: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
 }
 
@@ -5416,6 +5417,9 @@ function migrateState(s) {
   if (!s.pendingSyncCount) s.pendingSyncCount = 0;
   if (!s.customMessages) s.customMessages = [];
   if (!s.archivedBorrowers) s.archivedBorrowers = [];
+  if (!s.ptpHistory)        s.ptpHistory = [];
+  if (!s.templatePerf)      s.templatePerf = {};
+  if (!s.scoreHistory)      s.scoreHistory = [];
   (s.borrowers||[]).forEach(b => {
     if (b.promisedToPay === undefined) b.promisedToPay = false;
     if (b.isPaid === undefined) b.isPaid = (b.amountPaid >= b.loanDue && b.amountPaid > 0);
@@ -5510,9 +5514,8 @@ if (!migrationFlag && state.borrowers && state.borrowers.length) {
   if (idbState) {
     state = migrateState(idbState);
     _syncLocalProfileFromState();
-    // Phone normalisation (keep your existing code block here – don't delete it)
-    let migrationFlag = localStorage.getItem('sq_phone_migration_done');
-    if (!migrationFlag && state.borrowers && state.borrowers.length) {
+    // Phone normalisation
+    if (!localStorage.getItem('sq_phone_migration_done') && state.borrowers && state.borrowers.length) {
       // ... your existing migration code ...
     }
     purgeAgedOut();
@@ -5531,23 +5534,16 @@ if (!migrationFlag && state.borrowers && state.borrowers.length) {
         state = migrateState(JSON.parse(json));
         _syncLocalProfileFromState();
         // One-time phone normalisation
-let migrationFlag = localStorage.getItem('sq_phone_migration_done');
-if (!migrationFlag && state.borrowers && state.borrowers.length) {
-  let changed = false;
-  state.borrowers.forEach(b => {
-    if (b.phone) {
-      const normalized = normalizePhone(b.phone);
-      if (normalized !== b.phone) {
-        b.phone = normalized;
-        changed = true;
-      }
-    }
-  });
-  if (changed) {
-    saveState();
-    localStorage.setItem('sq_phone_migration_done', 'true');
-  }
-}
+        if (!localStorage.getItem('sq_phone_migration_done') && state.borrowers && state.borrowers.length) {
+          let changed = false;
+          state.borrowers.forEach(b => {
+            if (b.phone) {
+              const normalized = normalizePhone(b.phone);
+              if (normalized !== b.phone) { b.phone = normalized; changed = true; }
+            }
+          });
+          if (changed) { saveState(); localStorage.setItem('sq_phone_migration_done', 'true'); }
+        }
 
         purgeAgedOut();
         autoExpirePtps();
@@ -9884,23 +9880,10 @@ function autoExpirePtps() {
   }
 }
 
-function savePromise(id) {
-  const b = state.borrowers.find(x => x.id === id);
-  if (!b) return;
-  const date = document.getElementById('promise-date')?.value || '';
-  const time = document.getElementById('promise-time')?.value || '';
-  const note = document.getElementById('promise-note')?.value?.trim() || '';
-  b.promisedToPay = true;
-  b.promiseDate = date + (time ? ' ' + time : '');
-  b.promiseNote = note;
-  haptic('light');
-  saveState(); closeModal(); renderCurrentPage();
-  toast(b.name.split(' ')[0] + ' promised to pay on ' + date + (time ? ' at ' + time : '') + ' 🤝', 'success');
-}
-
 function renderAgedOut() {
   const list = state.agedOutLog || [];
   const el = document.getElementById('agedout-list');
+  if (!el) return;
   if (!list.length) {
     el.innerHTML = '<div class="empty-state" style="padding:30px 0"><div class="icon">📤</div><div>No aged-out accounts yet. Accounts hitting Day ' + ((function(){var _s=(_activeAgent&&_activeAgent.stage)||'M2';var _b={M0:1,M1:6,M2:16,M3:41,M4:61};return _b[_s]||16;})()) + ' will appear here.</div></div>';
     return;
