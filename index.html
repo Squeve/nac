@@ -3004,6 +3004,15 @@ tr.overdue-critical .heat-ring {
           <option value="warn">Broken PTP</option>
           <option value="fraud">Fraud Flag</option>
         </select>
+        <select class="bl-chip-sel" id="loan-filter-tag" onchange="renderLoansTable()">
+          <option value="">All Tags</option>
+          <option value="vip">⭐ VIP</option>
+          <option value="cooperative">👍 Cooperative</option>
+          <option value="difficult">😤 Difficult</option>
+          <option value="legal">⚖️ Legal</option>
+          <option value="ghost">👻 Ghost</option>
+          <option value="part-pay">💰 Part-Payer</option>
+        </select>
         <div class="bl-sort-wrap">
           <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
             <option value="dueToday_-1">Due Today ↑ High</option>
@@ -4059,10 +4068,13 @@ tr.overdue-critical .heat-ring {
   <div class="modal">
     <div class="modal-drag-handle"></div>
     <div class="modal-header">
-      <button id="modal-back-btn" onclick="closeModal()" style="display:none;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;font-weight:600;padding:2px 6px;border-radius:6px;display:none;align-items:center;gap:4px;margin-right:8px;flex-shrink:0" title="Go back">
+      <button id="modal-back-btn" onclick="closeModal()" style="display:none;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;font-weight:600;padding:2px 6px;border-radius:6px;align-items:center;gap:4px;margin-right:6px;flex-shrink:0" title="Go back">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="12,4 6,10 12,16"/></svg>Back
       </button>
-      <div class="modal-title" id="modal-title" style="flex:1">Add Borrower</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        <div id="modal-breadcrumb" style="display:none;align-items:center;flex-wrap:nowrap;overflow:hidden"></div>
+        <div class="modal-title" id="modal-title" style="flex:1">Add Borrower</div>
+      </div>
       <button class="modal-close" onclick="closeAllModals()">✕</button>
     </div>
     <div class="modal-body" id="modal-body"></div>
@@ -6979,6 +6991,7 @@ function renderLoansTable() {
   const fOd       = odEl?.value       || '';
   const fPriority = priorityEl?.value || '';
   const fBadge    = badgeEl?.value    || '';
+  const fTag      = document.getElementById('loan-filter-tag')?.value || '';
 
   // Filter paid first (cheapest check) before doing expensive computations
   let source = fStatus === 'Paid'
@@ -7024,6 +7037,7 @@ function renderLoansTable() {
     if (fPriority === 'low')  return ps < 5;
     return true;
   });
+  if (fTag) rows = rows.filter(r => (r.tags||[]).some(t => t.id === fTag));
   if (fBadge) rows = rows.filter(r => {
     const payRatio = r.loanDue > 0 ? r.amountPaid / r.loanDue : 0;
     const today = new Date().toISOString().split('T')[0];
@@ -7103,7 +7117,7 @@ function renderLoansTable() {
       + '<div class="bl-card-inner">'
         + '<div class="bl-avatar" style="background:linear-gradient(135deg,' + ac1 + ',' + ac2 + ')" title="Priority ' + pScore + '/10">' + initials + '</div>'
         + '<div class="bl-content">'
-          + '<div class="bl-name">' + r.name + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + '</div>'
+          + '<div class="bl-name">' + r.name + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + buildTagHtml(r, true) + '</div>'
           + '<div class="bl-meta-row">'
             + '<span class="bl-phone">' + formatPhoneDisplay(r.phone) + '</span>'
             + '<span class="bl-day ' + heatCls + '">Day ' + r.odAge + '</span>'
@@ -8044,6 +8058,8 @@ function openExportModal() {
     { id:'remaining',   label:'Remaining (₵)',     def:false },
     { id:'odFee',       label:'OD Fee (₵)',        def:false },
     { id:'status',      label:'Status',            def:false },
+    { id:'tags',        label:'Tags',              def:false },
+    { id:'stage',       label:'Stage (M0–M5)',     def:false },
     { id:'smsMsg',      label:'SMS Message',       def:false },
     { id:'serial',      label:'Serial (1/2)',      def:false },
   ];
@@ -8147,13 +8163,15 @@ function openExportModal() {
     + '<span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--gold)" id="exp-count-num2">— accounts</span>'
     + '</div>'
     + '<div class="exp-section-label">Choose format</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
     + '<div class="exp-format-btn selected" id="efmt-csv" onclick="_selectExpFmt(\'csv\')">'
-    + '<div class="ef-icon">📄</div><div class="ef-label">CSV</div><div class="ef-desc">Spreadsheet compatible</div></div>'
+    + '<div class="ef-icon">📄</div><div class="ef-label">CSV</div><div class="ef-desc">Spreadsheet-ready</div></div>'
     + '<div class="exp-format-btn" id="efmt-xlsx" onclick="_selectExpFmt(\'xlsx\')">'
     + '<div class="ef-icon">📊</div><div class="ef-label">Excel</div><div class="ef-desc">Real .xlsx with 2 sheets</div></div>'
     + '<div class="exp-format-btn" id="efmt-pdf" onclick="_selectExpFmt(\'pdf\')">'
-    + '<div class="ef-icon">📋</div><div class="ef-label">PDF</div><div class="ef-desc">Print-ready report</div></div>'
+    + '<div class="ef-icon">📋</div><div class="ef-label">PDF Report</div><div class="ef-desc">Print-ready</div></div>'
+    + '<div class="exp-format-btn" id="efmt-wa" onclick="_selectExpFmt(\'wa\')">'
+    + '<div class="ef-icon">💬</div><div class="ef-label">WA Numbers</div><div class="ef-desc">Phone list for broadcast</div></div>'
     + '</div>'
     + '<div id="exp-pdf-opts" style="display:none;margin-bottom:16px">'
     + '<div class="exp-section-label">PDF report type</div>'
@@ -8183,7 +8201,7 @@ function openExportModal() {
   window._expFmt = 'csv';
   window._selectExpFmt = function(fmt) {
     window._expFmt = fmt;
-    ['csv','xlsx','pdf'].forEach(function(f){ document.getElementById('efmt-'+f)?.classList.toggle('selected',f===fmt); });
+    ['csv','xlsx','pdf','wa'].forEach(function(f){ document.getElementById('efmt-'+f)?.classList.toggle('selected',f===fmt); });
     var pdfOpts = document.getElementById('exp-pdf-opts');
     if(pdfOpts) pdfOpts.style.display = fmt==='pdf' ? '' : 'none';
   };
@@ -8203,6 +8221,7 @@ function openExportModal() {
       var fmt = window._expFmt || 'csv';
       if(fmt==='csv') doExportCSV();
       else if(fmt==='xlsx') doExportXLSX();
+      else if(fmt==='wa') doExportWANumbers();
       else {
         var psel=document.getElementById('pdf-type-sel');
         doExportPDF(psel?psel.value:'report');
@@ -8217,6 +8236,36 @@ function openExportModal() {
     var bar=document.getElementById('exp-count-bar');
     if(bar) obs.observe(bar,{subtree:true,characterData:true,childList:true});
   },0);
+}
+
+function doExportWANumbers() {
+  const { borrowers } = _getExportData();
+  if (!borrowers.length) { toast('No accounts match your filters', 'error'); return; }
+
+  const sorted = [...borrowers].sort((a,b) => getOdAge(b.startDate) - getOdAge(a.startDate));
+  const lines = sorted.map(b => {
+    const raw = b.phone.replace(/\D/g,'');
+    return raw.startsWith('0') ? '233' + raw.slice(1) : raw;
+  }).filter(Boolean);
+
+  // Show a copy modal — same pattern as broadcast
+  document.getElementById('modal-title').textContent = `💬 WA Broadcast Numbers (${lines.length})`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">
+      Sorted by highest OD age first. Copy into WhatsApp → New Broadcast → Add Recipients.
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:10px;max-height:220px;overflow-y:auto">
+      ${sorted.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;font-size:11px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">${b.phone}</div>
+        <div style="font-size:10px;color:var(--red)">Day ${getOdAge(b.startDate)}</div>
+      </div>`).join('')}
+    </div>
+    <textarea readonly id="wa-exp-numbers" style="width:100%;height:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px;font-family:var(--font-mono);font-size:11px;color:var(--text);resize:none;box-sizing:border-box">${lines.join('\n')}</textarea>`;
+  document.getElementById('modal-footer').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">Close</button>
+     <button class="btn btn-green" onclick="navigator.clipboard.writeText(document.getElementById('wa-exp-numbers').value).then(()=>toast('${lines.length} numbers copied!','success'))">📋 Copy ${lines.length} Numbers</button>`;
+  haptic('light');
 }
 
 function _expCheckbox(id, label, checked, wide) {
@@ -8309,6 +8358,8 @@ function _getExportData() {
     remaining:   { label:'Remaining',      fn:b=>getRemaining(b),                                       raw:b=>getRemaining(b) },
     odFee:       { label:'OD Fee',         fn:b=>_getOdFeeCached(b),                                           raw:b=>_getOdFeeCached(b) },
     status:      { label:'Status',         fn:b=>getStatus(b),                                          raw:b=>getStatus(b) },
+    tags:        { label:'Tags',           fn:b=>'"'+((b.tags||[]).map(t=>t.label).join(', '))+'"',     raw:b=>(b.tags||[]).map(t=>t.label).join(', ') },
+    stage:       { label:'Stage',         fn:b=>getAccountStage(b).label,                               raw:b=>getAccountStage(b).label },
     smsMsg:      { label:'SMS Message',    fn:b=>'"'+getSmsMessage(b,msgGenerous).replace(/"/g,"'")+'"', raw:b=>getSmsMessage(b,msgGenerous) },
     serial:      { label:'Serial',         fn:b=>b.loanType==='LoanBase Pro'?2:1,                       raw:b=>b.loanType==='LoanBase Pro'?2:1 },
   };
@@ -9054,6 +9105,99 @@ function clearOdSnapshot(id) {
   toast('OD correction removed — back to auto-calculation', 'info');
 }
 
+// ── Borrower Tag System ───────────────────────────────────────
+const TAG_PRESETS = [
+  { id:'vip',         label:'⭐ VIP',         cls:'b-tag-vip' },
+  { id:'cooperative', label:'👍 Cooperative',  cls:'b-tag-cooperative' },
+  { id:'difficult',   label:'😤 Difficult',    cls:'b-tag-difficult' },
+  { id:'legal',       label:'⚖️ Legal',        cls:'b-tag-legal' },
+  { id:'ghost',       label:'👻 Ghost',        cls:'b-tag-difficult' },
+  { id:'part-pay',    label:'💰 Part-Payer',   cls:'b-tag-cooperative' },
+];
+
+function getBorrowerTags(b) { return b.tags || []; }
+
+function buildTagHtml(b, small = true) {
+  const tags = getBorrowerTags(b);
+  if (!tags.length) return '';
+  return tags.map(t => {
+    const preset = TAG_PRESETS.find(p => p.id === t.id);
+    const cls    = preset ? preset.cls : 'b-tag-custom';
+    return `<span class="b-tag ${cls}" style="font-size:${small?'8':'10'}px" title="${escapeHtml(t.label)}">${escapeHtml(t.label)}</span>`;
+  }).join('');
+}
+
+function openTagManager(id) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  if (!b.tags) b.tags = [];
+
+  const renderTagModal = () => {
+    document.getElementById('modal-title').textContent = `🏷️ Tags — ${b.name.split(' ')[0]}`;
+    document.getElementById('modal-body').innerHTML = `
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Tap to toggle. Tags appear on the borrower card and can be filtered.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        ${TAG_PRESETS.map(p => {
+          const active = b.tags.some(t => t.id === p.id);
+          return `<button onclick="toggleBorrowerTag('${id}','${p.id}','${escapeHtml(p.label)}')"
+            class="b-tag ${p.cls}" style="font-size:12px;padding:6px 12px;${active?'box-shadow:0 0 0 2px currentColor':'opacity:0.45'}">
+            ${active ? '✓ ' : ''}${escapeHtml(p.label)}
+          </button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">Custom tag</div>
+      <div style="display:flex;gap:8px">
+        <input id="custom-tag-input" class="form-input" placeholder="e.g. Priority, Referral, Employer…" style="flex:1;font-size:12px" maxlength="24">
+        <button class="btn btn-gold btn-sm" onclick="addCustomBorrowerTag('${id}')">Add</button>
+      </div>
+      ${b.tags.length ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">
+        ${b.tags.map(t => `<span class="b-tag b-tag-custom" style="font-size:11px">
+          ${escapeHtml(t.label)} <span onclick="removeBorrowerTag('${id}','${t.id}')" style="margin-left:3px;cursor:pointer;opacity:0.7">✕</span>
+        </span>`).join('')}
+      </div>` : ''}`;
+    document.getElementById('modal-footer').innerHTML =
+      `<button class="btn btn-ghost" onclick="closeModal()">Done</button>`;
+    if (!document.getElementById('modal-overlay').classList.contains('open'))
+      document.getElementById('modal-overlay').classList.add('open');
+  };
+
+  window._tagRerenderFn = renderTagModal;
+  renderTagModal();
+  haptic('light');
+}
+
+function toggleBorrowerTag(id, tagId, label) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  if (!b.tags) b.tags = [];
+  const idx = b.tags.findIndex(t => t.id === tagId);
+  if (idx >= 0) b.tags.splice(idx, 1);
+  else b.tags.push({ id: tagId, label });
+  saveState(); haptic('light');
+  if (window._tagRerenderFn) window._tagRerenderFn();
+}
+
+function addCustomBorrowerTag(id) {
+  const b   = state.borrowers.find(x => x.id === id);
+  const inp = document.getElementById('custom-tag-input');
+  const val = inp?.value?.trim();
+  if (!b || !val) { toast('Enter a tag name', 'error'); return; }
+  if (!b.tags) b.tags = [];
+  const tagId = 'custom_' + val.toLowerCase().replace(/\s+/g,'_');
+  if (b.tags.some(t => t.id === tagId)) { toast('Tag already added', 'info'); return; }
+  b.tags.push({ id: tagId, label: val });
+  saveState(); haptic('light');
+  if (window._tagRerenderFn) window._tagRerenderFn();
+}
+
+function removeBorrowerTag(id, tagId) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b || !b.tags) return;
+  b.tags = b.tags.filter(t => t.id !== tagId);
+  saveState(); haptic('light');
+  if (window._tagRerenderFn) window._tagRerenderFn();
+}
+
 function openBorrowerDetail(id) {
   var b = state.borrowers.find(function(x){ return x.id === id; });
   if (!b) return;
@@ -9148,6 +9292,7 @@ function openBorrowerDetail(id) {
     + '<button class="btn btn-ghost" id="bd-history">📋 History (' + log.length + ')</button>'
     + '<button class="btn btn-ghost" id="bd-instalment">📅 Instalment Plan</button>'
     + '<button class="btn btn-ghost" id="bd-adjod" style="color:var(--orange);border-color:rgba(249,115,22,0.3)">⚙️ Correct OD' + (b.odFeeSnapshot !== undefined && b.odFeeSnapshot !== null ? ' ✓' : '') + '</button>'
+    + '<button class="btn btn-ghost btn-sm" id="bd-tags" style="grid-column:1/-1">🏷️ Tags' + (b.tags&&b.tags.length?' ('+b.tags.length+')':'') + '</button>'
     + '<button class="btn btn-ghost btn-sm" id="bd-escalate" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(220,38,38,0.12));border-color:rgba(124,58,237,0.3);color:#a78bfa;font-weight:700">⚖️ Escalate</button>'
     + '<button class="btn btn-ghost" id="bd-timeline" style="grid-column:1/-1">📜 Timeline</button>'
     + '</div>'
@@ -9171,7 +9316,10 @@ function openBorrowerDetail(id) {
   haptic('light');
 
   setTimeout(function() {
-    var elEsc = document.getElementById('bd-escalate');
+    var elTags = document.getElementById('bd-tags');
+    var elEsc  = document.getElementById('bd-escalate');
+    if (elTags) elTags.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openTagManager(id); };
+    if (elEsc)  elEsc.onclick  = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openEscalFromBorrower(id); };
     var elPay = document.getElementById('bd-pay');
     var elPr  = document.getElementById('bd-promise');
     var elN   = document.getElementById('bd-note');
@@ -9196,7 +9344,6 @@ function openBorrowerDetail(id) {
     var elTL = document.getElementById('bd-timeline');
     if (elTL) elTL.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openBorrowerTimeline(id); };
     if (elHL)  elHL.onclick  = function(){ haptic('medium'); addToHitList(id); elHL.textContent = '📌 In Hit List'; };
-    if (elEsc) elEsc.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openEscalFromBorrower(id); };
     if (elD)   elD.onclick   = function(){
       confirmAction({ title: 'Delete Borrower', message: 'Remove <strong>' + escapeHtml(b.name) + '</strong> from your portfolio?', confirmLabel: 'Delete', onConfirm: function() { deleteBorrower(id); } });
     };
@@ -9519,11 +9666,27 @@ function closeModal() {
   currentModal = null;
 }
 
-// Show/hide ← Back button based on stack depth
+// Show/hide ← Back button and breadcrumbs based on stack depth
 function _syncModalBackBtn() {
-  const btn = document.getElementById('modal-back-btn');
+  const btn  = document.getElementById('modal-back-btn');
+  const crumb = document.getElementById('modal-breadcrumb');
   if (!btn) return;
-  btn.style.display = _modalStack.length > 0 ? 'inline-flex' : 'none';
+  if (_modalStack.length > 0) {
+    btn.style.display = 'inline-flex';
+    // Build breadcrumb trail from stack titles
+    if (crumb) {
+      const titles = _modalStack.map(s => s.title || '…').concat(['']);
+      crumb.innerHTML = titles.slice(-3).map((t,i,arr) =>
+        i < arr.length - 1
+          ? `<span style="color:var(--text3);font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="for(let j=0;j<${arr.length-1-i};j++)closeModal()">${escapeHtml(t)}</span><span style="color:var(--border2);font-size:10px;margin:0 3px">›</span>`
+          : ''
+      ).join('');
+      crumb.style.display = 'flex';
+    }
+  } else {
+    btn.style.display = 'none';
+    if (crumb) { crumb.innerHTML = ''; crumb.style.display = 'none'; }
+  }
 }
 
 // Push current modal state onto the stack before opening a new one.
@@ -9782,27 +9945,34 @@ function initPageSwipe() {
   wrap._pageSwipeInited = true;
 
   const PAGE_ORDER = ['dashboard','loans','analytics','ptp','dispatch'];
-  const THRESHOLD  = 55;
-  const MAX_Y_DRIFT = 40;
+  const THRESHOLD   = 72;   // higher threshold - must be deliberate
+  const MAX_Y_DRIFT = 30;   // tighter vertical tolerance
+  const EDGE_ZONE   = 0.22; // only trigger from left/right 22% of screen
 
   let startX = 0, startY = 0, dx = 0, startTime = 0, swiping = false;
 
   wrap.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    dx = 0; swiping = true; startTime = Date.now();
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY;
+    dx = 0; startTime = Date.now();
+    // Only enable page swipe when touch starts in edge zones
+    const vw = window.innerWidth;
+    swiping = (startX < vw * EDGE_ZONE) || (startX > vw * (1 - EDGE_ZONE));
   }, { passive: true });
 
   wrap.addEventListener('touchmove', e => {
     if (!swiping || e.touches.length !== 1) return;
     dx = e.touches[0].clientX - startX;
     const dy = Math.abs(e.touches[0].clientY - startY);
-    if (dy > MAX_Y_DRIFT && Math.abs(dx) < dy) { swiping = false; return; }
+    // Cancel if more vertical than horizontal
+    if (dy > MAX_Y_DRIFT && dy > Math.abs(dx) * 0.7) { swiping = false; return; }
+    // Cancel if modal open
     if (document.getElementById('modal-overlay')?.classList.contains('open')) { swiping = false; return; }
+    // Cancel if swiping inside a horizontally-scrollable container
     let el = e.target;
     while (el && el !== wrap) {
-      if (el.scrollWidth > el.clientWidth + 4 && Math.abs(dx) > 10) { swiping = false; return; }
+      if (el.scrollWidth > el.clientWidth + 8 && Math.abs(dx) > 10) { swiping = false; return; }
       el = el.parentElement;
     }
   }, { passive: true });
@@ -9810,9 +9980,9 @@ function initPageSwipe() {
   wrap.addEventListener('touchend', () => {
     if (!swiping) return;
     swiping = false;
-    const elapsed = Date.now() - startTime;
-    const velocity = Math.abs(dx) / elapsed;
-    if (Math.abs(dx) < THRESHOLD && velocity < 0.45) return;
+    const elapsed  = Date.now() - startTime;
+    const velocity = Math.abs(dx) / Math.max(elapsed, 1);
+    if (Math.abs(dx) < THRESHOLD && velocity < 0.5) return;
     const idx = PAGE_ORDER.indexOf(currentPage);
     if (idx === -1) return;
     if (dx < 0 && idx < PAGE_ORDER.length - 1) { navigate(PAGE_ORDER[idx + 1]); haptic('light'); }
@@ -14151,6 +14321,43 @@ function renderRanking() {
       }
     }
     html += '</div></div>';
+  }
+
+  // ── My % Trend Line Chart ──────────────────────────────────
+  if (myName) {
+    const trendData = [...history]
+      .filter(s => s.type === 'daily' && s.agents.some(a => a.name.toLowerCase().includes(myName)))
+      .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))
+      .slice(-20);
+    if (trendData.length >= 2) {
+      html += '<div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">📈 My % Trend</span><span style="font-size:10px;color:var(--text3)">daily scanning history</span></div><div class="card-body"><div style="height:140px"><canvas id="chart-ranking-trend"></canvas></div></div></div>';
+      setTimeout(() => {
+        const ctx = document.getElementById('chart-ranking-trend');
+        if (!ctx) return;
+        const labels = trendData.map(s => { const d=new Date(s.date); return (d.getMonth()+1)+'/'+d.getDate(); });
+        const vals   = trendData.map(s => parseFloat(s.agents.find(a => a.name.toLowerCase().includes(myName))?.pct || '0'));
+        const first1 = vals[0], last1 = vals[vals.length-1];
+        const trendCol = last1 > first1 ? '#22c55e' : last1 < first1 ? '#ef4444' : '#e8a020';
+        updateOrCreateChart('ranking-trend', ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: vals, borderColor: trendCol, backgroundColor: trendCol + '18',
+              fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: trendCol
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9}} },
+              y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9},callback:v=>v+'%'}, min:0 }
+            }
+          }
+        });
+      }, 80);
+    }
   }
 
   // ── Tab selector for mini-league view ─────────────────────
@@ -21270,7 +21477,20 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   background: rgba(240,160,48,0.08) !important;
 }
 
-/* ── TONE CHIPS ── */
+/* ── BORROWER TAGS ── */
+.b-tag {
+  display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:10px;cursor:pointer;transition:opacity 0.12s;flex-shrink:0;
+  border:1px solid currentColor;
+}
+.b-tag:hover { opacity:0.7; }
+.b-tag-difficult  { color:#ef4444;background:rgba(239,68,68,0.1); }
+.b-tag-vip        { color:#f0a030;background:rgba(240,160,48,0.12); }
+.b-tag-cooperative{ color:#22c55e;background:rgba(34,197,94,0.1); }
+.b-tag-legal      { color:#7c3aed;background:rgba(124,58,237,0.1); }
+.b-tag-custom     { color:var(--blue);background:rgba(96,165,250,0.1); }
+
+/* ── BORROWER TAGS ── */
 .msg-tone-chip {
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border2); border-radius: 20px;
