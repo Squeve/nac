@@ -3082,26 +3082,37 @@ tr.overdue-critical .heat-ring {
     </div>
     <div class="kpi-grid" id="analytics-kpis"></div>
     <div class="analytics-grid">
-
-      <!-- 1. Stage Funnel — where is my portfolio? -->
-      <div class="card full">
-        <div class="card-header"><span class="card-title">🎯 Stage Funnel</span><span style="font-size:10px;color:var(--text3)">portfolio distribution</span></div>
-        <div class="card-body" id="analytics-stage-funnel" style="padding:4px 0"></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">💰 Collection Status</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div style="height:160px;width:100%;max-width:200px;margin:0 auto"><canvas id="chart-collection-donut"></canvas></div>
+          <div id="analytics-donut-legend" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:11px"></div>
+        </div>
       </div>
-
-      <!-- 2. Month vs Last Month — am I improving? -->
-      <div class="card full">
-        <div class="card-header"><span class="card-title">📊 Month Comparison</span><span style="font-size:10px;color:var(--text3)">3-month view</span></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📊 Month Comparison</span><span style="font-size:10px;color:var(--text3)">3-month trend</span></div>
         <div class="card-body" id="analytics-month-compare" style="padding:0 4px"></div>
       </div>
-
-      <!-- 3. Rolling 7-day trend — current momentum -->
       <div class="card full">
-        <div class="card-header"><span class="card-title">📈 7-Day Trend</span><span style="font-size:10px;color:var(--text3)">collection momentum</span></div>
+        <div class="card-header"><span class="card-title">🎯 Stage Distribution</span><span style="font-size:10px;color:var(--text3)">where is your portfolio?</span></div>
+        <div class="card-body" id="analytics-stage-funnel" style="padding:4px 0"></div>
+      </div>
+      <div class="card full">
+        <div class="card-header"><span class="card-title">📈 7-Day Trend</span><span id="analytics-trend-sub" style="font-size:10px;color:var(--text3)"></span></div>
         <div class="card-body"><div class="chart-wrap"><canvas id="chart-rolling"></canvas></div></div>
       </div>
-
-      <!-- 4. Daily heatmap — logging consistency -->
+      <div class="card full">
+        <div class="card-header"><span class="card-title">⚠️ Risk Aging Matrix</span><span style="font-size:10px;color:var(--text3)">tap to filter</span></div>
+        <div class="card-body" id="analytics-aging"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🤝 PTP Success</span></div>
+        <div class="card-body" id="analytics-ptp-rate"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">💰 Recovery by Stage</span></div>
+        <div class="card-body" id="analytics-recovery-stage"></div>
+      </div>
       <div class="card full">
         <div class="card-header">
           <span class="card-title">🔥 Daily Heatmap</span>
@@ -3109,51 +3120,24 @@ tr.overdue-critical .heat-ring {
         </div>
         <div class="card-body" id="analytics-heatmap"></div>
       </div>
-
-      <!-- 5. Risk aging matrix — who is critical? -->
       <div class="card full">
-        <div class="card-header"><span class="card-title">⚠️ Risk Aging Matrix</span></div>
-        <div class="card-body" id="analytics-aging"></div>
+        <div class="card-header"><span class="card-title">🏆 Closest to Closing</span><span style="font-size:10px;color:var(--text3)">quick wins</span></div>
+        <div class="card-body" id="analytics-closing"></div>
       </div>
-
-      <!-- 6. Day of week + best call time — when to act -->
       <div class="card">
-        <div class="card-header"><span class="card-title">📅 Best Days</span><span style="font-size:11px;color:var(--text3)">when you collect most</span></div>
+        <div class="card-header"><span class="card-title">📅 Best Collection Days</span></div>
         <div class="card-body" id="analytics-dow"></div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">⏰ Best Call-Time</span></div>
+        <div class="card-header"><span class="card-title">⏰ Best Call Times</span></div>
         <div class="card-body" id="analytics-calltime"></div>
       </div>
-
-      <!-- 7. PTP performance — are promises being kept? -->
       <div class="card">
-        <div class="card-header"><span class="card-title">🤝 PTP Success Rate</span><span style="font-size:10px;color:var(--text3)">promise reliability</span></div>
-        <div class="card-body" id="analytics-ptp-rate"></div>
-      </div>
-
-      <!-- 8. Recovery rate by stage — where is collection working? -->
-      <div class="card">
-        <div class="card-header"><span class="card-title">💰 Recovery by Stage</span><span style="font-size:10px;color:var(--text3)">% collected per stage</span></div>
-        <div class="card-body" id="analytics-recovery-stage"></div>
-      </div>
-
-      <!-- 9. Top collectors — biggest accounts about to close -->
-      <div class="card full">
-        <div class="card-header"><span class="card-title">🏆 Closest to Closing</span><span style="font-size:10px;color:var(--text3)">sorted by % paid</span></div>
-        <div class="card-body" id="analytics-closing"></div>
-      </div>
-
-      <!-- 10. OD fee exposure — how much fees are at risk? -->
-      <div class="card">
-        <div class="card-header"><span class="card-title">⚡ OD Fee Exposure</span><span style="font-size:10px;color:var(--text3)">accruing daily</span></div>
+        <div class="card-header"><span class="card-title">⚡ OD Fee Exposure</span></div>
         <div class="card-body" id="analytics-od-exposure"></div>
       </div>
-
     </div>
   </section>
-
-  <!-- WHATSAPP DISPATCH -->
   <section class="page" id="page-dispatch">
     <div class="page-header">
       <div>
@@ -4598,25 +4582,32 @@ function _getCmdItems(q) {
   const allBorrowers = state?.borrowers || [];
 
   // Search ALL borrowers (active + paid) by name OR phone — matches from 1 char
-  const bMatches = ql.length >= 1 ? allBorrowers.filter(b =>
-    b.name.toLowerCase().includes(ql) ||
-    b.phone.replace(/\s/g,'').includes(ql.replace(/\s/g,'')) ||
-    b.phone.replace(/\D/g,'').includes(ql.replace(/\D/g,''))
-  ).sort((a, b) => {
-    // Exact start-of-name matches float to top
-    const aStarts = a.name.toLowerCase().startsWith(ql) ? 0 : 1;
-    const bStarts = b.name.toLowerCase().startsWith(ql) ? 0 : 1;
-    return aStarts - bStarts;
-  }).slice(0, 6).map(b => {
-    const isPaid = b.isPaid || getStatus(b) === 'Paid';
-    const od = getOdAge(b.startDate);
+  const bMatches = ql.length >= 1 ? allBorrowers.filter(bor => {
+    const nameLc  = (bor.name || '').toLowerCase();
+    const phoneLc = (bor.phone || '').replace(/\s/g,'');
+    // Match any part of any word in the name (fixes surname-first issue)
+    const nameWords = nameLc.split(/\s+/);
+    const nameMatch = nameLc.includes(ql) || nameWords.some(w => w.startsWith(ql));
+    const phoneMatch = phoneLc.includes(ql.replace(/\s/g,'')) ||
+                       phoneLc.replace(/\D/g,'').includes(ql.replace(/\D/g,''));
+    return nameMatch || phoneMatch;
+  }).sort((a, bor) => {
+    // Exact start-of-first-word matches float to top
+    const aWords = a.name.toLowerCase().split(/\s+/);
+    const bWords = bor.name.toLowerCase().split(/\s+/);
+    const aStart = aWords.some(w => w.startsWith(ql)) ? 0 : 1;
+    const bStart = bWords.some(w => w.startsWith(ql)) ? 0 : 1;
+    return aStart - bStart;
+  }).slice(0, 8).map(bor => {
+    const isPaid = bor.isPaid || getStatus(bor) === 'Paid';
+    const od = getOdAge(bor.startDate);
     return {
       icon: isPaid
         ? '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px;color:var(--green)"><circle cx="10" cy="10" r="8"/><polyline points="7,10 9,12 13,8" stroke-width="2"/></svg>'
         : '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.31 2.69-6 6-6s6 2.69 6 6"/></svg>',
-      label: b.name,
-      sub: formatPhoneDisplay(b.phone) + (isPaid ? ' · ✓ Paid' : ' · Day ' + od),
-      fn: () => { closeCmd(); openBorrowerDetail(b.id); }
+      label: bor.name,
+      sub: formatPhoneDisplay(bor.phone) + (isPaid ? ' · ✓ Paid' : ' · Day ' + od),
+      fn: () => { closeCmd(); openBorrowerDetail(bor.id); }
     };
   }) : [];
 
@@ -6177,16 +6168,21 @@ function toggleDashAgedOut() { /* aged out moved to Settings */ }
 // Called on dashboard render and app load.
 // Any PTP whose promiseDate has passed without payment gets flagged.
 function ptpAutoFlagMissed() {
-  var today = new Date().toISOString().split('T')[0];
-  var changed = false;
+  const today   = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  let changed = false;
   state.borrowers.forEach(function(b) {
     if (!b.promisedToPay || !b.promiseDate) return;
-    var promDate = b.promiseDate.split(' ')[0];
-    // Already resolved
-    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.amountPaid > 0 || b.isPaid) return;
-    // Past due with no outcome
-    if (promDate < today && (!b.ptpOutcome || b.ptpOutcome === '' || b.ptpOutcome === 'pending')) {
-      b.ptpOutcome = 'missed';
+    const promDate = b.promiseDate.split(' ')[0];
+    // Never breach today's or future promises — only strictly past dates
+    if (promDate >= today) return;
+    // Already resolved — don't re-flag
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
+    // Partial payment counts as not fully breached
+    if ((b.amountPaid||0) > 0) return;
+    // Past due, no payment, not resolved → breach
+    if (!b.ptpOutcome || b.ptpOutcome === '' || b.ptpOutcome === 'pending') {
+      b.ptpOutcome  = 'missed';
       b.ptpBreached = true;
       changed = true;
     }
@@ -7320,6 +7316,47 @@ async function renderAnalytics() {
         else if (k) showBorrowersPopup('','','','','');
       });
     });
+  }
+
+  // ── Collection Status Donut ───────────────────────────────────
+  const ctxDonut = document.getElementById('chart-collection-donut');
+  const legendEl = document.getElementById('analytics-donut-legend');
+  if (ctxDonut) {
+    const paidAmt    = paid.reduce((s,b) => s+(b.amountPaid||0), 0);
+    const partialAmt = partial.reduce((s,b) => s+(b.amountPaid||0), 0);
+    const unpaidAmt  = active.reduce((s,b) => s+getRemaining(b), 0);
+    const donutData  = [paidAmt, partialAmt, unpaidAmt].map(v => Math.round(v));
+    updateOrCreateChart('collection-donut', ctxDonut, {
+      type: 'doughnut',
+      data: {
+        labels: ['Collected (Paid)', 'Partial Paid', 'Outstanding'],
+        datasets: [{
+          data: donutData,
+          backgroundColor: ['rgba(34,197,94,0.85)','rgba(232,160,32,0.85)','rgba(239,68,68,0.75)'],
+          borderColor: ['#22c55e','#e8a020','#ef4444'],
+          borderWidth: 2, hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${fmtC(ctx.parsed)}` } } }
+      }
+    });
+    if (legendEl) {
+      const total = donutData.reduce((s,v) => s+v, 0) || 1;
+      const items = [
+        { col:'#22c55e', label:'Collected', val: donutData[0] },
+        { col:'#e8a020', label:'Partial',   val: donutData[1] },
+        { col:'#ef4444', label:'Outstanding',val: donutData[2] },
+      ];
+      legendEl.innerHTML = items.map(it =>
+        `<div style="display:flex;align-items:center;gap:4px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${it.col};flex-shrink:0"></div>
+          <span style="color:var(--text3)">${it.label}</span>
+          <span style="font-family:var(--font-mono);font-weight:700;color:var(--text2)">${Math.round(it.val/total*100)}%</span>
+        </div>`).join('');
+    }
   }
 
   // ── Stage Funnel & Month Comparison ──────────────────────────
@@ -15519,6 +15556,71 @@ function buildPtpMorningHtml() {
   return html;
 }
 
+function sendPtpReminders(context) {
+  if (Notification.permission !== 'granted') return;
+  const today    = new Date().toISOString().split('T')[0];
+  const now      = new Date();
+  const hour     = now.getHours();
+
+  // Context-aware messages
+  const ptpsToday = (state.borrowers||[]).filter(b =>
+    b.promisedToPay && (b.promiseDate||'').startsWith(today) &&
+    !b.isPaid && b.ptpOutcome !== 'paid'
+  );
+  const pending  = ptpsToday.filter(b => !b.ptpOutcome || b.ptpOutcome === 'pending');
+  const honoured = ptpsToday.filter(b => b.ptpOutcome === 'paid');
+  const breached = (state.borrowers||[]).filter(b => b.ptpBreached && !b.isPaid);
+
+  if (!ptpsToday.length && !breached.length) return; // nothing to notify
+
+  let title, body, tag;
+
+  if (context === 'morning' || hour < 12) {
+    // Morning — overview of today's PTPs
+    title = `☀️ ${ptpsToday.length} PTP${ptpsToday.length!==1?'s':''} due today`;
+    const totalExp = ptpsToday.reduce((s,b) => s + getDueToday(b), 0);
+    body  = `Expected: ${fmtC(totalExp)}${breached.length ? ` · ${breached.length} unresolved breach${breached.length!==1?'es':''}` : ''}`;
+    tag   = 'ptp-morning';
+  } else if (context === 'midday' || (hour >= 12 && hour < 15)) {
+    // Midday check-in
+    title = `⏰ PTP Midday Check`;
+    body  = `${honoured.length}/${ptpsToday.length} honoured · ${pending.length} still pending`;
+    tag   = 'ptp-midday';
+  } else {
+    // Evening — EOD summary push
+    title = `🌙 EOD: ${honoured.length}/${ptpsToday.length} PTPs honoured`;
+    body  = pending.length
+      ? `${pending.length} still unresolved — follow up now`
+      : breached.length ? `${breached.length} overdue breach${breached.length!==1?'es':''} need action` : 'Great day! All resolved.';
+    tag   = 'ptp-eod';
+  }
+
+  const n = new Notification(title, {
+    body,
+    icon: './icon-192.png',
+    tag,
+    badge: './icon-192.png',
+    requireInteraction: pending.length > 0
+  });
+  n.onclick = () => { window.focus(); navigate('ptp'); };
+
+  // Also show individual reminders for today's high-priority pending PTPs
+  if (pending.length > 0 && pending.length <= 4) {
+    pending.forEach((b, i) => {
+      setTimeout(() => {
+        if (Notification.permission !== 'granted') return;
+        const n2 = new Notification(`🤝 ${b.name.split(' ')[0]} promised ${fmtC(getDueToday(b))}`, {
+          body: b.promiseNote || `Due today · ${b.promiseDate||''}`,
+          icon: './icon-192.png',
+          tag: `ptp-ind-${b.id}`,
+          silent: true
+        });
+        n2.onclick = () => { window.focus(); openBorrowerDetail(b.id); };
+      }, (i + 1) * 600);
+    });
+  }
+}
+
 function enablePtpReminders() {
   if (_reminderInterval) {
     clearInterval(_reminderInterval);
@@ -15526,24 +15628,30 @@ function enablePtpReminders() {
     localStorage.setItem('ptp_reminders_enabled', '0');
     toast('Reminders disabled', 'info');
     const btn = document.getElementById('enable-reminders-btn');
-    if (btn) { btn.style.color = ''; btn.style.borderColor = ''; btn.querySelector ? null : null;
+    if (btn) {
+      btn.style.color = ''; btn.style.borderColor = '';
       btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,13"/></svg> Enable Daily Reminders';
     }
     return;
   }
 
   const doEnable = () => {
+    // Check every minute — fire at 8:00 (morning), 12:30 (midday), 17:00 (EOD)
     _reminderInterval = setInterval(() => {
       const now = new Date();
-      if (now.getHours() === 9 && now.getMinutes() === 0) sendPtpReminders();
-    }, 60 * 1000); // check every minute (not 1 hour — 1 hour would miss the exact minute)
-    sendPtpReminders();
+      const h = now.getHours(), m = now.getMinutes();
+      if (h === 8  && m === 0)  sendPtpReminders('morning');
+      if (h === 12 && m === 30) sendPtpReminders('midday');
+      if (h === 17 && m === 0)  sendPtpReminders('eod');
+    }, 60 * 1000);
+    // Send an immediate morning preview
+    sendPtpReminders('morning');
     localStorage.setItem('ptp_reminders_enabled', '1');
-    toast('Daily reminders enabled (9 AM)', 'success');
+    toast('Reminders set: 8 AM, 12:30 PM, 5 PM', 'success');
     const btn = document.getElementById('enable-reminders-btn');
     if (btn) {
       btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)';
-      btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,13"/></svg> Reminders On';
+      btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,13"/></svg> Reminders On (8am · 12:30 · 5pm)';
     }
   };
 
@@ -15553,33 +15661,10 @@ function enablePtpReminders() {
   } else if (Notification.permission !== 'denied') {
     Notification.requestPermission().then(p => {
       if (p === 'granted') doEnable();
-      else toast('Permission denied — enable notifications in your browser settings', 'error');
+      else toast('Permission denied — enable notifications in browser settings', 'error');
     });
   } else {
-    toast('Notifications blocked — enable them in browser settings', 'error');
-  }
-}
-
-function sendPtpReminders() {
-  const today = new Date().toISOString().split('T')[0];
-  const ptpsToday = state.borrowers.filter(b => 
-    b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today) && b.amountPaid === 0
-  );
-  if (!ptpsToday.length) return;
-  
-  if (Notification.permission === 'granted') {
-    ptpsToday.forEach(b => {
-      const notification = new Notification(`PTP Reminder: ${b.name.split(' ')[0]}`, {
-        body: `Promise: ${fmtC(getDueToday(b))} · ${b.promiseDate}`,
-        icon: './icon-192.png',
-        tag: `ptp-${b.id}`
-      });
-      notification.onclick = () => { window.focus(); openBorrowerDetail(b.id); };
-    });
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then(perm => {
-      if (perm === 'granted') sendPtpReminders();
-    });
+    toast('Notifications blocked — please enable in browser/device settings', 'error');
   }
 }
 
@@ -18069,9 +18154,14 @@ function checkPtpBreaches() {
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(b => {
-    if (b.promisedToPay && b.promiseDate && b.promiseDate.split(' ')[0] < today && b.amountPaid === 0) {
-      if (!b.ptpBreached) { b.ptpBreached = true; changed = true; }
-    }
+    if (!b.promisedToPay || !b.promiseDate) return;
+    const promDate = b.promiseDate.split(' ')[0];
+    // Only breach strictly past promises
+    if (promDate >= today) return;
+    // Skip resolved or partial-paid
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
+    if ((b.amountPaid||0) > 0) return;
+    if (!b.ptpBreached) { b.ptpBreached = true; b.ptpOutcome = 'missed'; changed = true; }
   });
   if (changed) saveState();
 }
