@@ -6401,7 +6401,6 @@ function renderDashActionStrip(activeList) {
 }
 
 async function renderDashboard() {
-  ptpAutoFlagMissed();
   // Dynamic greeting
   const greetEl = document.getElementById('dash-greeting');
   if (greetEl) {
@@ -10145,31 +10144,28 @@ function clearPromise(id) {
 }
 
 function autoExpirePtps() {
-  const today = new Date();
-  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  // Use simple ISO string comparison — avoids timezone issues with Date objects
+  const today = new Date().toISOString().split('T')[0];
   let changed = false;
 
   state.borrowers.forEach(b => {
     if (!b.promisedToPay || !b.promiseDate) return;
-
-    const [datePart] = b.promiseDate.split(' ');
-    const promiseDate = new Date(datePart + 'T00:00:00');
-
-    // Only expire if promise date is strictly before today
-    if (promiseDate >= todayMidnight) return;
-
-    if (b.ptpOutcome !== 'paid' && b.ptpOutcome !== 'broken') {
-      b.promisedToPay = false;
-      b.ptpOutcome = 'broken';
-      b.ptpBreached = true;
-      changed = true;
-    }
+    const promDate = b.promiseDate.split(' ')[0];
+    // ONLY expire promises strictly in the past — never today or future
+    if (promDate >= today) return;
+    // Never breach if already resolved
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') return;
+    // Never breach if any payment has been made
+    if ((b.amountPaid||0) > 0) return;
+    // Past due, unpaid, unresolved → mark as missed/breached
+    b.ptpOutcome  = 'missed';
+    b.ptpBreached = true;
+    changed = true;
   });
 
   if (changed) {
     saveState();
     if (currentPage === 'ptp') renderPtpHub();
-    toast('Some PTPs have expired and been auto‑marked as broken', 'info');
   }
 }
 
@@ -18156,12 +18152,14 @@ function checkPtpBreaches() {
   state.borrowers.forEach(b => {
     if (!b.promisedToPay || !b.promiseDate) return;
     const promDate = b.promiseDate.split(' ')[0];
-    // Only breach strictly past promises
+    // Only flag strictly past promises — never today or future
     if (promDate >= today) return;
-    // Skip resolved or partial-paid
-    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
+    // Skip if already resolved or partial payment made
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') return;
     if ((b.amountPaid||0) > 0) return;
-    if (!b.ptpBreached) { b.ptpBreached = true; b.ptpOutcome = 'missed'; changed = true; }
+    b.ptpBreached = true;
+    b.ptpOutcome  = 'missed';
+    changed = true;
   });
   if (changed) saveState();
 }
@@ -19086,6 +19084,9 @@ function clearSession() {
 
 // ── Show lock screen ──────────────────────────────────────────
 function showLockScreen() {
+  // Show decoy calculator on top before revealing lock screen
+  if (typeof showDecoyCalc === 'function') showDecoyCalc();
+
   const ls = document.getElementById('lock-screen');
   if (!ls) return;
   ls.style.display = 'block';
@@ -22391,6 +22392,343 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     </div>
   </div>
 </div>
+<!-- ═══════════════════════════════════════════════════════
+     DECOY CALCULATOR  — v2
+     Hidden by default. showDecoyCalc() is called from
+     showLockScreen() so it appears on every lock event.
+     Enter DECOY_SECRET digits then press = to reveal app.
+     ═══════════════════════════════════════════════════════ -->
+<style>
+/* Outer overlay — full screen, always black */
+#decoy-calc {
+  display: none; /* shown by showDecoyCalc() */
+  position: fixed; inset: 0; z-index: 11000;
+  background: #1c1c1e;
+  align-items: flex-end; justify-content: center;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-user-select: none; user-select: none;
+  transition: opacity 0.32s ease;
+}
+#decoy-calc.dc-visible { display: flex; }
+#decoy-calc.dc-hiding  { opacity: 0; pointer-events: none; }
+
+/* Inner shell — constrained width so desktop looks right */
+#calc-shell {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Display */
+#calc-display-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 0 20px 10px;
+  min-height: 120px;
+}
+#calc-display {
+  color: #fff;
+  font-size: 72px;
+  font-weight: 200;
+  letter-spacing: -1px;
+  line-height: 1;
+  text-align: right;
+  width: 100%;
+  transition: font-size 0.1s ease;
+  word-break: break-all;
+}
+
+/* Button grid */
+#calc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 11px;
+  padding: 8px 12px 36px;
+  flex-shrink: 0;
+}
+
+.calc-btn {
+  border: none; outline: none; cursor: pointer;
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 400;
+  display: flex; align-items: center; justify-content: center;
+  transition: filter 0.08s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-width: 0;
+}
+.calc-btn:active { filter: brightness(1.4); }
+
+.calc-btn.func  { background: #a5a5a5; color: #000; font-weight: 600; font-size: 21px; }
+.calc-btn.op    { background: #ff9f0a; color: #fff; font-size: 34px; font-weight: 200; }
+.calc-btn.op.active-op { background: #fff; color: #ff9f0a; }
+.calc-btn.num   { background: #333333; color: #fff; }
+
+/* Zero button spans 2 columns */
+.calc-btn.zero {
+  border-radius: 100px;
+  grid-column: span 2;
+  aspect-ratio: unset;
+  justify-content: flex-start;
+  padding-left: 27px;
+}
+
+/* Desktop: centre the shell vertically too, cap height */
+@media (min-width: 480px) {
+  #decoy-calc { align-items: center; }
+  #calc-shell {
+    height: auto;
+    max-height: 680px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #1c1c1e;
+  }
+  #calc-display-wrap { min-height: 140px; flex: none; }
+  #calc-grid { padding-bottom: 20px; }
+}
+
+/* Short screens (landscape mobile) */
+@media (max-height: 620px) {
+  #calc-display { font-size: 48px; }
+  #calc-grid { gap: 7px; padding: 4px 10px 12px; }
+  .calc-btn { font-size: 20px; }
+  .calc-btn.func { font-size: 16px; }
+  .calc-btn.op { font-size: 26px; }
+  #calc-display-wrap { min-height: 80px; }
+}
+
+/* Safe-area inset for iPhone X+ notch */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 479px) {
+    #calc-grid { padding-bottom: max(28px, env(safe-area-inset-bottom)); }
+  }
+}
+</style>
+
+<!-- Decoy calculator DOM (starts hidden, shown by showDecoyCalc) -->
+<div id="decoy-calc">
+  <div id="calc-shell">
+    <div id="calc-display-wrap">
+      <div id="calc-display">0</div>
+    </div>
+    <div id="calc-grid">
+      <button class="calc-btn func" id="calc-ac"     onclick="calcPress('AC')">AC</button>
+      <button class="calc-btn func"                  onclick="calcPress('+/-')">+/−</button>
+      <button class="calc-btn func"                  onclick="calcPress('%')">%</button>
+      <button class="calc-btn op"  id="calc-op-div"  onclick="calcPress('÷')">÷</button>
+
+      <button class="calc-btn num" onclick="calcPress('7')">7</button>
+      <button class="calc-btn num" onclick="calcPress('8')">8</button>
+      <button class="calc-btn num" onclick="calcPress('9')">9</button>
+      <button class="calc-btn op"  id="calc-op-mul"  onclick="calcPress('×')">×</button>
+
+      <button class="calc-btn num" onclick="calcPress('4')">4</button>
+      <button class="calc-btn num" onclick="calcPress('5')">5</button>
+      <button class="calc-btn num" onclick="calcPress('6')">6</button>
+      <button class="calc-btn op"  id="calc-op-sub"  onclick="calcPress('−')">−</button>
+
+      <button class="calc-btn num" onclick="calcPress('1')">1</button>
+      <button class="calc-btn num" onclick="calcPress('2')">2</button>
+      <button class="calc-btn num" onclick="calcPress('3')">3</button>
+      <button class="calc-btn op"  id="calc-op-add"  onclick="calcPress('+')">+</button>
+
+      <button class="calc-btn num zero" onclick="calcPress('0')">0</button>
+      <button class="calc-btn num"      onclick="calcPress('.')">.</button>
+      <button class="calc-btn op"       onclick="calcPress('=')">=</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DECOY CALCULATOR — secret code configuration
+//  Change DECOY_SECRET to any digit sequence you want.
+//  Enter those digits then press  =  to unlock.
+const DECOY_SECRET = '1984';
+// ═══════════════════════════════════════════════════
+
+(function () {
+  var dc       = document.getElementById('decoy-calc');
+  var dispEl   = document.getElementById('calc-display');
+  var acBtn    = document.getElementById('calc-ac');
+
+  // Internal calculator state
+  var cVal     = '0';
+  var cPrev    = null;
+  var cOp      = null;
+  var cNew     = true;   // next digit starts fresh
+  var iBuf     = '';     // digit buffer for secret detection
+
+  // ── helpers ──────────────────────────────────────
+
+  function setDisp(v) {
+    var s = String(v);
+    // Scale font so long numbers fit
+    dispEl.style.fontSize =
+      s.length > 13 ? '32px' :
+      s.length > 10 ? '44px' :
+      s.length >  7 ? '56px' : '72px';
+    dispEl.textContent = s;
+  }
+
+  function opHL(op) {
+    var map = { '+': 'calc-op-add', '−': 'calc-op-sub',
+                '×': 'calc-op-mul', '÷': 'calc-op-div' };
+    Object.values(map).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('active-op');
+    });
+    if (op && map[op]) {
+      var el = document.getElementById(map[op]);
+      if (el) el.classList.add('active-op');
+    }
+  }
+
+  function doMath(a, b, op) {
+    if (op === '+') return a + b;
+    if (op === '−') return a - b;
+    if (op === '×') return a * b;
+    if (op === '÷') return b === 0 ? 'Error' : a / b;
+    return b;
+  }
+
+  function fmtNum(n) {
+    if (n === 'Error') return 'Error';
+    var r = parseFloat((+n).toPrecision(10));
+    return String(r);
+  }
+
+  // ── reset (called each time decoy is shown) ───────
+
+  function calcReset() {
+    cVal = '0'; cPrev = null; cOp = null; cNew = true; iBuf = '';
+    setDisp('0'); opHL(null);
+    if (acBtn) acBtn.textContent = 'AC';
+  }
+  window._calcReset = calcReset; // exposed for showDecoyCalc
+
+  // ── show / hide ───────────────────────────────────
+
+  window.showDecoyCalc = function () {
+    if (!dc) return;
+    calcReset();
+    dc.classList.remove('dc-hiding');
+    dc.style.opacity = '';
+    dc.classList.add('dc-visible');
+  };
+
+  function hideDecoy() {
+    dc.classList.add('dc-hiding');
+    setTimeout(function () {
+      dc.classList.remove('dc-visible', 'dc-hiding');
+      dc.style.opacity = '';
+    }, 360);
+  }
+
+  // ── main button handler ───────────────────────────
+
+  window.calcPress = function (btn) {
+    if (!dc || !dc.classList.contains('dc-visible')) return;
+
+    // ─ AC / C ─
+    if (btn === 'AC') {
+      calcReset(); return;
+    }
+    if (btn === 'C') {
+      cVal = '0'; cNew = true;
+      setDisp('0');
+      if (acBtn) acBtn.textContent = 'AC';
+      return;
+    }
+
+    // ─ +/− ─
+    if (btn === '+/-') {
+      var n = parseFloat(cVal);
+      if (!isNaN(n) && n !== 0) { cVal = String(-n); setDisp(cVal); }
+      return;
+    }
+
+    // ─ % ─
+    if (btn === '%') {
+      var n = parseFloat(cVal);
+      if (!isNaN(n)) { cVal = fmtNum(n / 100); setDisp(cVal); iBuf = ''; }
+      return;
+    }
+
+    // ─ operators ─
+    if (btn === '+' || btn === '−' || btn === '×' || btn === '÷') {
+      if (!cNew && cPrev !== null && cOp) {
+        var res = doMath(cPrev, parseFloat(cVal), cOp);
+        cVal = fmtNum(res); setDisp(cVal);
+      }
+      cPrev = parseFloat(cVal);
+      cOp = btn; cNew = true; iBuf = '';
+      opHL(btn);
+      if (acBtn) acBtn.textContent = 'C';
+      return;
+    }
+
+    // ─ equals ─
+    if (btn === '=') {
+      opHL(null);
+      if (iBuf === DECOY_SECRET) { hideDecoy(); return; }
+      if (cOp && cPrev !== null) {
+        var res = doMath(cPrev, parseFloat(cVal), cOp);
+        cVal = fmtNum(res); setDisp(cVal);
+        cOp = null; cPrev = null; cNew = true;
+      }
+      iBuf = '';
+      return;
+    }
+
+    // ─ decimal ─
+    if (btn === '.') {
+      opHL(null);
+      if (cNew) { cVal = '0.'; cNew = false; }
+      else if (!cVal.includes('.')) cVal += '.';
+      setDisp(cVal);
+      return;
+    }
+
+    // ─ digit ─
+    iBuf += btn;
+    opHL(null);
+    if (cNew) {
+      cVal = btn === '0' ? '0' : btn;
+      cNew = false;
+    } else {
+      cVal = (cVal === '0' && btn !== '.') ? btn
+           : (cVal.replace(/[-.]/, '').length < 9 ? cVal + btn : cVal);
+    }
+    setDisp(cVal);
+    if (acBtn) acBtn.textContent = 'C';
+  };
+
+  // ─ keyboard support (desktop) ────────────────────
+  document.addEventListener('keydown', function (e) {
+    if (!dc || !dc.classList.contains('dc-visible')) return;
+    var map = {
+      '0':'0','1':'1','2':'2','3':'3','4':'4',
+      '5':'5','6':'6','7':'7','8':'8','9':'9',
+      '.':'.','Enter':'=','=':'=',
+      '+':'+','-':'−','*':'×','/':'÷',
+      'Backspace':'C','Escape':'AC','%':'%'
+    };
+    if (map[e.key]) { e.preventDefault(); window.calcPress(map[e.key]); }
+  });
+
+})();
+</script>
+<!-- ── END DECOY CALCULATOR ─────────────────────────────────── -->
+
 <script>
 (function() {
   function fixRankingInputLag() {
