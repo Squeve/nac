@@ -10086,20 +10086,47 @@ function openPromiseModal(id, isEdit = false) {
   const defaultDate = b.promiseDate ? b.promiseDate.split(' ')[0] : now.toISOString().split('T')[0];
   const defaultTime = b.promiseDate && b.promiseDate.includes(' ') ? b.promiseDate.split(' ')[1] : now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
   const defaultNote = b.promiseNote || '';
+  const curConf = b.ptpConfidence || '';
 
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${defaultDate}"></div>
     <div class="form-group"><label>Promise Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}"></div>
     <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
+    <div class="form-group">
+      <label style="margin-bottom:6px;display:block">Confidence</label>
+      <div style="display:flex;gap:8px">
+        ${[['hot','🔥 Hot','rgba(239,68,68,0.12)','var(--red)'],['warm','⚡ Warm','rgba(240,160,48,0.12)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.12)','var(--blue)']].map(([val,label,bg,col]) => `
+          <button type="button" id="conf-${val}" onclick="ptpSetConf('${val}')"
+            style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid ${curConf===val?col:'var(--border2)'};background:${curConf===val?bg:'var(--surface)'};color:${curConf===val?col:'var(--text3)'};font-size:12px;font-weight:${curConf===val?700:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
+            ${label}
+          </button>`).join('')}
+      </div>
+    </div>
   `;
-    document.getElementById('modal-footer').innerHTML = `
+  document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     ${isEdit ? '<button class="btn btn-red" id="promise-clear-btn">🗑 Clear Promise</button>' : ''}
     <button class="btn btn-gold" id="promise-save-btn">${isEdit ? 'Update Promise' : 'Save Promise'}</button>
   `;
+  // Store selected confidence in a closure var so save can read it
+  window._ptpConfSelected = curConf;
+  window.ptpSetConf = function(val) {
+    window._ptpConfSelected = val;
+    ['hot','warm','cold'].forEach(v => {
+      const btn = document.getElementById('conf-' + v);
+      if (!btn) return;
+      const map = { hot:['rgba(239,68,68,0.12)','var(--red)'], warm:['rgba(240,160,48,0.12)','var(--gold)'], cold:['rgba(96,165,250,0.12)','var(--blue)'] };
+      const [bg,col] = map[v];
+      const active = v === val;
+      btn.style.background   = active ? bg : 'var(--surface)';
+      btn.style.borderColor  = active ? col : 'var(--border2)';
+      btn.style.color        = active ? col : 'var(--text3)';
+      btn.style.fontWeight   = active ? '700' : '500';
+    });
+  };
   document.getElementById('modal-overlay').classList.add('open');
-    setTimeout(() => {
+  setTimeout(() => {
     const saveBtn = document.getElementById('promise-save-btn');
     if (saveBtn) saveBtn.addEventListener('click', () => savePromise(id, isEdit));
     if (isEdit) {
@@ -10118,6 +10145,7 @@ function savePromise(id, isEdit = false) {
   b.promisedToPay = true;
   b.promiseDate = date + (time ? ' ' + time : '');
   b.promiseNote = note;
+  b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || '';
   b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
   if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
   haptic('light');
@@ -14783,12 +14811,12 @@ let _ptpTab = 'morning';
 function renderPtpHub() {
   const container = document.getElementById('ptp-hub-content');
   if (!container) return;
-  else if (_ptpTab === 'calendar') container.innerHTML = buildPtpCalendarHtml();
-  if (_ptpTab === 'morning') {
-    // Animate content swap
-    container.style.cssText += 'opacity:0;transform:translateX(8px);transition:none';
-    container.innerHTML = buildPtpMorningHtml();
 
+  // Animate all tabs consistently
+  container.style.cssText += 'opacity:0;transform:translateX(8px);transition:none';
+
+  if (_ptpTab === 'morning') {
+    container.innerHTML = buildPtpMorningHtml();
     // Wire up enable-reminders-btn NOW that the DOM exists
     const remindBtn = document.getElementById('enable-reminders-btn');
     if (remindBtn) {
@@ -14800,16 +14828,20 @@ function renderPtpHub() {
       remindBtn.style.borderColor = enabled ? 'var(--green)' : '';
       remindBtn.addEventListener('click', enablePtpReminders);
     }
-  } else {
-    // Non-morning tabs
-    container.style.cssText += 'opacity:0;transform:translateX(8px);transition:none';
-    if      (_ptpTab === 'eod')     container.innerHTML = buildPtpEodHtml();
-    else if (_ptpTab === 'history') container.innerHTML = buildPtpHistoryHtml2();
-    else if (_ptpTab === 'stats')   container.innerHTML = buildPtpStatsHtml2();
-  }
+  } else if (_ptpTab === 'eod')      { container.innerHTML = buildPtpEodHtml(); }
+  else if   (_ptpTab === 'history')  { container.innerHTML = buildPtpHistoryHtml2(); }
+  else if   (_ptpTab === 'stats')    { container.innerHTML = buildPtpStatsHtml2(); }
+  else if   (_ptpTab === 'calendar') { container.innerHTML = buildPtpCalendarHtml(); }
 
-  // Update tab active state
-  ['morning','eod','history','stats'].forEach(t => {
+  // Fade-in animation for ALL tabs
+  setTimeout(() => {
+    container.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+    container.style.opacity    = '1';
+    container.style.transform  = 'translateX(0)';
+  }, 10);
+
+  // Update tab active state — includes calendar
+  ['morning','eod','history','stats','calendar'].forEach(t => {
     const el = document.getElementById('ptptab-' + t);
     if (el) el.classList.toggle('active', t === _ptpTab);
   });
@@ -14852,11 +14884,6 @@ function renderPtpHub() {
       return;
     }
   };
-  setTimeout(() => {
-    container.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
-    container.style.opacity = '1';
-    container.style.transform = 'translateX(0)';
-  }, 10);
 }
 
 
@@ -15245,15 +15272,36 @@ function ptpQuickSetPick(id) {
 function ptpReschedule(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
-  // Pre-fill with tomorrow's date
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   const curNote  = b.promiseNote || '';
-  document.getElementById('modal-title').textContent = '📅 Reschedule Promise';
+  const history  = (b.rescheduleHistory || []);
+  const count    = history.length;
+
+  // Build history chain HTML
+  let histHtml = '';
+  if (count > 0) {
+    const countCol = count >= 3 ? 'var(--red)' : count >= 2 ? 'var(--gold)' : 'var(--text3)';
+    histHtml = `
+      <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:${countCol};margin-bottom:6px">⚠️ Rescheduled ${count}× before</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${history.slice(-3).map(h => `
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
+              <span>→ ${h.to.split(' ')[0]}</span>
+              <span style="color:var(--text3)">${h.reason || h.note || '—'}</span>
+            </div>`).join('')}
+          ${history.length > 3 ? `<div style="font-size:10px;color:var(--text3)">…and ${history.length-3} more</div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('modal-title').textContent = count >= 2 ? `📅 Reschedule (${count+1}× — Review!)` : '📅 Reschedule Promise';
   document.getElementById('modal-body').innerHTML = `
+    ${histHtml}
     <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Rescheduling promise for <strong>${escapeHtml(b.name.split(' ')[0])}</strong></div>
     <div class="form-group"><label>New Date</label><input type="date" class="form-input" id="ptpr-date" value="${tomorrow}" min="${tomorrow}"></div>
     <div class="form-group"><label>New Time</label><input type="time" class="form-input" id="ptpr-time" value="09:00"></div>
-    <div class="form-group"><label>Reason</label><input type="text" class="form-input" id="ptpr-note" placeholder="e.g. Asked for 2 more days" value="${curNote.replace(/"/g,'&quot;')}"></div>`;
+    <div class="form-group"><label>Reason for reschedule</label><input type="text" class="form-input" id="ptpr-note" placeholder="e.g. Asked for 2 more days" value="${curNote.replace(/"/g,'&quot;')}"></div>`;
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-gold" onclick="ptpRescheduleSave('${id}')">📅 Reschedule</button>`;
@@ -15264,19 +15312,35 @@ function ptpReschedule(id) {
 function ptpRescheduleSave(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
-  const date = document.getElementById('ptpr-date')?.value;
-  const time = document.getElementById('ptpr-time')?.value || '09:00';
-  const note = document.getElementById('ptpr-note')?.value?.trim() || '';
+  const date   = document.getElementById('ptpr-date')?.value;
+  const time   = document.getElementById('ptpr-time')?.value || '09:00';
+  const reason = document.getElementById('ptpr-note')?.value?.trim() || '';
   if (!date) { toast('Please pick a date', 'error'); return; }
+
+  // Log the reschedule before overwriting promiseDate
+  if (!b.rescheduleHistory) b.rescheduleHistory = [];
+  b.rescheduleHistory.push({
+    from:       b.promiseDate || '',
+    to:         date + ' ' + time,
+    reason,
+    rescheduledAt: new Date().toISOString(),
+    // Preserve original promise date on first reschedule
+    originalDate: b.rescheduleHistory.length === 0 ? (b.promiseDate || '') : (b.rescheduleHistory[0]?.originalDate || '')
+  });
+
   b.promisedToPay = true;
   b.promiseDate   = date + ' ' + time;
-  b.promiseNote   = note;
+  b.promiseNote   = reason;
   b.ptpOutcome    = 'pending';
   b.ptpBreached   = false;
+
+  // Also keep legacy promiseHistory in sync
   if (!b.promiseHistory) b.promiseHistory = [];
-  b.promiseHistory.push({ rescheduled: new Date().toISOString(), to: b.promiseDate, note });
+  b.promiseHistory.push({ rescheduled: new Date().toISOString(), to: b.promiseDate, note: reason });
+
   saveState(); closeModal(); renderCurrentPage();
-  toast(b.name.split(' ')[0] + ' rescheduled to ' + date, 'success');
+  const count = b.rescheduleHistory.length;
+  toast(`${b.name.split(' ')[0]} rescheduled to ${date} (${count}×)`, count >= 3 ? 'warning' : 'success');
   haptic('medium');
 }
 
@@ -15341,6 +15405,59 @@ function setPtpOutcome2(bid, outcome) {
 
 function getAgentProfileName() {
   return localStorage.getItem('sq_displayname_' + (_activeAgent?.id||'')) || _activeAgent?.name || state.agentProfile?.name || 'Agent';
+}
+
+// ── Weekly PTP Forecast ──────────────────────────────────────
+function buildPtpWeekForecastHtml() {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d   = new Date(today.getTime() + i * 86400000);
+    const ds  = d.toISOString().split('T')[0];
+    const ptps = state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds));
+    const amt  = ptps.reduce((s,b) => s + getDueToday(b), 0);
+    const hot  = ptps.filter(b => b.ptpConfidence === 'hot').length;
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en-GB',{weekday:'short'});
+    days.push({ ds, label, count: ptps.length, amt, hot, isToday: i===0 });
+  }
+  const totalCount = days.reduce((s,d) => s + d.count, 0);
+  const totalAmt   = days.reduce((s,d) => s + d.amt, 0);
+  const hotCount   = days.reduce((s,d) => s + d.hot, 0);
+  if (totalCount === 0) return '';
+
+  const maxAmt = Math.max(...days.map(d => d.amt), 1);
+
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700">📈 Week Forecast</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${hotCount > 0 ? `<span style="font-size:10px;color:var(--red);font-weight:700;background:rgba(239,68,68,0.1);padding:2px 6px;border-radius:6px">🔥 ${hotCount} hot</span>` : ''}
+          <span style="font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--gold)">${fmtC(totalAmt)}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">
+        ${days.map(d => {
+          const barH = d.amt > 0 ? Math.max(12, Math.round((d.amt/maxAmt)*52)) : 0;
+          const col   = d.isToday ? 'var(--gold)' : d.hot > 0 ? 'var(--red)' : 'var(--blue)';
+          const bg    = d.isToday ? 'rgba(240,160,48,0.12)' : 'transparent';
+          const bor   = d.isToday ? '1px solid rgba(240,160,48,0.3)' : '1px solid transparent';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;border-radius:8px;background:${bg};border:${bor}">
+            <div style="font-size:9px;color:${d.isToday?'var(--gold)':'var(--text3)'};font-weight:${d.isToday?700:400}">${d.label}</div>
+            <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:56px">
+              ${d.amt > 0 ? `<div style="width:100%;height:${barH}px;background:${col};border-radius:4px 4px 0 0;opacity:${d.isToday?1:0.6}"></div>` : `<div style="width:100%;height:4px;background:var(--border2);border-radius:2px;margin-top:auto"></div>`}
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11px;font-weight:800;color:${d.count>0?col:'var(--text3)'}">${d.count}</div>
+            ${d.amt > 0 ? `<div style="font-size:8px;color:var(--text3);text-align:center">${fmtC(d.amt).replace('GHS ','')}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <span style="font-size:10px;color:var(--text3)">${totalCount} promises this week</span>
+        <span style="font-size:10px;color:var(--text3)">Expected: <strong style="color:var(--text2)">${fmtC(totalAmt)}</strong></span>
+      </div>
+    </div>`;
 }
 
 function buildPtpMorningHtml() {
@@ -15412,7 +15529,28 @@ function buildPtpMorningHtml() {
     return `<span style="font-size:9px;color:${col};font-weight:700;background:${col}18;padding:1px 5px;border-radius:6px">${pct}% reliable</span>`;
   }
 
-  let html = weekStripHtml;
+  // ── Confidence badge helper ───────────────────────────────────
+  function confBadge(b) {
+    const map = { hot:['🔥','var(--red)','rgba(239,68,68,0.1)'], warm:['⚡','var(--gold)','rgba(240,160,48,0.1)'], cold:['❄️','var(--blue)','rgba(96,165,250,0.1)'] };
+    if (!b.ptpConfidence || !map[b.ptpConfidence]) return '';
+    const [ico,col,bg] = map[b.ptpConfidence];
+    return `<span style="font-size:9px;color:${col};background:${bg};padding:1px 5px;border-radius:6px;font-weight:700">${ico} ${b.ptpConfidence.charAt(0).toUpperCase()+b.ptpConfidence.slice(1)}</span>`;
+  }
+
+  // ── Reschedule count badge helper ─────────────────────────────
+  function reschBadge(b) {
+    const n = (b.rescheduleHistory||[]).length;
+    if (n === 0) return '';
+    const col = n >= 3 ? 'var(--red)' : n >= 2 ? 'var(--gold)' : 'var(--text3)';
+    return `<span style="font-size:9px;color:${col};background:${col}18;padding:1px 5px;border-radius:6px;font-weight:700">↻${n}×</span>`;
+  }
+
+  // ── Sort PTPs by confidence: hot → warm → unset → cold ───────
+  const confOrder = { hot:0, warm:1, '':2, cold:3 };
+  const sortedPtps = ptps.slice().sort((a,b) => (confOrder[a.ptpConfidence||'']??2) - (confOrder[b.ptpConfidence||'']??2));
+
+  let html = buildPtpWeekForecastHtml();
+  html += weekStripHtml;
 
   // ── Summary KPIs ─────────────────────────────────────────────
   html += `
@@ -15476,14 +15614,16 @@ function buildPtpMorningHtml() {
       </button>
     </div>`;
     html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">`;
-    ptps.forEach(b => {
+    sortedPtps.forEach(b => {
       const ok    = b.isPaid === true || b.ptpOutcome === 'paid';
       const phone = b.phone.replace(/\s/g,'').replace('+','');
       const rel   = reliabilityBadge(b);
+      const conf  = confBadge(b);
+      const resch = reschBadge(b);
       html += `<div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);${ok?'background:rgba(34,197,94,0.04)':''}">
         <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${ok?'var(--green)':'var(--orange)'}"></div>
         <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${b.name.split(' ')[0]} ${rel}</div>
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${b.name.split(' ')[0]} ${conf} ${resch} ${rel}</div>
           <div style="font-size:10px;color:var(--text3);margin-top:1px">${b.promiseDate||''} ${b.promiseNote?'· '+b.promiseNote:''}</div>
         </div>
         <div style="text-align:right;margin-right:4px;flex-shrink:0">
