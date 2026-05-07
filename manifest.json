@@ -1,11 +1,11 @@
 {
-  "name": "SqueveTrack",
-  "short_name": "ST",
-  "description": "LoanBase Recovery Suite — M0-M5 Collection Manager",
+  "name": "Veltrix",
+  "short_name": "Veltrix",
+  "description": "Smart calculator for everyday use",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#06080f",
-  "theme_color": "#06080f",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "icons": [
     {
@@ -33,7 +33,7 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["finance", "business"],
+  "categories": ["utilities", "productivity"],
   "prefer_related_applications": false,
   "scope": "./"
 }
