@@ -5468,6 +5468,9 @@ function migrateState(s) {
 }
 
 function purgeAgedOut() {
+  // SAFETY: never purge if no agent is unlocked — defaults could wipe wrong accounts
+  if (!_activeAgent || !_sessionUnlocked) return;
+
   // Age-out threshold depends on the agent's stage
   // Threshold per stage: M0=Day1, M1=Day6, M2=Day16, M3=Day41, M4=Day61, M5=never
   const stageMaxDay = {
@@ -5511,7 +5514,18 @@ async function loadState() {
         .eq('id', getSupabaseId())
         .single();
       if (!error && data && data.data) {
-        state = migrateState(data.data);
+        const remoteData = data.data;
+        // Safety: if remote is blank but we have local data in memory, don't overwrite
+        const remoteHasBorrowers = remoteData.borrowers && remoteData.borrowers.length > 0;
+        const localHasBorrowers  = state && state.borrowers && state.borrowers.length > 0;
+        if (localHasBorrowers && !remoteHasBorrowers) {
+          console.warn('loadState: remote state empty but local has data — pushing local up');
+          setSyncStatus('offline');
+          _pushToSupabaseIncremental();
+          showSkeletons(false);
+          return;
+        }
+        state = migrateState(remoteData);
        _lastFullState = JSON.parse(JSON.stringify(state));
        _lastKnownHash = await _hashState(state);
        _syncLocalProfileFromState();
@@ -5541,7 +5555,9 @@ if (!migrationFlag && state.borrowers && state.borrowers.length) {
      showSkeletons(false);
         return;
       }
-    } catch(e) { /* fall through to localStorage */ }
+    } catch(e) {
+      console.warn('loadState: Supabase error, falling back to local storage', e.message);
+      /* fall through to localStorage */ }
     setSyncStatus('offline');
   }
 
@@ -5589,14 +5605,41 @@ if (!migrationFlag && state.borrowers && state.borrowers.length) {
         showSkeletons(false);
         return;
       }
-    } catch(e) {}
+
+      // Decryption returned null — the data is there but key didn't match.
+      // Try again with 'default' key as fallback before giving up.
+      if (agentId) {
+        const jsonFallback = await _decryptFromStorage(raw, 'default').catch(() => null);
+        if (jsonFallback) {
+          state = migrateState(JSON.parse(jsonFallback));
+          _syncLocalProfileFromState();
+          purgeAgedOut();
+          autoExpirePtps();
+          showSkeletons(false);
+          return;
+        }
+      }
+
+      // Data present but unreadable — do NOT wipe. Keep whatever is in memory.
+      console.warn('loadState: localStorage data unreadable, keeping current state');
+      showSkeletons(false);
+      return;
+    } catch(e) {
+      // Parse error or other — do NOT wipe. Log and keep going.
+      console.warn('loadState: parse error in localStorage fallback', e);
+      showSkeletons(false);
+      return;
+    }
   }
 
-  // 3. First-ever load — use seed data
-  state = initState();
+  // Nothing found anywhere — only init if state is also empty (truly first run)
+  if (!state || !state.borrowers) {
+    state = initState();
+    if (_db) _pushToSupabase();
+    else saveState();
+  }
   purgeAgedOut();
-  if (_db) _pushToSupabase();
-  else saveState();
+  showSkeletons(false);
 
  // ─── ALWAYS ATTACH THE MESSAGE BANK TO THE LIVE STATE ───
   if (state && (!state.messageBank || !state.messageBank.length)) {
@@ -5634,6 +5677,15 @@ async function pullRemoteState() {
     
     if (remoteTs > localTs) {
       if (!state.offlineQueue || state.offlineQueue.length === 0) {
+        // Safety: never overwrite with a blank/seed state from remote
+        const hasRealData = remoteState.borrowers && remoteState.borrowers.length > 0;
+        const localHasData = state.borrowers && state.borrowers.length > 0;
+        if (localHasData && !hasRealData) {
+          // Remote is blank but local has data — push local up instead
+          console.warn('pullRemoteState: remote is blank but local has data — pushing local up');
+          _pushToSupabaseIncremental();
+          return;
+        }
         state = migrateState(remoteState);
         _lastFullState = JSON.parse(JSON.stringify(state));
         _lastKnownHash = await _hashState(state);
@@ -21610,6 +21662,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   // Run aged-out purge every minute (catches day change without reload)
   setInterval(() => {
     if (document.hidden) return; // skip if tab not active
+    if (!_activeAgent || !_sessionUnlocked) return; // skip if not logged in
     purgeAgedOut();
     autoExpirePtps();
     saveState();
