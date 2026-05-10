@@ -3220,15 +3220,32 @@ tr.overdue-critical .heat-ring {
 
     <!-- Custom message override panel -->
     <div id="dispatch-custom-wrap" style="display:none;padding:8px 14px">
-      <div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.25);border-radius:8px;padding:10px 12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:12px;font-weight:700;color:var(--green)">✏️ Custom Message (all contacts)</span>
+      <div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.25);border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:700;color:var(--green)">✏️ Custom Message — all contacts</span>
           <button onclick="dispatchClearCustomMsg()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);padding:2px 6px">✕ Clear</button>
         </div>
-        <textarea id="dispatch-custom-msg" rows="3"
-          style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px;font-size:12px;color:var(--text2);font-family:var(--font-body);resize:vertical;box-sizing:border-box"
-          placeholder="Custom message for all... Use {name}, {amount}, {days}"></textarea>
-        <div style="font-size:10px;color:var(--text3);margin-top:3px">{name} = first name · {amount} = amount due · {days} = OD days</div>
+        <!-- Variable insert buttons (mirrors SMS blast) -->
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+          <span style="font-size:10px;color:var(--text3);align-self:center;margin-right:2px">Insert:</span>
+          <button onclick="dispatchInsertVar('{firstname}')" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{firstname}</button>
+          <button onclick="dispatchInsertVar('{lastname}')"  style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{lastname}</button>
+          <button onclick="dispatchInsertVar('{amount}')"    style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{amount}</button>
+          <button onclick="dispatchInsertVar('{generous}')"  style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{generous}</button>
+          <button onclick="dispatchInsertVar('{days}')"      style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{days}</button>
+          <button onclick="dispatchInsertVar('{loantype}')"  style="padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);font-size:10px;cursor:pointer;font-family:var(--font-body);color:var(--text2)">{loantype}</button>
+        </div>
+        <textarea id="dispatch-custom-msg" rows="4"
+          oninput="_updateDispatchCustomPreviews()"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px;font-size:12px;color:var(--text2);font-family:var(--font-body);resize:vertical;box-sizing:border-box;line-height:1.5"
+          placeholder="Type your custom message here. Use the insert buttons above for dynamic values.&#10;&#10;Example: Hi {firstname}, your {loantype} balance of {amount} is due. Please settle today."></textarea>
+        <!-- Live preview -->
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(37,211,102,0.05);border:1px solid rgba(37,211,102,0.15);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.5;min-height:28px" id="dispatch-custom-preview">
+          <span style="color:var(--text3)">Preview appears here as you type…</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:5px">
+          Live preview uses first contact in list · WA links update automatically as you type
+        </div>
       </div>
     </div>
     <!-- Contact list -->
@@ -7674,20 +7691,73 @@ function toggleDispatchCustomMsg() {
   const isOpen = wrap.style.display !== 'none';
   wrap.style.display = isOpen ? 'none' : 'block';
   if (btn) { btn.style.color = isOpen ? '' : 'var(--green)'; btn.style.borderColor = isOpen ? '' : 'var(--green)'; }
-  if (!isOpen) setTimeout(function(){ document.getElementById('dispatch-custom-msg')?.focus(); },100);
+  if (!isOpen) setTimeout(function(){ document.getElementById('dispatch-custom-msg')?.focus(); }, 100);
 }
 function dispatchClearCustomMsg() {
   const ta = document.getElementById('dispatch-custom-msg');
   if (ta) ta.value = '';
+  _updateDispatchCustomPreviews();
   toggleDispatchCustomMsg();
 }
 function getDispatchCustomMsg(b) {
   const ta = document.getElementById('dispatch-custom-msg');
   if (!ta || !ta.value.trim()) return null;
+  const parts = b.name.trim().split(/\s+/);
+  const first = parts[0] || '';
+  const last  = parts.length > 1 ? parts[parts.length-1] : '';
   return ta.value.trim()
-    .replace(/\{name\}/gi, b.name.split(' ')[0])
-    .replace(/\{amount\}/gi, fmtC(getDueToday(b)))
-    .replace(/\{days\}/gi, String(getOdAge(b.startDate)));
+    .replace(/\{name\}/gi,      b.name)
+    .replace(/\{firstname\}/gi, first)
+    .replace(/\{lastname\}/gi,  last)
+    .replace(/\{amount\}/gi,    fmtC(getDueToday(b)))
+    .replace(/\{generous\}/gi,  fmtC(getGenerous(b)))
+    .replace(/\{days\}/gi,      String(getOdAge(b.startDate)))
+    .replace(/\{loantype\}/gi,  b.loanType || 'LoanBase');
+}
+// Update every visible dispatch row preview + WA link when custom msg changes
+function _updateDispatchCustomPreviews() {
+  const ta = document.getElementById('dispatch-custom-msg');
+  const hasCustom = ta && ta.value.trim().length > 0;
+  const useGenerous = dispatchMode === 'generous';
+
+  // Update the live preview panel using the first visible contact
+  const prevEl = document.getElementById('dispatch-custom-preview');
+  if (prevEl) {
+    const firstId = window._currentDispatchIds && window._currentDispatchIds[0];
+    const firstB  = firstId ? state.borrowers.find(function(x){ return x.id === firstId; }) : null;
+    if (firstB && hasCustom) {
+      prevEl.textContent = getDispatchCustomMsg(firstB);
+      prevEl.style.color = 'var(--text2)';
+    } else {
+      prevEl.innerHTML = '<span style="color:var(--text3)">Preview appears here as you type…</span>';
+    }
+  }
+
+  document.querySelectorAll('#dispatch-list .dispatch-item').forEach(function(row) {
+    const id = row.id.replace('drow-', '');
+    const b  = id ? state.borrowers.find(function(x){ return x.id === id; }) : null;
+    if (!b) return;
+    const msg   = hasCustom ? getDispatchCustomMsg(b) : getSmsMessage(b, useGenerous);
+    const msgEl = row.querySelector('.dispatch-msg');
+    const waEl  = row.querySelector('a.btn-green');
+    const phone = b.phone.replace(/\D/g,'');
+    if (msgEl) {
+      msgEl.textContent = msg;
+      msgEl.style.borderLeft = hasCustom ? '3px solid var(--green)' : '';
+      msgEl.style.paddingLeft = hasCustom ? '8px' : '';
+    }
+    if (waEl) waEl.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+  });
+}
+
+function dispatchInsertVar(variable) {
+  const ta = document.getElementById('dispatch-custom-msg');
+  if (!ta) return;
+  const pos = ta.selectionStart || ta.value.length;
+  ta.value = ta.value.slice(0, pos) + variable + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + variable.length;
+  ta.focus();
+  _updateDispatchCustomPreviews();
 }
 
 function setDispatchMode(mode) {
@@ -12805,6 +12875,29 @@ function buildEscalationMsg(b, level) {
   const odDays    = getOdAge(b.startDate);
   const loanType = b.loanType;
 
+  if (level === 20) {
+    // ── LEVEL 20: Sympathetic — Good Repayment History ──────────
+    const firstName = b.name.trim().split(/\s+/)[0];
+    return `Dear *${b.name}*,
+
+We hope this message finds you well.
+
+We noticed your current loan payment is delayed, and because you have a *perfect repayment record* with us, we are reaching out with concern — not pressure. Your commitment to paying on time has always been appreciated.
+
+Are you currently facing a temporary challenge that is preventing you from completing the payment?
+
+We want to help you maintain your good standing. Due to your history, we can immediately offer one of the following solutions:
+
+1. *Partial Waiver:* We can reduce a portion of the penalty fees if you can clear the balance of *${balance}* today.
+
+2. *Flexible Instalment Plan:* We can set up a manageable plan to split the outstanding balance over a period that suits your current situation.
+
+Please call or reply to us today so we can find the best solution and activate your waiver or instalment plan immediately. Your success is our priority.
+
+Sincerely,
+*LoanBase Management Team*`;
+  }
+
   if (level === 1) {
     // ── LEVEL 1: Formal Warning Notice ──────────────────────────
     return `⚠️ *FORMAL RECOVERY WARNING NOTICE* ⚠️
@@ -13341,6 +13434,8 @@ function openEscalationPanel() {
   document.getElementById('modal-title').textContent = '⚖️ Escalation Notices';
   
   const escalationOptions = [
+    // ── Sympathetic ───────────────────────────────────────────
+    { level:20, label:'💛 L20 – Sympathetic (Good History)',  color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
     // ── Standard warnings ─────────────────────────────────────
     { level:1,  label:'⚠️ L1 – Formal Warning',            color:'#f97316', desc:'First escalation. Credit bureau threat, 24 hr deadline.' },
     { level:2,  label:'⚖️ L2 – Pre-Litigation',            color:'#dc2626', desc:'Final notice. Field dispatch, third-party disclosure.' },
@@ -13433,8 +13528,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e'};
-  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver'};
+  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e',20:'#10b981'};
+  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver',20:'Sympathetic (Good History)'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '⚖️ ' + levelLabels[level];
@@ -13487,8 +13582,8 @@ function escalRenderModal() {
   const ph    = b.phone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e'};
-  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver'};
+  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e',20:'#10b981'};
+  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver',20:'Sympathetic (Good History)'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = '⚖️ Escalation — ' + (idx+1) + ' of ' + tot;
@@ -15389,33 +15484,52 @@ function ptpCarryoverMoveAll() {
 
 // ── Quick-set PTP from hub ────────────────────────────────────
 function ptpQuickSet() {
-  const active = (state.borrowers||[]).filter(b => !b.isPaid && !b.promisedToPay && b.phone);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  // All active borrowers — no artificial slice limit
+  const active = (state.borrowers||[]).filter(b => !b.isPaid && b.phone)
+    .sort((a,b) => {
+      // Unpromised first, then by OD age descending
+      if (a.promisedToPay !== b.promisedToPay) return a.promisedToPay ? 1 : -1;
+      return getOdAge(b.startDate) - getOdAge(a.startDate);
+    });
+
+  const renderList = (q) => {
+    const filtered = q
+      ? active.filter(b => b.name.toLowerCase().includes(q) || (b.phone||'').includes(q))
+      : active;
+
+    if (!filtered.length) return '<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">No matching borrowers</div>';
+
+    return filtered.map(b => {
+      const hasPtp = b.promisedToPay;
+      const od = getOdAge(b.startDate);
+      const conf = b.ptpConfidence;
+      const confBadge = conf ? `<span style="font-size:9px;padding:1px 4px;border-radius:4px;font-weight:700;color:${conf==='hot'?'var(--red)':conf==='warm'?'var(--gold)':'var(--blue)'};background:${conf==='hot'?'rgba(239,68,68,0.1)':conf==='warm'?'rgba(240,160,48,0.1)':'rgba(96,165,250,0.1)'}">${conf==='hot'?'🔥':conf==='warm'?'⚡':'❄️'}</span>` : '';
+      const ptpBadge = hasPtp ? `<span style="font-size:9px;color:var(--gold);background:rgba(240,160,48,0.1);padding:1px 5px;border-radius:4px;font-weight:700">🤝 ${(b.promiseDate||'').split(' ')[0]||'set'}</span>` : '';
+      return `<div data-name="${b.name.toLowerCase()}" onclick="ptpQuickSetPick('${b.id}')"
+          style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-radius:8px;cursor:pointer;border:1px solid ${hasPtp?'rgba(240,160,48,0.25)':'var(--border2)'}">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:4px;flex-wrap:wrap">${escapeHtml(b.name)} ${confBadge} ${ptpBadge}</div>
+            <div style="font-size:10px;color:var(--text3)">${getAccountStage(b).label} · Day ${od}</div>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0">${fmtC(getDueToday(b))}</div>
+        </div>`;
+    }).join('');
+  };
+
   document.getElementById('modal-title').textContent = '🤝 Quick Set PTP';
   document.getElementById('modal-body').innerHTML = `
-    <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Search a borrower and set a promise date</div>
-    <input id="qptp-search" class="bl-search" placeholder="Search borrower…" oninput="_qptpFilter()" style="width:100%;margin-bottom:10px;box-sizing:border-box">
-    <div id="qptp-list" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
-      ${active.slice(0,12).map(b => `
-        <div data-name="${b.name.toLowerCase()}" onclick="ptpQuickSetPick('${b.id}')"
-          style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-radius:8px;cursor:pointer;border:1px solid var(--border2)">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${escapeHtml(b.name)}</div>
-            <div style="font-size:10px;color:var(--text3)">${getAccountStage(b).label} · Day ${getOdAge(b.startDate)}</div>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--gold)">${fmtC(getDueToday(b))}</div>
-        </div>`).join('')}
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${active.length} borrowers · tap to set or edit promise</div>
+    <input id="qptp-search" class="bl-search" placeholder="Search name or phone…"
+      oninput="document.getElementById('qptp-list').innerHTML=window._qptpRender(this.value.toLowerCase())"
+      style="width:100%;margin-bottom:10px;box-sizing:border-box">
+    <div id="qptp-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+      ${renderList('')}
     </div>`;
+  window._qptpRender = renderList;
   document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>';
   document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('qptp-search')?.focus(), 80);
   haptic('light');
-}
-
-function _qptpFilter() {
-  const q = (document.getElementById('qptp-search')?.value || '').toLowerCase();
-  document.querySelectorAll('#qptp-list [data-name]').forEach(el => {
-    el.style.display = el.dataset.name.includes(q) ? '' : 'none';
-  });
 }
 
 function ptpQuickSetPick(id) {
@@ -15809,19 +15923,19 @@ function buildPtpMorningHtml() {
   const sortedPtps = ptps.slice().sort((a,b) => (confOrder[a.ptpConfidence||'']??2) - (confOrder[b.ptpConfidence||'']??2));
 
   let html = buildPtpWeekForecastHtml();
-  html += weekStripHtml;
+  // ── NO separate week strip — forecast card already has the 7-day view ──
 
-  // ── Summary KPIs ─────────────────────────────────────────────
-  html += `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Today · ${todayStr}</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-        <div style="text-align:center"><div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--gold)">${ptps.length}</div><div style="font-size:10px;color:var(--text3)">PTPs</div></div>
-        <div style="text-align:center"><div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--green)">${honoured.length}</div><div style="font-size:10px;color:var(--text3)">Honoured</div></div>
-        <div style="text-align:center"><div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:${rateCol}">${rate}%</div><div style="font-size:10px;color:var(--text3)">Rate</div></div>
-        <div style="text-align:center"><div style="font-family:var(--font-mono);font-size:13px;font-weight:800;color:var(--blue)">${fmtC(totalExp)}</div><div style="font-size:10px;color:var(--text3)">Expected</div></div>
-      </div>
-    </div>`;
+  // ── Compact header bar: today date + actions ─────────────────
+  html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div>
+      <div style="font-size:13px;font-weight:700">📋 Today · ${todayStr}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${ptps.length} promise${ptps.length!==1?'s':''} · ${honoured.length} honoured · ${rate}% <span style="color:${rateCol}">●</span></div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="ptpQuickSet()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);color:var(--text2)">＋ PTP</button>
+      <button class="btn btn-gold btn-sm" onclick="ptpShareMorning('${agentName}');haptic('light')">📤</button>
+    </div>
+  </div>`;
 
   html += collBar;
 
@@ -15852,18 +15966,10 @@ function buildPtpMorningHtml() {
     html += `</div></div>`;
   }
 
-  // ── Today's promises ─────────────────────────────────────────
-  html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <div style="font-size:13px;font-weight:700">📋 ${todayStr} · ${ptps.length} Promise${ptps.length!==1?'s':''}</div>
-    <div style="display:flex;gap:6px">
-      <button onclick="ptpQuickSet()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);color:var(--text2)">＋ New PTP</button>
-      <button class="btn btn-gold btn-sm" onclick="ptpShareMorning('${agentName}');haptic('light')">📤 Share</button>
-    </div>
-  </div>`;
-
+  // ── Today's list header (minimal) ────────────────────────────
   if (ptps.length === 0) {
     html += `<div style="background:var(--surface2);border-radius:10px;padding:24px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:14px">
-      No promises set for today.<br><span style="font-size:11px">Tap <strong>＋ New PTP</strong> or go to a borrower card → 🤝 Promise.</span></div>`;
+      No promises today.<br><span style="font-size:11px">Tap <strong>＋ PTP</strong> or open a borrower → 🤝 Promise.</span></div>`;
   } else {
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <span style="font-size:11px;color:var(--text3)">${honoured.length} honoured · ${ptps.length - honoured.length} pending</span>
@@ -15899,45 +16005,35 @@ function buildPtpMorningHtml() {
     html += `</div>`;
   }
 
-  // ── Plan Tomorrow ─────────────────────────────────────────────
-  if (tomorrowPtps.length > 0) {
+  // ── This week (tomorrow + upcoming) — collapsed by default ───
+  if (upcoming.length > 0) {
+    const thisWeekId = 'ptp-upcoming-body';
     html += `
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px">🌅 Tomorrow's Promises <span style="font-size:11px;font-weight:400;color:var(--text3)">${tomorrowPtps.length} set</span></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">`;
-    tomorrowPtps.forEach(b => {
-      const phone = b.phone.replace(/\s/g,'').replace('+','');
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border)">
-        <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}')">
-          <div style="font-size:12px;font-weight:600">${b.name.split(' ')[0]}</div>
-          <div style="font-size:10px;color:var(--text3)">${b.promiseNote||'Promise due tomorrow'}</div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700">${fmtC(getDueToday(b))}</div>
-        <a href="https://wa.me/${phone}?text=${encodeURIComponent('Hi '+getFirstName(b)+', this is a reminder that your loan repayment of '+fmtC(getDueToday(b))+' is due tomorrow. Dial *714*674# to pay. LoanBase.')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px;font-weight:700" onclick="haptic('light')">📩 Early</a>
-        <button class="btn btn-ghost btn-xs" style="color:var(--gold)" onclick="ptpReschedule('${b.id}');haptic('light')">📅</button>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-
-  // ── Upcoming (beyond tomorrow) ───────────────────────────────
-  const beyondTomorrow = upcoming.filter(b => !b.promiseDate.startsWith(tomorrow));
-  if (beyondTomorrow.length > 0) {
-    html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px">📅 Upcoming <span style="font-size:11px;font-weight:400;color:var(--text3)">${beyondTomorrow.length} promises</span></div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden">`;
-    beyondTomorrow.slice(0,8).forEach(b => {
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border)">
-        <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-          <div style="font-size:12px;font-weight:600">${b.name.split(' ')[0]}</div>
-          <div style="font-size:10px;color:var(--text3)">${b.promiseDate}</div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmtC(getDueToday(b))}</div>
-        <button class="btn btn-ghost btn-xs" style="color:var(--gold);padding:3px 7px" onclick="ptpReschedule('${b.id}');haptic('light')">📅</button>
-        <button class="btn btn-ghost btn-xs" style="color:#25d366;padding:3px 7px" onclick="ptpShowRemindMenu('${b.id}');haptic('light')">📩</button>
-        <button class="btn btn-ghost btn-xs" onclick="clearPromise('${b.id}');event.stopPropagation()">🗑</button>
-      </div>`;
-    });
-    if (beyondTomorrow.length > 8) html += `<div style="padding:8px 14px;font-size:11px;color:var(--text3)">+${beyondTomorrow.length-8} more</div>`;
-    html += `</div>`;
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">
+      <div onclick="var b=document.getElementById('${thisWeekId}');var ic=document.getElementById('ptp-upcoming-ic');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'›':'⌄'"
+        style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer">
+        <div style="font-size:12px;font-weight:700">📅 Coming Up <span style="font-size:10px;font-weight:400;color:var(--text3)">${upcoming.length} promise${upcoming.length!==1?'s':''}</span></div>
+        <span id="ptp-upcoming-ic" style="color:var(--text3);font-size:16px;line-height:1">›</span>
+      </div>
+      <div id="${thisWeekId}" style="display:none">
+        ${upcoming.slice(0,20).map(b => {
+          const phone = b.phone.replace(/\s/g,'').replace('+','');
+          const isTmrw = b.promiseDate.startsWith(tomorrow);
+          const conf = b.ptpConfidence;
+          const confBadge = conf ? `<span style="font-size:9px;color:${conf==='hot'?'var(--red)':conf==='warm'?'var(--gold)':'var(--blue)'};background:${conf==='hot'?'rgba(239,68,68,0.1)':conf==='warm'?'rgba(240,160,48,0.1)':'rgba(96,165,250,0.1)'};padding:1px 4px;border-radius:4px;font-weight:700">${conf==='hot'?'🔥':conf==='warm'?'⚡':'❄️'}</span>` : '';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--border)">
+            <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
+              <div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px">${escapeHtml(b.name.split(' ')[0])} ${confBadge} ${isTmrw?'<span style="font-size:9px;color:var(--gold);background:rgba(240,160,48,0.1);padding:1px 5px;border-radius:4px;font-weight:700">Tmrw</span>':''}</div>
+              <div style="font-size:10px;color:var(--text3)">${b.promiseDate.split(' ')[0]} ${b.promiseNote?'· '+b.promiseNote:''}</div>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0">${fmtC(getDueToday(b))}</div>
+            <a href="https://wa.me/${phone}?text=${encodeURIComponent('Hi '+escapeHtml(b.name.split(' ')[0])+', reminder that your loan repayment of '+fmtC(getDueToday(b))+' is due '+b.promiseDate.split(' ')[0]+'. Dial *714*674# to pay. LoanBase.')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="haptic('light')">📩</a>
+            <button class="btn btn-ghost btn-xs" style="color:var(--gold)" onclick="ptpReschedule('${b.id}');haptic('light')">📅</button>
+          </div>`;
+        }).join('')}
+        ${upcoming.length > 20 ? `<div style="padding:8px 14px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">+${upcoming.length-20} more · tap calendar tab to see all</div>` : ''}
+      </div>
+    </div>`;
   }
 
   html += `
@@ -16251,72 +16347,119 @@ function _getPtpConversionRate(days) {
 function buildPtpStatsHtml2() {
   const history = state.ptpHistory || [];
   if (history.length < 2) {
-    return `<div class="empty-state">Not enough data yet.<br>Stats appear after 2+ days of EOD submissions.</div>`;
+    return `<div class="empty-state" style="padding:40px;text-align:center;color:var(--text3)">Not enough data yet.<br><span style="font-size:11px">Stats appear after 2+ days of EOD submissions.</span></div>`;
   }
-  
-  const labels = history.slice().reverse().map(d => {
-    const date = new Date(d.date);
-    return `${date.getDate()}/${date.getMonth()+1}`;
-  });
-  const rates = history.slice().reverse().map(d => 
-    d.total > 0 ? Math.round(d.honoured / d.total * 100) : 0
-  );
-  
+
+  const totalHonoured = history.reduce((s,d) => s + (d.honoured||0), 0);
+  const totalBroken   = history.reduce((s,d) => s + (d.broken||0), 0);
+  const totalPtps     = history.reduce((s,d) => s + (d.total||0), 0);
+  const totalColl     = history.reduce((s,d) => s + (d.collected||0), 0);
+  const overallRate   = totalPtps > 0 ? Math.round(totalHonoured / totalPtps * 100) : 0;
+  const rateCol       = overallRate >= 70 ? '#22c55e' : overallRate >= 40 ? '#e8a020' : '#ef4444';
+
+  // 7-day rolling avg
+  const last7 = history.slice(-7);
+  const avg7  = last7.length > 0
+    ? Math.round(last7.reduce((s,d) => s + (d.total>0 ? d.honoured/d.total*100 : 0), 0) / last7.length)
+    : 0;
+  const trend = history.length >= 14
+    ? (avg7 > Math.round(history.slice(-14,-7).reduce((s,d)=>s+(d.total>0?d.honoured/d.total*100:0),0)/7) + 3 ? '↑' : avg7 < Math.round(history.slice(-14,-7).reduce((s,d)=>s+(d.total>0?d.honoured/d.total*100:0),0)/7) - 3 ? '↓' : '→')
+    : '';
+
+  const reversed = history.slice().reverse().slice(0, 30);
+  const labels = reversed.map(d => { const dt = new Date(d.date); return dt.getDate()+'/'+(dt.getMonth()+1); });
+  const rates  = reversed.map(d => d.total > 0 ? Math.round(d.honoured / d.total * 100) : 0);
+  const totals = reversed.map(d => d.total || 0);
+
+  // Render chart after DOM exists
   setTimeout(() => {
     const ctx = document.getElementById('ptp-trend-chart');
-    if (ctx && typeof Chart !== 'undefined') {
-      if (window._ptpChart) window._ptpChart.destroy();
-      window._ptpChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Conversion Rate (%)',
-            data: rates,
-            borderColor: 'var(--gold)',
-            backgroundColor: 'rgba(240,160,48,0.1)',
-            tension: 0.3,
-            fill: true,
-            pointRadius: 3,
-            pointBackgroundColor: 'var(--gold)'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: 'var(--text2)' } },
-            tooltip: { callbacks: { label: (ctx) => `${ctx.raw}%` } }
-          },
-          scales: {
-            y: { ticks: { callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-            x: { ticks: { color: 'var(--text3)' }, grid: { display: false } }
-          }
-        }
-      });
+    if (!ctx) return;
+    if (typeof Chart === 'undefined') {
+      loadChartJS().then(() => _drawPtpStatsChart(ctx, labels, rates, totals)).catch(()=>{});
+    } else {
+      _drawPtpStatsChart(ctx, labels, rates, totals);
     }
-  }, 50);
-  
-  const overallRate = history.reduce((s,d)=>s+d.honoured,0) / history.reduce((s,d)=>s+d.total,1) * 100;
-  const totalHonoured = history.reduce((s,d)=>s+d.honoured,0);
-  const totalPtps = history.reduce((s,d)=>s+d.total,0);
-  
+  }, 60);
+
   return `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-      <div class="kpi-card" style="padding:12px;text-align:center">
-        <div style="font-size:28px;font-weight:800;color:var(--gold)">${Math.round(overallRate)}%</div>
-        <div>Overall Conversion</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:${rateCol};line-height:1">${overallRate}%</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Overall honour rate</div>
+        ${trend ? `<div style="font-size:11px;font-weight:700;color:${trend==='↑'?'#22c55e':trend==='↓'?'#ef4444':'#e8a020'};margin-top:2px">${trend} 7-day: ${avg7}%</div>` : ''}
       </div>
-      <div class="kpi-card" style="padding:12px;text-align:center">
-        <div style="font-size:28px;font-weight:800;color:var(--green)">${totalHonoured}/${totalPtps}</div>
-        <div>Honoured / Total</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:#22c55e;line-height:1">${totalHonoured}<span style="font-size:14px;color:var(--text3)">/${totalPtps}</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Honoured / Total</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtC(totalColl)} collected</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:#ef4444;line-height:1">${totalBroken}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Broken promises</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${totalPtps>0?Math.round(totalBroken/totalPtps*100):0}% break rate</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:#e8a020;line-height:1">${history.length}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Days recorded</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">since ${new Date(history[history.length-1]?.date||Date.now()).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
       </div>
     </div>
-    <div style="height:200px;margin:16px 0">
-      <canvas id="ptp-trend-chart"></canvas>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px">Honour Rate Trend (last ${reversed.length} days)</div>
+      <div style="height:160px"><canvas id="ptp-trend-chart"></canvas></div>
     </div>
-    <div style="margin-top:20px">${buildPtpStatsHtml()}</div>
-  `;
+    <div style="margin-top:4px">${buildPtpStatsHtml()}</div>`;
+}
+
+function _drawPtpStatsChart(ctx, labels, rates, totals) {
+  if (window._ptpChart) { try { window._ptpChart.destroy(); } catch(e){} }
+  window._ptpChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Rate %',
+          data: rates,
+          borderColor: '#e8a020',
+          backgroundColor: 'rgba(232,160,32,0.0)',
+          tension: 0.3, fill: false,
+          pointRadius: 3, pointBackgroundColor: '#e8a020',
+          yAxisID: 'yRate', order: 1
+        },
+        {
+          type: 'bar',
+          label: 'Total PTPs',
+          data: totals,
+          backgroundColor: 'rgba(96,165,250,0.25)',
+          borderColor: 'rgba(96,165,250,0.5)',
+          borderWidth: 1,
+          borderRadius: 3,
+          yAxisID: 'yCount', order: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+        tooltip: { callbacks: {
+          label: (c) => c.dataset.label === 'Rate %' ? `${c.raw}% honoured` : `${c.raw} PTPs set`
+        }}
+      },
+      scales: {
+        yRate:  { type:'linear', position:'left',  min:0, max:100,
+          ticks: { color:'#e8a020', callback: v => v+'%', font:{size:9} },
+          grid:  { color:'rgba(255,255,255,0.05)' } },
+        yCount: { type:'linear', position:'right', min:0,
+          ticks: { color:'#94a3b8', font:{size:9} },
+          grid:  { display:false } },
+        x: { ticks:{ color:'#94a3b8', font:{size:9}, maxRotation:0 }, grid:{ display:false } }
+      }
+    }
+  });
 }
 
 function buildPtpCalendarHtml() {
