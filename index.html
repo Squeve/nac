@@ -356,6 +356,16 @@ tr.overdue-critical td:first-child,
 
 /* SKELETON LOADERS */
 @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+.atab {
+  flex-shrink:0; padding:6px 16px; border-radius:20px;
+  border:1px solid var(--border2); background:var(--surface);
+  color:var(--text3); font-size:12px; font-weight:600;
+  font-family:var(--font-body); cursor:pointer; white-space:nowrap;
+  transition:background 0.15s,color 0.15s,border-color 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.atab.active { background:rgba(240,160,48,0.14); border-color:rgba(240,160,48,0.5); color:var(--gold); }
+#analytics-tab-bar::-webkit-scrollbar { display:none; }
 .skeleton { border-radius:6px; background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%); background-size:800px 100%; animation:shimmer 1.4s infinite linear; }
 
 /* HEAT RING — left edge bar on table rows */
@@ -3080,63 +3090,85 @@ tr.overdue-critical .heat-ring {
         <div class="page-sub" id="analytics-sub">Portfolio insights</div>
       </div>
     </div>
-    <div class="kpi-grid" id="analytics-kpis"></div>
-    <div class="analytics-grid">
-      <div class="card">
-        <div class="card-header"><span class="card-title">💰 Collection Status</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:8px">
-          <div style="height:160px;width:100%;max-width:200px;margin:0 auto"><canvas id="chart-collection-donut"></canvas></div>
-          <div id="analytics-donut-legend" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:11px"></div>
+
+    <!-- Analytics Tab Bar -->
+    <div id="analytics-tab-bar" style="display:flex;gap:6px;padding:0 0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:0">
+      <button id="atab-overview" onclick="switchAnalyticsTab('overview')" class="atab active">Overview</button>
+      <button id="atab-mystage"  onclick="switchAnalyticsTab('mystage')"  class="atab">My Stage</button>
+      <button id="atab-ptp"      onclick="switchAnalyticsTab('ptp')"      class="atab">PTP Intel</button>
+      <button id="atab-trends"   onclick="switchAnalyticsTab('trends')"   class="atab">Trends</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="analytics-tab-overview">
+      <div class="kpi-grid" id="analytics-kpis"></div>
+      <div class="analytics-grid">
+        <div class="card">
+          <div class="card-header"><span class="card-title">💰 Collection Status</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="height:160px;width:100%;max-width:200px;margin:0 auto"><canvas id="chart-collection-donut"></canvas></div>
+            <div id="analytics-donut-legend" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:11px"></div>
+          </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">📊 Month Comparison</span><span style="font-size:10px;color:var(--text3)">3-month trend</span></div>
-        <div class="card-body" id="analytics-month-compare" style="padding:0 4px"></div>
-      </div>
-      <div class="card full">
-        <div class="card-header"><span class="card-title">🎯 Stage Distribution</span><span style="font-size:10px;color:var(--text3)">where is your portfolio?</span></div>
-        <div class="card-body" id="analytics-stage-funnel" style="padding:4px 0"></div>
-      </div>
-      <div class="card full">
-        <div class="card-header"><span class="card-title">📈 7-Day Trend</span><span id="analytics-trend-sub" style="font-size:10px;color:var(--text3)"></span></div>
-        <div class="card-body"><div class="chart-wrap"><canvas id="chart-rolling"></canvas></div></div>
-      </div>
-      <div class="card full">
-        <div class="card-header"><span class="card-title">⚠️ Risk Aging Matrix</span><span style="font-size:10px;color:var(--text3)">tap to filter</span></div>
-        <div class="card-body" id="analytics-aging"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">🤝 PTP Success</span></div>
-        <div class="card-body" id="analytics-ptp-rate"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">💰 Recovery by Stage</span></div>
-        <div class="card-body" id="analytics-recovery-stage"></div>
-      </div>
-      <div class="card full">
-        <div class="card-header">
-          <span class="card-title">🔥 Daily Heatmap</span>
-          <span style="font-size:11px;color:var(--text3)" id="analytics-heatmap-meta"></span>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📊 Month Comparison</span><span style="font-size:10px;color:var(--text3)">3-month trend</span></div>
+          <div class="card-body" id="analytics-month-compare" style="padding:0 4px"></div>
         </div>
-        <div class="card-body" id="analytics-heatmap"></div>
-      </div>
-      <div class="card full">
-        <div class="card-header"><span class="card-title">🏆 Closest to Closing</span><span style="font-size:10px;color:var(--text3)">quick wins</span></div>
-        <div class="card-body" id="analytics-closing"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">📅 Best Collection Days</span></div>
-        <div class="card-body" id="analytics-dow"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">⏰ Best Call Times</span></div>
-        <div class="card-body" id="analytics-calltime"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">⚡ OD Fee Exposure</span></div>
-        <div class="card-body" id="analytics-od-exposure"></div>
+        <div class="card full">
+          <div class="card-header"><span class="card-title">🎯 Stage Distribution</span><span style="font-size:10px;color:var(--text3)">where is your portfolio?</span></div>
+          <div class="card-body" id="analytics-stage-funnel" style="padding:4px 0"></div>
+        </div>
+        <div class="card full">
+          <div class="card-header"><span class="card-title">⚠️ Risk Aging Matrix</span><span style="font-size:10px;color:var(--text3)">tap to filter</span></div>
+          <div class="card-body" id="analytics-aging"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">💰 Recovery by Stage</span></div>
+          <div class="card-body" id="analytics-recovery-stage"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">⚡ OD Fee Exposure</span></div>
+          <div class="card-body" id="analytics-od-exposure"></div>
+        </div>
       </div>
     </div>
+
+    <!-- MY STAGE TAB -->
+    <div id="analytics-tab-mystage" style="display:none">
+      <div id="analytics-mystage-content"></div>
+    </div>
+
+    <!-- PTP INTEL TAB -->
+    <div id="analytics-tab-ptp" style="display:none">
+      <div id="analytics-ptp-content"></div>
+    </div>
+
+    <!-- TRENDS TAB -->
+    <div id="analytics-tab-trends" style="display:none">
+      <div class="analytics-grid">
+        <div class="card full">
+          <div class="card-header"><span class="card-title">📈 14-Day Trend</span><span id="analytics-trend-sub" style="font-size:10px;color:var(--text3)"></span></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="chart-rolling"></canvas></div></div>
+        </div>
+        <div class="card full">
+          <div class="card-header"><span class="card-title">🔥 Daily Heatmap</span><span style="font-size:11px;color:var(--text3)" id="analytics-heatmap-meta"></span></div>
+          <div class="card-body" id="analytics-heatmap"></div>
+        </div>
+        <div class="card full">
+          <div class="card-header"><span class="card-title">🏆 Closest to Closing</span><span style="font-size:10px;color:var(--text3)">quick wins</span></div>
+          <div class="card-body" id="analytics-closing"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📅 Best Collection Days</span></div>
+          <div class="card-body" id="analytics-dow"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">⏰ Best Call Times</span></div>
+          <div class="card-body" id="analytics-calltime"></div>
+        </div>
+      </div>
+    </div>
+
   </section>
   <section class="page" id="page-dispatch">
     <div class="page-header">
@@ -5463,6 +5495,9 @@ function purgeAgedOut() {
 
 // ── Load: Supabase first, localStorage fallback ──────────────
 async function loadState() {
+  // Show decoy calculator immediately — covers any skeleton/flash before lock screen
+  if (typeof showDecoyCalc === 'function') showDecoyCalc();
+
   _db = initSupabase();
   showSkeletons(true);
 
@@ -6958,6 +6993,13 @@ function renderPaidPage() {
       </div>`;
   });
   container.innerHTML = html;
+
+  // Wire up swipe-to-archive — reset flag first so re-renders re-attach cleanly
+  const paidList = document.getElementById('paid-list');
+  if (paidList) {
+    paidList._paidSwipeInited = false;
+    setTimeout(() => initPaidSwipe(), 60);
+  }
 }
 
 // ── LOANS TABLE ────────────────────────────────────────
@@ -7247,50 +7289,89 @@ function sortLoans(col) {
 }
 
 // ── ANALYTICS ──────────────────────────────────────────
-async function renderAnalytics() {
-  await loadChartJS();
+// ── Analytics tab state ───────────────────────────────────────
+var _analyticsTab = 'overview';
+
+function switchAnalyticsTab(tab) {
+  _analyticsTab = tab;
+
+  // Show all first so any chart in the target tab renders into real dimensions
+  ['overview','mystage','ptp','trends'].forEach(t => {
+    const btn  = document.getElementById('atab-' + t);
+    const pane = document.getElementById('analytics-tab-' + t);
+    if (btn)  btn.classList.toggle('active', t === tab);
+    if (pane) pane.style.display = '';
+  });
+
+  if (tab === 'mystage') renderAnalyticsMyStage();
+  if (tab === 'ptp')     renderAnalyticsPtpIntel();
+  if (tab === 'trends')  renderAnalyticsTrends();
+
+  // Hide inactive panes after render
+  requestAnimationFrame(() => {
+    ['overview','mystage','ptp','trends'].forEach(t => {
+      const pane = document.getElementById('analytics-tab-' + t);
+      if (pane) pane.style.display = (t === tab) ? '' : 'none';
+    });
+  });
+
+  haptic('light');
+}
+
+// ── Analytics KPI card helper ─────────────────────────────────
+function kpiCard(color, label, value, sub, akpi) {
+  return `<div class="kpi-card ${color}" ${akpi ? `style="cursor:pointer" data-akpi="${akpi}" title="Tap to filter"` : ''}>
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value ${color}">${value}</div>
+    <div class="kpi-sub">${sub}</div>
+    ${akpi ? '<div style="font-size:10px;color:var(--text3);margin-top:4px">↗ tap to view</div>' : ''}
+  </div>`;
+}
+
+function renderAnalytics() {
+  // Force the page shell visible now — navigate() adds .active via rAF which
+  // fires AFTER setTimeout(renderCurrentPage,0), so the page is still display:none
+  // when we get here. Charts rendered into a hidden container get zero dimensions.
+  const pageEl = document.getElementById('page-analytics');
+  if (pageEl) pageEl.classList.add('active');
+
+  // Update My Stage tab label
+  const agentStage = getAgentStage();
+  const myStageBtn = document.getElementById('atab-mystage');
+  if (myStageBtn) myStageBtn.textContent = agentStage + ' Focus';
+
+  // Keep ALL panes visible during render so charts/cards get real dimensions.
+  // Non-active panes are hidden after all rendering completes at the bottom.
+  ['overview','mystage','ptp','trends'].forEach(t => {
+    const pane = document.getElementById('analytics-tab-' + t);
+    const btn  = document.getElementById('atab-' + t);
+    if (pane) pane.style.display = '';
+    if (btn)  btn.classList.toggle('active', t === _analyticsTab);
+  });
 
   const all     = state.borrowers || [];
+  try {
   const active  = getActiveBorrowers().filter(b => !b.isPaid);
   const paid    = all.filter(b => b.isPaid || getStatus(b) === 'Paid');
   const partial = all.filter(b => getStatus(b) === 'Partial' && !b.isPaid);
-  const unpaid  = all.filter(b => !b.isPaid && getStatus(b) === 'Unpaid');
+  const totalOutstanding = active.reduce((s,b) => s + getRemaining(b), 0);
+  const totalOdFees      = active.reduce((s,b) => s + getOdFee(b), 0);
+  const avgOwed          = active.length ? Math.round(totalOutstanding / active.length) : 0;
 
-  // Core figures
-  const totalOutstanding  = active.reduce((s,b) => s + getRemaining(b), 0);
-  const totalPrincipal    = active.reduce((s,b) => s + (b.principal || b.loanDue || 0), 0);
-  const totalPaid         = all.reduce((s,b) => s + (b.amountPaid||0), 0);
-  const totalOdFees       = active.reduce((s,b) => s + getOdFee(b), 0);
-  const avgOwed           = active.length ? Math.round(totalOutstanding / active.length) : 0;
-
-  // From payLog (more accurate than dailyLog alone)
   let payLogTotal = 0;
   all.forEach(b => (b.payLog||[]).forEach(p => { payLogTotal += Number(p.amount)||0; }));
-  const logTotal = Math.max(
-    payLogTotal,
-    (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0)
-  );
-
-  // Collection rate = what's been paid / (what's been paid + what's still outstanding)
+  const logTotal = Math.max(payLogTotal, (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0));
   const collectionRate = (logTotal + totalOutstanding) > 0
-    ? (logTotal / (logTotal + totalOutstanding) * 100).toFixed(1)
-    : '0.0';
+    ? (logTotal / (logTotal + totalOutstanding) * 100).toFixed(1) : '0.0';
 
-  // Projected clearance using avg daily from payLog (more reliable)
   const activeDays = (state.dailyLog||[]).filter(e => (e.collected||0)>0);
-  const avgDailyCollect = activeDays.length
-    ? activeDays.reduce((s,e)=>s+(e.collected||0),0) / activeDays.length
-    : 0;
+  const avgDailyCollect = activeDays.length ? activeDays.reduce((s,e)=>s+(e.collected||0),0)/activeDays.length : 0;
   const daysToClose = avgDailyCollect > 0 ? Math.ceil(totalOutstanding / avgDailyCollect) : null;
-  const projDate    = daysToClose
-    ? new Date(Date.now() + daysToClose*86400000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'})
-    : '—';
+  const projDate = daysToClose
+    ? new Date(Date.now()+daysToClose*86400000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}) : '—';
 
-  // Best day of week
   const dayTotals = [0,0,0,0,0,0,0];
-  (state.dailyLog||[]).forEach(e => {
-    const d = new Date(e.date); dayTotals[d.getDay()] += (e.collected||0);
-  });
+  (state.dailyLog||[]).forEach(e => { const d=new Date(e.date); dayTotals[d.getDay()] += (e.collected||0); });
   const dayNames   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const bestDayIdx = dayTotals.reduce((mi,v,i,arr) => v>arr[mi]?i:mi, 0);
 
@@ -7298,160 +7379,72 @@ async function renderAnalytics() {
   const akGrid = document.getElementById('analytics-kpis');
   if (akGrid) {
     akGrid.innerHTML =
-      kpiCard('gold','Total Outstanding',fmtC(totalOutstanding),
-        active.length + ' active · avg ' + fmtC(avgOwed) + ' each','unpaid') +
-      kpiCard('green','Total Collected',fmtC(logTotal),
-        collectionRate + '% recovery rate · ' + paid.length + ' fully paid','partial') +
-      kpiCard('blue','Projected Clearance',projDate,
-        daysToClose ? daysToClose + ' days at ' + fmtC(Math.round(avgDailyCollect)) + '/day' : 'Log entries needed','') +
-      kpiCard('red','OD Fee Exposure',fmtC(Math.round(totalOdFees)),
-        'Best collection day: ' + dayNames[bestDayIdx],'');
-
+      kpiCard('gold','Total Outstanding',fmtC(totalOutstanding), active.length+' active · avg '+fmtC(avgOwed)+' each','unpaid') +
+      kpiCard('green','Total Collected',fmtC(logTotal), collectionRate+'% recovery · '+paid.length+' fully paid','partial') +
+      kpiCard('blue','Projected Clearance',projDate, daysToClose?daysToClose+' days at '+fmtC(Math.round(avgDailyCollect))+'/day':'Log entries needed','') +
+      kpiCard('red','OD Fee Exposure',fmtC(Math.round(totalOdFees)), 'Best day: '+dayNames[bestDayIdx],'');
     akGrid.querySelectorAll('[data-akpi]').forEach(el => {
       el.addEventListener('click', () => {
         const k = el.dataset.akpi;
-        if (k === 'unpaid')  showBorrowersPopup('Unpaid','','','','');
-        else if (k === 'partial') showBorrowersPopup('Partial','','','','');
-        else if (k) showBorrowersPopup('','','','','');
+        if (k==='unpaid') showBorrowersPopup('Unpaid','','','','');
+        else if (k==='partial') showBorrowersPopup('Partial','','','','');
       });
     });
   }
 
-  // ── Collection Status Donut ───────────────────────────────────
+  // ── Donut — load Chart.js async, render when ready ───────────
   const ctxDonut = document.getElementById('chart-collection-donut');
   const legendEl = document.getElementById('analytics-donut-legend');
   if (ctxDonut) {
-    const paidAmt    = paid.reduce((s,b) => s+(b.amountPaid||0), 0);
-    const partialAmt = partial.reduce((s,b) => s+(b.amountPaid||0), 0);
-    const unpaidAmt  = active.reduce((s,b) => s+getRemaining(b), 0);
-    const donutData  = [paidAmt, partialAmt, unpaidAmt].map(v => Math.round(v));
-    updateOrCreateChart('collection-donut', ctxDonut, {
-      type: 'doughnut',
-      data: {
-        labels: ['Collected (Paid)', 'Partial Paid', 'Outstanding'],
-        datasets: [{
-          data: donutData,
-          backgroundColor: ['rgba(34,197,94,0.85)','rgba(232,160,32,0.85)','rgba(239,68,68,0.75)'],
-          borderColor: ['#22c55e','#e8a020','#ef4444'],
-          borderWidth: 2, hoverOffset: 6
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, cutout: '68%',
-        plugins: { legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ` ${fmtC(ctx.parsed)}` } } }
-      }
-    });
+    const paidAmt    = paid.reduce((s,b)=>s+(b.amountPaid||0),0);
+    const partialAmt = partial.reduce((s,b)=>s+(b.amountPaid||0),0);
+    const unpaidAmt  = active.reduce((s,b)=>s+getRemaining(b),0);
+    const donutData  = [paidAmt,partialAmt,unpaidAmt].map(v=>Math.round(v));
+    const tot = donutData.reduce((s,v)=>s+v,0)||1;
     if (legendEl) {
-      const total = donutData.reduce((s,v) => s+v, 0) || 1;
-      const items = [
-        { col:'#22c55e', label:'Collected', val: donutData[0] },
-        { col:'#e8a020', label:'Partial',   val: donutData[1] },
-        { col:'#ef4444', label:'Outstanding',val: donutData[2] },
-      ];
-      legendEl.innerHTML = items.map(it =>
-        `<div style="display:flex;align-items:center;gap:4px">
-          <div style="width:10px;height:10px;border-radius:50%;background:${it.col};flex-shrink:0"></div>
-          <span style="color:var(--text3)">${it.label}</span>
-          <span style="font-family:var(--font-mono);font-weight:700;color:var(--text2)">${Math.round(it.val/total*100)}%</span>
+      legendEl.innerHTML = [['#22c55e','Collected',donutData[0]],['#e8a020','Partial',donutData[1]],['#ef4444','Outstanding',donutData[2]]]
+        .map(([col,lbl,val])=>`<div style="display:flex;align-items:center;gap:4px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></div>
+          <span style="color:var(--text3)">${lbl}</span>
+          <span style="font-family:var(--font-mono);font-weight:700;color:var(--text2)">${Math.round(val/tot*100)}%</span>
         </div>`).join('');
     }
+    loadChartJS().then(() => {
+      updateOrCreateChart('collection-donut', ctxDonut, {
+        type:'doughnut',
+        data:{ labels:['Collected','Partial Paid','Outstanding'],
+          datasets:[{ data:donutData,
+            backgroundColor:['rgba(34,197,94,0.85)','rgba(232,160,32,0.85)','rgba(239,68,68,0.75)'],
+            borderColor:['#22c55e','#e8a020','#ef4444'], borderWidth:2, hoverOffset:6 }] },
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmtC(ctx.parsed)}`}} } }
+      });
+    }).catch(() => {
+      ctxDonut.parentElement.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Chart unavailable offline</div>';
+    });
   }
 
-  // ── Stage Funnel & Month Comparison ──────────────────────────
   renderStageFunnel();
   renderMonthComparison();
-
-  // ── Rolling 7-Day Trend Chart ─────────────────────────────────
-  const allLogs  = [...(state.dailyLog||[])].sort((a,b) => a.date.localeCompare(b.date));
-  const last14   = allLogs.slice(-14);
-  const week1avg = last14.slice(0,7).reduce((s,e)=>s+(e.collected||0),0) / Math.max(1, Math.min(7, last14.slice(0,7).length));
-  const week2avg = last14.slice(7).reduce((s,e)=>s+(e.collected||0),0) / Math.max(1, Math.min(7, last14.slice(7).length));
-  const trendDir = week2avg > week1avg + 10 ? '↑ Up' : week2avg < week1avg - 10 ? '↓ Down' : '→ Flat';
-  const trendCol = week2avg > week1avg + 10 ? 'var(--green)' : week2avg < week1avg - 10 ? 'var(--red)' : 'var(--gold)';
-
-  const ctxR = document.getElementById('chart-rolling');
-  if (ctxR && last14.length) {
-    updateOrCreateChart('rolling', ctxR, {
-      type: 'line',
-      data: {
-        labels: last14.map(e => { const d=new Date(e.date); return d.getDate()+'/'+String(d.getMonth()+1); }),
-        datasets: [
-          { label:'Daily (₵)', data: last14.map(e=>e.collected||0),
-            borderColor: chartGoldColor(), backgroundColor:'rgba(232,160,32,0.08)',
-            fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:chartGoldColor() },
-          { label:'7-day avg', data: last14.map((_,i)=>i<7?Math.round(week1avg):Math.round(week2avg)),
-            borderColor:trendCol, borderDash:[5,4], borderWidth:2, pointRadius:0, fill:false }
-        ]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{
-          legend:{ labels:{ color:chartTextColor(), font:{family:'Instrument Sans',size:11} } },
-          subtitle:{ display:true, text:'Trend: '+trendDir+' (₵'+fmt(Math.round(week1avg))+'→₵'+fmt(Math.round(week2avg))+' avg)',
-            color:trendCol, font:{size:11} }
-        },
-        scales:{
-          x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:10}}},
-          y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:10},callback:v=>'₵'+fmt(v)},min:0}
-        }
-      }
-    });
-  } else if (ctxR && !last14.length) {
-    ctxR.closest('.chart-wrap').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px">Start logging daily to see your trend</div>';
-  }
-
-  // ── Daily Collection Heatmap ──────────────────────────────────
-  const heatLogs = [...(state.dailyLog||[])].sort((a,b) => a.date.localeCompare(b.date));
-  const heatMax  = Math.max(...heatLogs.map(e=>e.collected||0), 1);
-  const heatTotal = heatLogs.reduce((s,e)=>s+(e.collected||0),0);
-  const heatDaysOk = heatLogs.filter(e=>(e.collected||0)>0).length;
-  const hmMeta = document.getElementById('analytics-heatmap-meta');
-  if (hmMeta) hmMeta.textContent = heatDaysOk + ' active days · avg ' + fmtC(Math.round(heatTotal / Math.max(1,heatLogs.length)));
-  const hmEl = document.getElementById('analytics-heatmap');
-  if (hmEl) {
-    if (!heatLogs.length) {
-      hmEl.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">No log entries yet — start logging daily collections</div>';
-    } else {
-      hmEl.innerHTML = '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:flex-end">' +
-        heatLogs.map(e => {
-          const val = e.collected||0;
-          const h   = Math.max(8, Math.round(val/heatMax*72));
-          const col = val===0?'rgba(239,68,68,0.18)':val<heatMax*0.3?'rgba(232,160,32,0.3)':val<heatMax*0.6?'rgba(232,160,32,0.6)':val<heatMax*0.85?'rgba(232,160,32,0.85)':'var(--gold)';
-          const day = new Date(e.date).getDate();
-          return `<div style="flex:1;min-width:18px;max-width:32px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" data-logdate="${e.date}" title="${e.date}: ${fmtC(val)} · tap to edit">
-            <div data-logdate="${e.date}" style="width:100%;height:${h}px;background:${col};border-radius:3px;min-height:6px"></div>
-            <div data-logdate="${e.date}" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">${day}</div>
-          </div>`;
-        }).join('') + '</div>';
-      if (!hmEl._wired) {
-        hmEl._wired = true;
-        hmEl.addEventListener('click', e => {
-          const date = e.target.dataset.logdate || e.target.closest('[data-logdate]')?.dataset.logdate;
-          if (date) { haptic('light'); openLogEntryEdit(date); }
-        });
-      }
-    }
-  }
+  renderRecoveryByStage();
+  renderOdExposure();
 
   // ── Risk Aging Matrix ─────────────────────────────────────────
   const agBands = [
-    { label:'M1 · Day 1-5',  min:1,  max:5  },
-    { label:'M2 · Day 6-15', min:6,  max:15 },
-    { label:'M3 · Day 16-40',min:16, max:40 },
-    { label:'M4 · Day 41-60',min:41, max:60 },
-    { label:'M5 · Day 61+',  min:61, max:999},
+    {label:'M1 · Day 1-5',min:1,max:5},{label:'M2 · Day 6-15',min:6,max:15},
+    {label:'M3 · Day 16-40',min:16,max:40},{label:'M4 · Day 41-60',min:41,max:60},
+    {label:'M5 · Day 61+',min:61,max:999}
   ];
   const agingEl = document.getElementById('analytics-aging');
   if (agingEl) {
     const totalDue = active.reduce((s,b)=>s+getDueToday(b),0);
     agingEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
       agBands.map(band => {
-        const grp   = active.filter(b=>{ const od=getOdAge(b.startDate); return od>=band.min&&od<=band.max; });
-        const due   = grp.reduce((s,b)=>s+getDueToday(b),0);
-        const pct   = totalDue > 0 ? Math.round(due/totalDue*100) : 0;
-        const barW  = active.length > 0 ? Math.round(grp.length/active.length*100) : 0;
-        const risk  = band.min>=61?'#7c3aed':band.min>=41?'#ef4444':band.min>=16?'#f97316':band.min>=6?'#e8a020':'#22c55e';
+        const grp  = active.filter(b=>{ const od=getOdAge(b.startDate); return od>=band.min&&od<=band.max; });
+        const due  = grp.reduce((s,b)=>s+getDueToday(b),0);
+        const pct  = totalDue>0?Math.round(due/totalDue*100):0;
+        const barW = active.length>0?Math.round(grp.length/active.length*100):0;
+        const risk = band.min>=61?'#7c3aed':band.min>=41?'#ef4444':band.min>=16?'#f97316':band.min>=6?'#e8a020':'#22c55e';
         return `<div onclick="showBorrowersPopup('','',${band.min},'',${band.max===999?'':band.max});haptic('light')" style="cursor:pointer;padding:10px 12px;background:var(--surface2);border-radius:10px;border-left:4px solid ${risk}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
             <span style="font-size:11px;font-weight:700;color:${risk}">${band.label}</span>
@@ -7467,53 +7460,160 @@ async function renderAnalytics() {
       }).join('') + '</div>';
   }
 
-  // ── Day of Week & Call Time ───────────────────────────────────
-  const dowContainer = document.getElementById('analytics-dow');
-  if (dowContainer) renderDowChart('analytics-dow');
-  renderCallTimeHeatmap('analytics-calltime');
-
-  // ── PTP Success Rate, Recovery, Closing, OD Exposure ─────────
-  renderPtpSuccessRate();
-  renderRecoveryByStage();
-  renderClosingAccounts();
-  renderOdExposure();
-
-  // ── Analytics subtitle ────────────────────────────────────────
   const subEl = document.getElementById('analytics-sub');
-  if (subEl) subEl.textContent = active.length + ' active · ' + paid.length + ' paid · ' + fmtC(totalOutstanding) + ' outstanding';
+  if (subEl) subEl.textContent = active.length+' active · '+paid.length+' paid · '+fmtC(totalOutstanding)+' outstanding';
 
-  // ── Animate KPI numbers ───────────────────────────────────────
   setTimeout(() => {
     (akGrid||document).querySelectorAll?.('[data-val]')?.forEach(el => {
-      const target = parseFloat(el.dataset.val) || 0;
-      const fmt2   = el.dataset.fmt;
-      const dur = 600, start = performance.now();
-      const step = now => {
-        const p = Math.min((now-start)/dur, 1);
-        const ease = 1 - Math.pow(1-p,3);
-        if (fmt2 === 'currency') el.textContent = '₵' + fmt(Math.round(target*ease));
-        else if (fmt2 === 'pct') el.textContent = (target*ease).toFixed(1) + '%';
-        if (p < 1) requestAnimationFrame(step);
-        else {
-          if (fmt2 === 'currency') el.textContent = fmtC(target);
-          else if (fmt2 === 'pct') el.textContent = target + '%';
-        }
+      const target=parseFloat(el.dataset.val)||0, fmt2=el.dataset.fmt;
+      const dur=600, start=performance.now();
+      const step=now=>{ const p=Math.min((now-start)/dur,1),ease=1-Math.pow(1-p,3);
+        if(fmt2==='currency') el.textContent='₵'+fmt(Math.round(target*ease));
+        else if(fmt2==='pct') el.textContent=(target*ease).toFixed(1)+'%';
+        if(p<1) requestAnimationFrame(step);
+        else { if(fmt2==='currency') el.textContent=fmtC(target); else if(fmt2==='pct') el.textContent=target+'%'; }
       };
       requestAnimationFrame(step);
     });
   }, 60);
+
+  } catch(e) {
+    console.error('renderAnalytics error:', e);
+  }
+
+  if (_analyticsTab === 'mystage') renderAnalyticsMyStage();
+  if (_analyticsTab === 'ptp')     renderAnalyticsPtpIntel();
+  if (_analyticsTab === 'trends')  renderAnalyticsTrends();
+
+  // Now hide panes that aren't active — charts have already rendered into real dimensions
+  requestAnimationFrame(() => {
+    ['overview','mystage','ptp','trends'].forEach(t => {
+      const pane = document.getElementById('analytics-tab-' + t);
+      if (pane) pane.style.display = (t === _analyticsTab) ? '' : 'none';
+    });
+  });
 }
 
-// Helper: build a KPI card for analytics
-function kpiCard(color, label, value, sub, akpi) {
-  return `<div class="kpi-card ${color}" ${akpi?`style="cursor:pointer" data-akpi="${akpi}" title="Tap to filter"`:''}>
-    <div class="kpi-label">${label}</div>
-    <div class="kpi-value ${color}">${value}</div>
-    <div class="kpi-sub">${sub}</div>
-    ${akpi?'<div style="font-size:10px;color:var(--text3);margin-top:4px">↗ tap to view</div>':''}
-  </div>`;
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS — MY STAGE TAB
+// ══════════════════════════════════════════════════════════════
+function renderAnalyticsMyStage() {
+  const el = document.getElementById('analytics-mystage-content');
+  if (!el) return;
+  const agentStage = getAgentStage();
+  const stageCfg = STAGE_CONFIG[agentStage] || STAGE_CONFIG.M2;
+  const stageCol = stageCfg?.colorHex || '#e8a020';
+  const stageRanges = {M0:[0,0],M1:[1,5],M2:[6,15],M3:[16,40],M4:[41,60],M5:[61,999]};
+  const [dayMin,dayMax] = stageRanges[agentStage] || [6,15];
+  const all = state.borrowers || [];
+  const active = getActiveBorrowers().filter(b=>!b.isPaid);
+  const mine = active.filter(b=>getAccountStage(b).label===agentStage);
+  const stageTotal = mine.reduce((s,b)=>s+getDueToday(b),0);
+  const stageDue = mine.reduce((s,b)=>s+(b.loanDue||0),0);
+  const stagePd = mine.reduce((s,b)=>s+(b.amountPaid||0),0);
+  const stageRate = stageDue>0?Math.round(stagePd/stageDue*100):0;
+  const stagePtps = mine.filter(b=>b.promisedToPay&&!b.isPaid);
+  const stageHon = mine.filter(b=>b.ptpOutcome==='paid'||b.isPaid);
+  const agingOut = mine.filter(b=>{const od=getOdAge(b.startDate);return dayMax!==999&&od>=dayMax-2&&od<=dayMax&&!b.isPaid;});
+  const noContact = mine.filter(b=>!(b.callLog||[]).length&&!(b.payLog||[]).length);
+  const dayRange=[];
+  for(let d=dayMin;d<=Math.min(dayMax===999?dayMin+14:dayMax,dayMin+14);d++) dayRange.push(d);
+  const dayDist=dayRange.map(d=>({d,n:mine.filter(b=>getOdAge(b.startDate)===d).length,amt:mine.filter(b=>getOdAge(b.startDate)===d).reduce((s,b)=>s+getDueToday(b),0)}));
+  const ddMax=Math.max(...dayDist.map(d=>d.n),1);
+  const ptpHot=stagePtps.filter(b=>b.ptpConfidence==='hot').length;
+  const ptpWarm=stagePtps.filter(b=>b.ptpConfidence==='warm').length;
+  const ptpCold=stagePtps.filter(b=>b.ptpConfidence==='cold').length;
+  const ptpRate=stagePtps.length+stageHon.length>0?Math.round(stageHon.length/(stagePtps.length+stageHon.length)*100):0;
+  const reschN=mine.filter(b=>(b.rescheduleHistory||[]).length>0).length;
+  const topAccs=[...mine].sort((a,b)=>getDueToday(b)-getDueToday(a)).slice(0,8);
+  let html='';
+  html+=`<div style="background:linear-gradient(135deg,${stageCol}18,${stageCol}06);border:1px solid ${stageCol}33;border-radius:14px;padding:16px;margin-bottom:14px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div><div style="font-size:20px;font-weight:800;color:${stageCol}">${agentStage} Stage</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Day ${dayMin}–${dayMax===999?dayMin+'+':dayMax} · ${mine.length} accounts</div></div><div style="text-align:right"><div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:${stageCol};line-height:1">${mine.length}</div><div style="font-size:10px;color:var(--text3)">accounts</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${[['Expected',fmtC(stageTotal),'var(--text2)'],['Recovery',stageRate+'%',stageRate>=70?'var(--green)':stageRate>=40?'var(--gold)':'var(--red)'],['PTPs',stagePtps.length+'',stageCol]].map(([l,v,c])=>`<div style="text-align:center;padding:8px 4px;background:var(--surface);border-radius:10px;border:1px solid var(--border2)"><div style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:${c};line-height:1">${v}</div><div style="font-size:9px;color:var(--text3);margin-top:3px">${l}</div></div>`).join('')}</div></div>`;
+  if(agingOut.length>0) html+=`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--red)">🚨 Aging Out Soon (${agingOut.length})</div><span style="font-size:10px;color:var(--red)">2–3 days to next stage</span></div>${agingOut.slice(0,5).map(b=>{const od=getOdAge(b.startDate),dl=dayMax-od;return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(239,68,68,0.15);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--red);flex-shrink:0">D${od}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div><div style="font-size:9px;color:var(--red)">${dl} day${dl!==1?'s':''} left in ${agentStage}</div></div><div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div></div>`;}).join('')}${agingOut.length>5?`<div style="font-size:10px;color:var(--text3);text-align:center;padding-top:6px">+${agingOut.length-5} more</div>`:''}</div>`;
+  if(dayDist.some(d=>d.n>0)) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">📊 Day-by-Day Distribution <span style="font-size:10px;font-weight:400;color:var(--text3)">tap to view</span></div><div style="display:flex;align-items:flex-end;gap:4px;height:80px">${dayDist.map(({d,n,amt})=>{const bh=n>0?Math.max(10,Math.round(n/ddMax*68)):3;const isU=dayMax!==999&&d>=dayMax-2;const col=isU?'var(--red)':d<=dayMin+2?'var(--green)':stageCol;return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:${n?'pointer':'default'}" onclick="${n?`showBorrowersPopup('','',${d},'',${d});haptic('light')`:''}" title="Day ${d}: ${n}"><div style="width:100%;height:${bh}px;background:${col};opacity:${n?0.85:0.2};border-radius:3px 3px 0 0;min-height:3px"></div><div style="font-size:8px;color:${n?col:'var(--text3)'};font-family:var(--font-mono);font-weight:${n?700:400}">${d}</div>${n?`<div style="font-size:9px;font-family:var(--font-mono);font-weight:800;color:${col}">${n}</div>`:''}</div>`;}).join('')}</div><div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text3)"><span style="color:var(--green)">● Early</span><span style="color:${stageCol}">● Mid</span><span style="color:var(--red)">● Aging out</span></div></div>`;
+  const ptpDenom=stagePtps.length+stageHon.length||1;
+  html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🤝 ${agentStage} PTP Performance</div><div style="display:flex;gap:8px;margin-bottom:10px">${[['Honour Rate',ptpRate+'%',ptpRate>=70?'var(--green)':ptpRate>=40?'var(--gold)':'var(--red)'],['🔥 Hot',ptpHot+'','var(--red)'],['↻ Reschd',reschN+'','var(--orange)']].map(([l,v,c])=>`<div style="flex:1;text-align:center;padding:8px 4px;background:var(--surface2);border-radius:10px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${c};line-height:1">${v}</div><div style="font-size:9px;color:var(--text3);margin-top:3px">${l}</div></div>`).join('')}</div>${stagePtps.length>0?`<div style="display:flex;flex-direction:column;gap:5px">${[['🔥 Hot',ptpHot,'var(--red)'],['⚡ Warm',ptpWarm,'var(--gold)'],['❄️ Cold',ptpCold,'var(--blue)'],['✅ Honoured',stageHon.length,'var(--green)']].map(([l,v,c])=>`<div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:var(--text3);min-width:72px">${l}</span><div style="flex:1;height:6px;background:var(--border2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(v/ptpDenom*100)}%;background:${c};border-radius:3px"></div></div><span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:${c};min-width:16px;text-align:right">${v}</span></div>`).join('')}</div>`:'<div style="color:var(--text3);font-size:11px;text-align:center">No PTP data for this stage yet</div>'}</div>`;
+  if(topAccs.length>0) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🏆 Top Balances — ${agentStage}</div>${topAccs.map((b,i)=>{const od=getOdAge(b.startDate),pct=b.loanDue>0?Math.round((b.amountPaid||0)/b.loanDue*100):0;const cmap={hot:['🔥','var(--red)'],warm:['⚡','var(--gold)'],cold:['❄️','var(--blue)']};const cb=b.ptpConfidence&&cmap[b.ptpConfidence]?`<span style="font-size:9px;color:${cmap[b.ptpConfidence][1]};background:${cmap[b.ptpConfidence][1]}18;padding:1px 4px;border-radius:4px;font-weight:700">${cmap[b.ptpConfidence][0]}</span>`:'';return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);min-width:18px">${i+1}</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:5px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</span>${cb}${b.promisedToPay?'<span style="font-size:10px">🤝</span>':''}</div><div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pct}%;background:${stageCol};border-radius:2px"></div></div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--font-mono);font-size:11px;font-weight:700">${fmtC(getDueToday(b))}</div><div style="font-size:9px;color:var(--text3)">Day ${od}</div></div></div>`;}).join('')}</div>`;
+  if(noContact.length>0) html+=`<div style="background:rgba(240,160,48,0.06);border:1px solid rgba(240,160,48,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px">📵 No Contact Yet (${noContact.length})</div>${noContact.slice(0,4).map(b=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><span style="font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--font-mono);font-size:11px">${fmtC(getDueToday(b))}</span><a href="https://wa.me/${b.phone.replace(/\s/g,'').replace('+','')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" onclick="event.stopPropagation();haptic('light')">📩</a></div></div>`).join('')}${noContact.length>4?`<div style="font-size:10px;color:var(--text3);margin-top:6px">+${noContact.length-4} more</div>`:''}</div>`;
+  el.innerHTML = html;
 }
-// ── WHATSAPP DISPATCH ──────────────────────────────────
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS — PTP INTEL TAB
+// ══════════════════════════════════════════════════════════════
+function renderAnalyticsPtpIntel() {
+  const el = document.getElementById('analytics-ptp-content');
+  if (!el) return;
+  const all = state.borrowers || [];
+  const active = all.filter(b=>b.promisedToPay&&!b.isPaid&&!b.ptpBreached);
+  const honoured = all.filter(b=>b.isPaid||b.ptpOutcome==='paid');
+  const breached = all.filter(b=>b.ptpBreached);
+  const rescheduled = all.filter(b=>(b.rescheduleHistory||[]).length>0);
+  const withPtp = all.filter(b=>b.promisedToPay||(b.rescheduleHistory||[]).length||(b.promiseHistory||[]).length);
+  const rate = withPtp.length>0?Math.round(honoured.length/withPtp.length*100):0;
+  const rateCol = rate>=70?'var(--green)':rate>=40?'var(--gold)':'var(--red)';
+  const hot=active.filter(b=>b.ptpConfidence==='hot'),warm=active.filter(b=>b.ptpConfidence==='warm'),cold=active.filter(b=>b.ptpConfidence==='cold'),unset=active.filter(b=>!b.ptpConfidence);
+  const repeat3=rescheduled.filter(b=>(b.rescheduleHistory||[]).length>=3).length;
+  const reschMax=rescheduled.length?Math.max(...rescheduled.map(b=>(b.rescheduleHistory||[]).length)):0;
+  const topResch=[...rescheduled].sort((a,b)=>(b.rescheduleHistory||[]).length-(a.rescheduleHistory||[]).length).slice(0,5);
+  const reliable=all.filter(b=>(b.isPaid||b.ptpOutcome==='paid')&&!b.ptpBreached&&!(b.rescheduleHistory||[]).length).sort((a,b)=>(b.amountPaid||0)-(a.amountPaid||0)).slice(0,5);
+  const circ=Math.round(2*Math.PI*32);
+  let html='';
+  html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px"><div style="position:relative;width:84px;height:84px;flex-shrink:0"><svg viewBox="0 0 80 80" style="width:84px;height:84px;transform:rotate(-90deg)"><circle cx="40" cy="40" r="32" fill="none" stroke="var(--border2)" stroke-width="8"/><circle cx="40" cy="40" r="32" fill="none" stroke="${rateCol}" stroke-width="8" stroke-dasharray="${Math.round(circ*rate/100)} ${Math.round(circ*(100-rate)/100)}" stroke-linecap="round"/></svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-family:var(--font-mono);font-size:17px;font-weight:800;color:${rateCol};line-height:1">${rate}%</div><div style="font-size:8px;color:var(--text3)">kept</div></div></div><div style="flex:1"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Overall PTP Honour Rate</div>${[['Total PTPs',withPtp.length,'var(--text2)'],['✅ Honoured',honoured.length,'var(--green)'],['🔴 Breached',breached.length,'var(--red)'],['🔄 Rescheduled',rescheduled.length,'var(--gold)'],['🟡 Active',active.length,'var(--blue)']].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text3)">${l}</span><span style="font-family:var(--font-mono);font-weight:700;color:${c}">${v}</span></div>`).join('')}</div></div>`;
+  html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🎯 Confidence Breakdown</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:${hot.length?'12px':'0'}">${[['🔥 Hot',hot.length,hot.reduce((s,b)=>s+getDueToday(b),0),'var(--red)','rgba(239,68,68,0.1)'],['⚡ Warm',warm.length,warm.reduce((s,b)=>s+getDueToday(b),0),'var(--gold)','rgba(240,160,48,0.1)'],['❄️ Cold',cold.length,cold.reduce((s,b)=>s+getDueToday(b),0),'var(--blue)','rgba(96,165,250,0.1)'],['— Unset',unset.length,unset.reduce((s,b)=>s+getDueToday(b),0),'var(--text3)','var(--surface2)']].map(([l,n,amt,col,bg])=>`<div style="padding:10px;border-radius:10px;background:${bg};border:1px solid ${col}22"><div style="font-size:11px;font-weight:700;color:${col};margin-bottom:4px">${l}</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:${col};line-height:1">${n}</div><div style="font-size:9px;color:var(--text3);margin-top:2px">${fmtC(amt)}</div></div>`).join('')}</div>${hot.length>0?`<div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:6px">🔥 Hot PTPs — act now</div>${hot.slice(0,4).map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="flex:1;font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div><div style="font-size:10px;color:var(--text3)">${(b.promiseDate||'').split(' ')[0]}</div><div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--red)">${fmtC(getDueToday(b))}</div><a href="https://wa.me/${b.phone.replace(/\s/g,'').replace('+','')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation()">📩</a></div>`).join('')}`:''}  </div>`;
+  html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🔄 Reschedule Intelligence</div><div style="display:flex;gap:8px;margin-bottom:${topResch.length?'10px':'0'}">${[['Rescheduled',rescheduled.length,'var(--gold)'],['≥3× Serial',repeat3,'var(--red)'],['Max Count',reschMax,'var(--text2)']].map(([l,v,c])=>`<div style="flex:1;text-align:center;padding:8px 4px;background:var(--surface2);border-radius:10px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${c};line-height:1">${v}</div><div style="font-size:9px;color:var(--text3);margin-top:3px">${l}</div></div>`).join('')}</div>${topResch.map(b=>{const n=(b.rescheduleHistory||[]).length,col=n>=3?'var(--red)':n>=2?'var(--gold)':'var(--text3)';const rh=b.rescheduleHistory||[];const orig=rh.length&&rh[0]&&rh[0].originalDate?rh[0].originalDate.split(' ')[0]:'—';return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="font-family:var(--font-mono);font-size:12px;font-weight:800;color:${col};min-width:28px">↻${n}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div><div style="font-size:9px;color:var(--text3)">${orig} → ${(b.promiseDate||'').split(' ')[0]||'—'}</div></div><div style="font-family:var(--font-mono);font-size:11px;font-weight:700;flex-shrink:0">${fmtC(getDueToday(b))}</div></div>`;}).join('')}</div>`;
+  if(reliable.length>0) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:10px">⭐ Most Reliable</div>${reliable.map((b,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="font-family:var(--font-mono);font-size:11px;color:var(--green);min-width:18px">${i+1}</div><div style="flex:1;font-size:12px;font-weight:600">${escapeHtml(b.name)}</div><span style="font-size:9px;padding:1px 6px;border-radius:6px;background:rgba(34,197,94,0.1);color:var(--green);font-weight:700">✅ Kept</span><div style="font-family:var(--font-mono);font-size:11px;color:var(--green)">${fmtC(b.amountPaid||0)}</div></div>`).join('')}</div>`;
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS — TRENDS TAB
+// ══════════════════════════════════════════════════════════════
+function renderAnalyticsTrends() {
+  const allLogs=[...(state.dailyLog||[])].sort((a,b)=>a.date.localeCompare(b.date));
+  const last14=allLogs.slice(-14);
+  const w1=last14.slice(0,7).reduce((s,e)=>s+(e.collected||0),0)/Math.max(1,Math.min(7,last14.slice(0,7).length));
+  const w2=last14.slice(7).reduce((s,e)=>s+(e.collected||0),0)/Math.max(1,Math.min(7,last14.slice(7).length));
+  const tDir=w2>w1+10?'↑ Up':w2<w1-10?'↓ Down':'→ Flat';
+  const tCol=w2>w1+10?'var(--green)':w2<w1-10?'var(--red)':'var(--gold)';
+  const ts=document.getElementById('analytics-trend-sub');
+  if(ts) ts.textContent=tDir+' vs prev week';
+
+  const ctxR=document.getElementById('chart-rolling');
+  if(ctxR) {
+    if(last14.length) {
+      loadChartJS().then(()=>{
+        updateOrCreateChart('rolling',ctxR,{type:'line',
+          data:{labels:last14.map(e=>{const d=new Date(e.date);return d.getDate()+'/'+String(d.getMonth()+1);}),
+            datasets:[
+              {label:'Daily (₵)',data:last14.map(e=>e.collected||0),borderColor:chartGoldColor(),backgroundColor:'rgba(232,160,32,0.08)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:chartGoldColor()},
+              {label:'7-day avg',data:last14.map((_,i)=>i<7?Math.round(w1):Math.round(w2)),borderColor:tCol,borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false}
+            ]},
+          options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{labels:{color:chartTextColor(),font:{family:'Instrument Sans',size:11}}},
+              subtitle:{display:true,text:'Trend: '+tDir+' (₵'+fmt(Math.round(w1))+'→₵'+fmt(Math.round(w2))+' avg)',color:tCol,font:{size:11}}},
+            scales:{x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:10}}},
+              y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:10},callback:v=>'₵'+fmt(v)},min:0}}}});
+      }).catch(()=>{});
+    } else {
+      const wrap = ctxR.closest('.chart-wrap');
+      if(wrap) wrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px">Start logging daily to see your trend</div>';
+    }
+  }
+  const heatMax=Math.max(...allLogs.map(e=>e.collected||0),1),heatTotal=allLogs.reduce((s,e)=>s+(e.collected||0),0),heatOk=allLogs.filter(e=>(e.collected||0)>0).length;
+  const hm=document.getElementById('analytics-heatmap-meta');
+  if(hm) hm.textContent=heatOk+' active days · avg '+fmtC(Math.round(heatTotal/Math.max(1,allLogs.length)));
+  const hmEl=document.getElementById('analytics-heatmap');
+  if(hmEl){
+    if(!allLogs.length){hmEl.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px">No log entries yet</div>';}
+    else{hmEl.innerHTML='<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:flex-end">'+allLogs.map(e=>{const val=e.collected||0,h=Math.max(8,Math.round(val/heatMax*72));const col=val===0?'rgba(239,68,68,0.18)':val<heatMax*0.3?'rgba(232,160,32,0.3)':val<heatMax*0.6?'rgba(232,160,32,0.6)':val<heatMax*0.85?'rgba(232,160,32,0.85)':'var(--gold)';return `<div style="flex:1;min-width:18px;max-width:32px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" data-logdate="${e.date}" title="${e.date}: ${fmtC(val)}"><div data-logdate="${e.date}" style="width:100%;height:${h}px;background:${col};border-radius:3px;min-height:6px"></div><div data-logdate="${e.date}" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">${new Date(e.date).getDate()}</div></div>`;}).join('')+'</div>';
+      if(!hmEl._wired){hmEl._wired=true;hmEl.addEventListener('click',e=>{const date=e.target.dataset.logdate||e.target.closest('[data-logdate]')?.dataset.logdate;if(date){haptic('light');openLogEntryEdit(date);}});}}
+  }
+  renderClosingAccounts();
+  const dowC=document.getElementById('analytics-dow');
+  if(dowC) renderDowChart('analytics-dow');
+  renderCallTimeHeatmap('analytics-calltime');
+}
+
 // ── Custom dispatch message ────────────────────────────────────
 function toggleDispatchCustomMsg() {
   const wrap = document.getElementById('dispatch-custom-wrap');
@@ -20749,6 +20849,7 @@ function lockApp() {
   _sessionUnlocked = false;
   state = initState(); // clear in-memory state for privacy
   stopAutoLockTimer();  // cancel any running idle timer
+  sessionStorage.removeItem('sq_dcoy_ok'); // force decoy on next open
   showLockScreen();
   haptic('medium');
 }
@@ -20976,6 +21077,17 @@ function initPaidSwipe() {
     if (activeCard && activeCard !== card) _hidePaidSwipe(activeCard);
     if (dx < -40) { _showPaidSwipe(card); activeCard = card; }
     else if (dx > 20) { _hidePaidSwipe(card); if (activeCard === card) activeCard = null; }
+  }, { passive: true });
+
+  list.addEventListener('touchend', e => {
+    // If swipe ended without reaching reveal threshold, hide
+    if (activeCard) {
+      const ov = activeCard.querySelector('.swipe-actions-overlay');
+      if (!ov || !ov.classList.contains('revealed')) {
+        _hidePaidSwipe(activeCard);
+        activeCard = null;
+      }
+    }
   }, { passive: true });
 
   list.addEventListener('click', e => {
@@ -22930,6 +23042,8 @@ const DECOY_SECRET = '1984';
 
   window.showDecoyCalc = function () {
     if (!dc) return;
+    // Only show if not already unlocked this session
+    if (sessionStorage.getItem('sq_dcoy_ok') === '1') return;
     calcReset();
     dc.classList.remove('dc-hiding');
     dc.style.opacity = '';
@@ -22937,6 +23051,7 @@ const DECOY_SECRET = '1984';
   };
 
   function hideDecoy() {
+    sessionStorage.setItem('sq_dcoy_ok', '1');
     dc.classList.add('dc-hiding');
     setTimeout(function () {
       dc.classList.remove('dc-visible', 'dc-hiding');
