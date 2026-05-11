@@ -3260,49 +3260,66 @@ tr.overdue-critical .heat-ring {
         <div class="page-sub" id="log-month-label">—</div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="importLogFromPayments()" title="Auto-fill from recorded payments" style="font-size:11px">↓ Sync Payments</button>
+        <button class="btn btn-ghost btn-sm" onclick="importLogFromPayments()" title="Auto-fill from recorded payments" style="font-size:11px">↓ Sync</button>
         <button class="btn btn-ghost btn-sm" onclick="exportLogMonth()" title="Export this month's log" style="font-size:11px">↑ Export</button>
       </div>
     </div>
 
-    <!-- Month progress bar -->
+    <!-- Today sticky CTA — shows Log/Edit depending on whether today is logged -->
+    <div id="log-today-cta" style="margin-bottom:14px"></div>
+
+    <!-- Month progress + projection -->
     <div id="log-month-progress" style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;margin-bottom:14px"></div>
 
-    <!-- KPI strip -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;text-align:center;box-shadow:inset 0 1px 0 var(--border-hi)">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Total</div>
-        <div class="kpi-value-animate" style="font-family:var(--font-mono);font-size:18px;font-weight:800;background:var(--gold-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="log-total">—</div>
+    <!-- KPI strip — 5 cards including streak -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px" id="log-kpi-strip">
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Total</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;background:var(--gold-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="log-total">—</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;text-align:center;box-shadow:inset 0 1px 0 var(--border-hi)">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Best Day</div>
-        <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--green)" id="log-best">—</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Best</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--green)" id="log-best">—</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;text-align:center;box-shadow:inset 0 1px 0 var(--border-hi)">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Avg / Day</div>
-        <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--blue)" id="log-avg">—</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Avg/Day</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--blue)" id="log-avg">—</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Streak</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--orange)" id="log-streak-kpi">—</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Active</div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--text2)" id="log-active-days">—</div>
       </div>
     </div>
 
-    <!-- Chart -->
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:inset 0 1px 0 var(--border-hi)">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Monthly Trend</div>
-      <div style="height:120px"><canvas id="chart-log"></canvas></div>
+    <!-- Bar chart with pace line -->
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px">Daily Collections</div>
+        <div id="log-chart-legend" style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:3px;background:#e8a020;display:inline-block;border-radius:2px"></span>Collected</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#22c55e;display:inline-block;border-radius:2px;border-top:1px dashed #22c55e"></span>Target/day</span>
+        </div>
+      </div>
+      <div style="height:130px"><canvas id="chart-log"></canvas></div>
     </div>
 
-    <!-- Quick log entry -->
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:inset 0 1px 0 var(--border-hi)">
-      <div style="padding:14px 16px 0;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px">Log Collection</div>
-      <div style="padding:0 16px">
-        <div style="display:flex;gap:10px;margin-bottom:10px">
-          <input type="date" class="form-input" id="log-date" style="flex:1;font-size:13px;padding:10px 12px">
+    <!-- Quick log entry — minimal, always visible -->
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;margin-bottom:14px;overflow:hidden" id="log-entry-form">
+      <div style="padding:12px 14px 0;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Log Collection</div>
+      <div style="padding:0 14px">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="date" class="form-input" id="log-date" style="flex:1;font-size:13px;padding:9px 10px">
           <div style="position:relative;flex:1">
-            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:13px;color:var(--text3);pointer-events:none">₵</span>
-            <input type="number" class="form-input" id="log-amount" placeholder="Amount" min="0" style="padding-left:26px;font-size:13px;padding-top:10px;padding-bottom:10px;width:100%">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:13px;color:var(--text3);pointer-events:none">₵</span>
+            <input type="number" class="form-input" id="log-amount" placeholder="Amount" min="0" style="padding-left:22px;font-size:13px;padding-top:9px;padding-bottom:9px;width:100%">
           </div>
         </div>
         <input type="text" class="form-input" id="log-notes" placeholder="Notes (optional)…" onfocus="showLogNoteSuggestions()" onblur="setTimeout(()=>hideLogNoteSuggestions(),200)" style="width:100%;font-size:13px;margin-bottom:8px">
-        <div id="log-note-suggestions" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <div id="log-note-suggestions" style="display:none;gap:5px;flex-wrap:wrap;margin-bottom:8px">
           <button class="bl-action-btn" style="font-size:11px" onclick="setLogNote('No collections today')">No collections</button>
           <button class="bl-action-btn" style="font-size:11px" onclick="setLogNote('Public holiday')">Holiday</button>
           <button class="bl-action-btn" style="font-size:11px" onclick="setLogNote('Strong day — follow-up planned')">Strong day</button>
@@ -3310,20 +3327,20 @@ tr.overdue-critical .heat-ring {
           <button class="bl-action-btn" style="font-size:11px" onclick="setLogNote('Multiple PTPs honoured today')">PTPs honoured</button>
         </div>
       </div>
-      <div style="padding:0 16px 14px">
-        <button class="btn btn-gold" style="width:100%;padding:12px;font-size:14px;border-radius:12px" onclick="addLogEntry()">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;vertical-align:middle;margin-right:6px"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>Save Entry
+      <div style="padding:0 14px 12px">
+        <button class="btn btn-gold" style="width:100%;padding:11px;font-size:14px;border-radius:10px" onclick="addLogEntry()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:5px"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>Save Entry
         </button>
       </div>
     </div>
 
     <!-- Entries list -->
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:inset 0 1px 0 var(--border-hi)">
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px">All Entries</div>
         <div id="log-streak-badge"></div>
       </div>
-      <div id="log-entries" style="max-height:480px;overflow-y:auto"></div>
+      <div id="log-entries" style="max-height:520px;overflow-y:auto"></div>
     </div>
   </section>
 
@@ -7987,174 +8004,301 @@ function _applyDispatchFade(id) {
 }
 
 // ── DAILY LOG ──────────────────────────────────────────
-async function renderLog() {
-  await loadChartJS();
-  const logs = [...state.dailyLog].sort((a,b) => a.date.localeCompare(b.date));
-  const total = logs.reduce((s,e) => s + (e.collected||0), 0);
-  const nonZero = logs.filter(e => (e.collected||0) > 0);
-  const best = nonZero.length ? Math.max(...nonZero.map(e => e.collected)) : 0;
-  const avg = logs.length ? total / logs.length : 0;
+function renderLog() {
+  const logs       = [...(state.dailyLog||[])].sort((a,b) => a.date.localeCompare(b.date));
+  const todayStr   = new Date().toISOString().split('T')[0];
+  const total      = logs.reduce((s,e) => s + (e.collected||0), 0);
+  const nonZero    = logs.filter(e => (e.collected||0) > 0);
+  const best       = nonZero.length ? Math.max(...nonZero.map(e => e.collected)) : 0;
+  const avg        = nonZero.length ? Math.round(total / nonZero.length) : 0;
+  const activeDays = nonZero.length;
+  const streak     = calcStreak ? calcStreak() : 0;
 
-  // Daily required pace for pace dots
-  const nowD = new Date();
-  const dim = new Date(nowD.getFullYear(), nowD.getMonth()+1, 0).getDate();
-  const monthTarget = state.monthlyTarget || 0;
+  const nowD           = new Date();
+  const dim            = new Date(nowD.getFullYear(), nowD.getMonth()+1, 0).getDate();
+  const monthTarget    = state.monthlyTarget || 0;
   const requiredPerDay = monthTarget > 0 ? monthTarget / dim : 0;
 
-  document.getElementById('log-total').textContent = fmtC(total);
-  document.getElementById('log-best').textContent = fmtC(best);
-  document.getElementById('log-avg').textContent = fmtC(Math.round(avg));
+  // ── KPI strip ─────────────────────────────────────────────────
+  const _kpi = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  _kpi('log-total',      total > 0 ? fmtC(total) : '—');
+  _kpi('log-best',       best  > 0 ? fmtC(best)  : '—');
+  _kpi('log-avg',        avg   > 0 ? fmtC(avg)   : '—');
+  _kpi('log-streak-kpi', streak > 0 ? streak + '🔥' : '0');
+  _kpi('log-active-days',activeDays + 'd');
+
   const mlEl = document.getElementById('log-month-label');
-  if (mlEl) mlEl.textContent = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  if (mlEl) mlEl.textContent = new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+
   renderLogMonthProgress();
 
-  const todayStr = nowD.toISOString().split('T')[0];
+  // Pre-fill date
   const logDateEl = document.getElementById('log-date');
   if (logDateEl && !logDateEl.value) logDateEl.value = todayStr;
 
-  // Chart
-  const ctx = document.getElementById('chart-log');
-  if (ctx) {
-    let running = 0;
-    const runningData = logs.map(e => { running += (e.collected||0); return running; });
-    updateOrCreateChart('log', ctx, {
-      type: 'line',
-      data: {
-        labels: logs.map(e => { const d = new Date(e.date); return String(d.getDate()); }),
-        datasets: [{
-          label: 'Running Total',
-          data: runningData,
-          borderColor: '#e8a020',
-          backgroundColor: 'rgba(232,160,32,0.08)',
-          fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#e8a020'
-        }]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ display:false } },
-        scales:{
-          x:{ grid:{ color:chartColor(0.06) }, ticks:{ color:chartTextColor(), font:{ family:'IBM Plex Mono', size:10 } } },
-          y:{ grid:{ color:chartColor(0.06) }, ticks:{ color:chartTextColor(), font:{ family:'IBM Plex Mono', size:10 }, callback: v=>'₵'+fmt(v) } }
-        }
-      }
-    });
+  // ── (1) Today sticky CTA ─────────────────────────────────────
+  const todayCta  = document.getElementById('log-today-cta');
+  if (todayCta) {
+    const todayEntry = logs.find(e => e.date === todayStr);
+    const todayAmt   = todayEntry ? (todayEntry.collected||0) : null;
+    const isLogged   = !!todayEntry;
+    if (isLogged) {
+      const paceOver = requiredPerDay > 0 && todayAmt >= requiredPerDay * 1.1;
+      const col  = todayAmt === 0 ? 'var(--red)' : paceOver ? 'var(--green)' : 'var(--gold)';
+      const icon = todayAmt === 0 ? '📭' : paceOver ? '✅' : '📋';
+      todayCta.innerHTML = `
+        <div style="background:${col}12;border:1px solid ${col}40;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:${col}">${icon} Today logged · ${todayAmt > 0 ? fmtC(todayAmt) : 'Zero entry'}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${escapeHtml(todayEntry.notes||'')||((paceOver?'Above daily pace 👍':requiredPerDay>0?'Need '+fmtC(Math.round(requiredPerDay))+'/day':'Tap to edit'))}</div>
+          </div>
+          <button onclick="openLogEntryEdit('${todayStr}')" style="padding:6px 12px;border-radius:8px;border:1px solid ${col}50;background:${col}15;font-size:11px;font-weight:700;cursor:pointer;color:${col};font-family:var(--font-body)">Edit ✏️</button>
+        </div>`;
+    } else {
+      todayCta.innerHTML = `
+        <div style="background:rgba(240,160,48,0.08);border:1px dashed rgba(240,160,48,0.4);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--gold)">📋 Today not logged yet</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${requiredPerDay>0?'Target: '+fmtC(Math.round(requiredPerDay))+' today':'Log your collections for today'}</div>
+          </div>
+          <button onclick="document.getElementById('log-date').value='${todayStr}';document.getElementById('log-amount').focus();document.getElementById('log-entry-form').scrollIntoView({behavior:'smooth',block:'center'})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(240,160,48,0.5);background:rgba(240,160,48,0.1);font-size:11px;font-weight:700;cursor:pointer;color:var(--gold);font-family:var(--font-body)">Log Now ＋</button>
+        </div>`;
+    }
+  }
+
+  // ── (3) Bar chart with pace line ─────────────────────────────
+  const chartEl = document.getElementById('chart-log');
+  if (chartEl) {
+    if (logs.length) {
+      const chartLogs = logs.slice(-30);
+      const labels    = chartLogs.map(e => { const d=new Date(e.date); return d.getDate()+'/'+(d.getMonth()+1); });
+      const values    = chartLogs.map(e => e.collected||0);
+      const paceData  = chartLogs.map(() => requiredPerDay > 0 ? Math.round(requiredPerDay) : null);
+      const barColors = values.map(v => {
+        if (v === 0) return 'rgba(239,68,68,0.3)';
+        if (requiredPerDay > 0 && v >= requiredPerDay*1.1) return 'rgba(34,197,94,0.75)';
+        if (requiredPerDay > 0 && v < requiredPerDay*0.5)  return 'rgba(239,68,68,0.65)';
+        return 'rgba(232,160,32,0.75)';
+      });
+      loadChartJS().then(() => {
+        updateOrCreateChart('log', chartEl, {
+          type: 'bar',
+          data: { labels, datasets: [
+            { label:'Collected', data:values, backgroundColor:barColors, borderRadius:3, order:2 },
+            ...(requiredPerDay > 0 ? [{ label:'Target/day', data:paceData, type:'line',
+              borderColor:'#22c55e', borderDash:[4,3], borderWidth:1.5,
+              pointRadius:0, fill:false, order:1 }] : [])
+          ]},
+          options: { responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>' '+fmtC(ctx.raw)}} },
+            scales:{
+              x:{ grid:{display:false}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10} },
+              y:{ grid:{color:chartColor(0.05)}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9},callback:v=>'₵'+fmt(v)}, min:0 }
+            }
+          }
+        });
+      }).catch(()=>{});
+    } else {
+      const wrap = chartEl.closest('div');
+      if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:130px;color:var(--text3);font-size:12px">No entries yet — start logging daily</div>';
+    }
   }
 
   if (logs.length === 0) {
-    document.getElementById('log-entries').innerHTML = '<div class="empty-state"><div class="icon">📅</div><div>No entries yet</div></div>';
+    const le = document.getElementById('log-entries');
+    if (le) le.innerHTML = '<div class="empty-state"><div class="icon">📅</div><div>No entries yet</div></div>';
     return;
   }
 
-  // Improvement 6: Personal best banner
-  const pbestBanner = '';
+  // ── (4) Personal best banner ──────────────────────────────────
+  const pbEntry = nonZero.reduce((a,b) => (b.collected||0)>(a.collected||0)?b:a, nonZero[0]||{});
+  const pbestBanner = pbEntry && pbEntry.collected > 0
+    ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(240,160,48,0.07);border-bottom:1px solid rgba(240,160,48,0.2)">
+        <span style="font-size:18px">🏆</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--gold)">Personal Best — ${fmtC(pbEntry.collected)}</div>
+          <div style="font-size:10px;color:var(--text3)">${new Date(pbEntry.date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div>
+        </div>
+       </div>`
+    : '';
 
-  // Build entries with running total, pace dot, weekly summaries
+  // ── Streak badge ──────────────────────────────────────────────
+  const sbEl = document.getElementById('log-streak-badge');
+  if (sbEl && streak > 0) {
+    sbEl.innerHTML = `<div style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3)"><span style="font-size:12px">🔥</span><span style="font-size:10px;font-weight:700;color:var(--orange)">${streak}-day streak</span></div>`;
+  }
+
   const maxC = best || 1;
   let runningTotal = 0;
-  let weekBuf = [];
-  let weekIdx = 0;
+  let weekBuf = [], weekIdx = 0, prevWeekTotal = 0;
   let entriesHtml = '';
 
-  logs.forEach((e, i) => {
-    const val = e.collected || 0;
-    runningTotal += val;
+  [...logs].reverse().forEach((e, i) => {
+    const origI = logs.length - 1 - i;
+    const val   = e.collected || 0;
+    runningTotal = logs.slice(0, origI+1).reduce((s,x)=>s+(x.collected||0),0);
     weekBuf.push(e);
 
-    const w = (val / maxC * 100).toFixed(0);
+    const w       = val > 0 ? Math.max(4, Math.round(val/maxC*100)) : 0;
     const isToday = e.date === todayStr;
-    const isBest = val === best && val > 0;
+    const isBest  = val === best && val > 0 && best > 0;
+    const isZero  = val === 0;
 
-    // Improvement 3: Pace dot
+    // (7) Zero day distinct colour
+    let barColor, amtColor;
+    if (isZero) { barColor='rgba(239,68,68,0.3)'; amtColor='var(--text3)'; }
+    else if (requiredPerDay>0 && val>=requiredPerDay*1.1) { barColor='var(--green)'; amtColor='var(--green)'; }
+    else if (requiredPerDay>0 && val<requiredPerDay*0.5)  { barColor='var(--red)';   amtColor='var(--red)'; }
+    else { barColor='var(--gold)'; amtColor='var(--gold)'; }
+
+    // Pace dot
     let paceDot = '';
-    if (requiredPerDay > 0) {
-      const col = val >= requiredPerDay * 1.1 ? 'var(--green)' : val >= requiredPerDay * 0.7 ? 'var(--gold)' : val > 0 ? 'var(--red)' : 'var(--border2)';
-      const tip = val >= requiredPerDay * 1.1 ? 'Above pace' : val >= requiredPerDay * 0.7 ? 'On pace' : val > 0 ? 'Below pace' : 'Zero';
-      paceDot = '<span style="width:7px;height:7px;border-radius:50%;background:' + col + ';display:inline-block;flex-shrink:0;margin-right:3px" title="' + tip + ' (need ' + fmtC(Math.round(requiredPerDay)) + '/day)"></span>';
+    if (requiredPerDay > 0 && !isZero) {
+      const col = val>=requiredPerDay*1.1?'var(--green)':val>=requiredPerDay*0.7?'var(--gold)':'var(--red)';
+      paceDot = `<span style="width:6px;height:6px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span>`;
+    } else if (isZero) {
+      paceDot = '<span style="width:6px;height:6px;border-radius:50%;background:rgba(239,68,68,0.4);display:inline-block;flex-shrink:0"></span>';
     }
 
-    // Improvement 2: Running total
-    const runCol = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);min-width:56px;text-align:right" title="Month total so far">' + fmtC(runningTotal) + '</div>';
+    const dateObj = new Date(e.date+'T00:00:00');
+    const dayName = dateObj.toLocaleDateString('en-GB',{weekday:'short'});
+    const dayNum  = dateObj.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 
-    const amtColor = val === 0 ? 'var(--text3)' : (requiredPerDay > 0 && val >= requiredPerDay * 1.1) ? 'var(--green)' : (requiredPerDay > 0 && val < requiredPerDay * 0.5) ? 'var(--red)' : 'var(--gold)';
-    const barColor = val === 0 ? 'var(--border2)' : (requiredPerDay > 0 && val >= requiredPerDay * 1.1) ? 'var(--green)' : (requiredPerDay > 0 && val < requiredPerDay * 0.5) ? 'var(--red)' : 'var(--gold)';
-    const dateObj = new Date(e.date + 'T00:00:00');
-    const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
-    const dayNum  = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    // (6) Notes fully visible
+    const notesRow = e.notes
+      ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;line-height:1.4">${escapeHtml(e.notes)}</div>`
+      : '';
+
+    const rowBg = isToday ? 'background:rgba(240,160,48,0.05)' : isZero ? 'background:rgba(239,68,68,0.02)' : '';
+
     entriesHtml +=
-      '<div class="log-entry" data-logdate="' + e.date + '" style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer' + (isToday ? ';background:rgba(240,160,48,0.04)' : '') + '" onclick="tapLogEntry(this)">'
-      + '<div style="flex-shrink:0;text-align:center;min-width:38px">'
-      +   '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px">' + dayName + '</div>'
-      +   '<div style="font-size:12px;font-weight:700;color:' + (isToday ? 'var(--gold)' : 'var(--text2)') + '">' + dayNum + '</div>'
-      +   (isBest ? '<div style="font-size:9px;color:var(--gold);margin-top:1px">🏆</div>' : (paceDot ? '<div style="display:flex;justify-content:center;margin-top:2px">' + paceDot + '</div>' : ''))
-      + '</div>'
-      + '<div style="flex:1;min-width:0">'
-      +   '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden' + (e.notes ? ';margin-bottom:5px' : '') + '">'
-      +     '<div style="height:100%;width:' + w + '%;background:' + barColor + ';border-radius:2px"></div>'
-      +   '</div>'
-      +   (e.notes ? '<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + e.notes + '</div>' : '')
-      + '</div>'
-      + '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-align:right;flex-shrink:0;min-width:50px">' + fmtC(runningTotal) + '</div>'
-      + '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:' + amtColor + ';text-align:right;flex-shrink:0;min-width:60px">' + (val === 0 ? '—' : fmtC(val)) + '</div>'
-      + '<button style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;flex-shrink:0" data-delbtn="' + e.date + '" onclick="event.stopPropagation();tapLogDelete(this)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/></svg></button>'
-      + '</div>';
-      + '</div>';
+      `<div class="log-entry" data-logdate="${e.date}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;${rowBg}" onclick="tapLogEntry(this)">
+        <div style="flex-shrink:0;text-align:center;min-width:36px;padding-top:1px">
+          <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px">${dayName}</div>
+          <div style="font-size:11px;font-weight:700;color:${isToday?'var(--gold)':'var(--text2)'}">${dayNum}</div>
+          <div style="display:flex;justify-content:center;margin-top:3px">
+            ${isBest ? '<span style="font-size:11px">🏆</span>' : paceDot}
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;padding-top:3px">
+          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;${notesRow?'margin-bottom:4px':''}">
+            <div style="height:100%;width:${w}%;background:${barColor};border-radius:3px"></div>
+          </div>
+          ${notesRow}
+        </div>
+        <div style="text-align:right;flex-shrink:0;padding-top:1px">
+          <div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:${amtColor}">${isZero?'—':fmtC(val)}</div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:1px">${fmtC(runningTotal)}</div>
+        </div>
+        <button style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;flex-shrink:0;margin-top:1px" data-delbtn="${e.date}" onclick="event.stopPropagation();tapLogDelete(this)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:13px;height:13px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/></svg>
+        </button>
+      </div>`;
 
-    // Improvement 1: Weekly summary
-    const isEndOfWeek = (i + 1) % 7 === 0 || i === logs.length - 1;
+    // (5) Weekly summary with week-on-week comparison
+    const isEndOfWeek = weekBuf.length === 7 || origI === 0;
     if (isEndOfWeek && weekBuf.length > 0) {
       weekIdx++;
-      const wkTotal = weekBuf.reduce((s,x) => s + (x.collected||0), 0);
-      const wkActive = weekBuf.filter(x => (x.collected||0) > 0).length;
-      const wkAvg = wkActive > 0 ? Math.round(wkTotal / wkActive) : 0;
+      const wkTotal  = weekBuf.reduce((s,x) => s+(x.collected||0), 0);
+      const wkActive = weekBuf.filter(x => (x.collected||0)>0).length;
+      const wkAvg    = wkActive > 0 ? Math.round(wkTotal/wkActive) : 0;
+      let wowHtml = '';
+      if (weekIdx > 1 && prevWeekTotal > 0) {
+        const diff = wkTotal - prevWeekTotal;
+        const pct  = Math.round(Math.abs(diff)/prevWeekTotal*100);
+        const col  = diff>0?'var(--green)':diff<0?'var(--red)':'var(--text3)';
+        const arr  = diff>0?'↑':diff<0?'↓':'→';
+        wowHtml = `<span style="color:${col};font-size:10px;font-weight:700">${arr}${pct}% vs prev</span>`;
+      }
       entriesHtml +=
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(255,255,255,0.025);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">'
-        + '<span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px">Week ' + weekIdx + '</span>'
-        + '<div style="display:flex;gap:14px;font-size:11px">'
-        + '<span style="color:var(--text3)">' + wkActive + '/' + weekBuf.length + ' active</span>'
-        + '<span style="font-family:var(--font-mono);color:var(--text3)">avg ' + fmtC(wkAvg) + '</span>'
-        + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--gold)">' + fmtC(wkTotal) + '</span>'
-        + '</div></div>';
+        `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(255,255,255,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+          <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px">Week ${weekIdx}</span>
+          <div style="display:flex;gap:8px;align-items:center;font-size:10px">
+            <span style="color:var(--text3)">${wkActive}/${weekBuf.length}d</span>
+            <span style="font-family:var(--font-mono);color:var(--text3)">avg ${fmtC(wkAvg)}</span>
+            <span style="font-family:var(--font-mono);font-weight:700;color:var(--gold)">${fmtC(wkTotal)}</span>
+            ${wowHtml}
+          </div>
+        </div>`;
+      prevWeekTotal = wkTotal;
       weekBuf = [];
     }
   });
 
-  document.getElementById('log-entries').innerHTML = pbestBanner + entriesHtml;
+  const le = document.getElementById('log-entries');
+  if (le) le.innerHTML = pbestBanner + entriesHtml;
 }
 
 // ── Month Progress Bar ─────────────────────────────────────────
 function renderLogMonthProgress() {
   const el = document.getElementById('log-month-progress');
   if (!el) return;
-  const now     = new Date();
-  const dim     = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-  const dayNum  = now.getDate();
+  const now      = new Date();
+  const dim      = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const dayNum   = now.getDate();
   const daysLeft = dim - dayNum;
-  const target  = state.monthlyTarget || 0;
-  const start   = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const total   = (state.dailyLog||[]).filter(e => e.date >= start).reduce((s,e) => s+(e.collected||0), 0);
-  const pct     = target > 0 ? Math.min(100, Math.round(total / target * 100)) : 0;
-  const colPct  = pct >= 100 ? 'var(--green)' : pct >= 60 ? 'var(--gold)' : 'var(--orange)';
-  const remaining = Math.max(0, target - total);
+  const target   = state.monthlyTarget || 0;
+
+  const thisStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const lastStart = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().split('T')[0];
+  const lastEnd   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+  const allLogs   = state.dailyLog || [];
+
+  const thisTotal = allLogs.filter(e => e.date >= thisStart).reduce((s,e) => s+(e.collected||0), 0);
+  const lastTotal = allLogs.filter(e => e.date >= lastStart && e.date <= lastEnd).reduce((s,e) => s+(e.collected||0), 0);
+
+  // (9) Projection: at current pace, month-end estimate
+  const activeSoFar   = allLogs.filter(e => e.date >= thisStart && (e.collected||0) > 0).length;
+  const dailyAvgSoFar = activeSoFar > 0 ? thisTotal / dayNum : 0;
+  const projection    = Math.round(dailyAvgSoFar * dim);
+
+  // (10) Month-on-month same-day comparison
+  const lastSameDayEnd = new Date(now.getFullYear(), now.getMonth()-1, dayNum).toISOString().split('T')[0];
+  const lastSameDay    = allLogs.filter(e => e.date >= lastStart && e.date <= lastSameDayEnd).reduce((s,e) => s+(e.collected||0), 0);
+  const momDiff        = lastSameDay > 0 ? Math.round((thisTotal - lastSameDay) / lastSameDay * 100) : null;
+  const momCol         = momDiff === null ? 'var(--text3)' : momDiff >= 0 ? 'var(--green)' : 'var(--red)';
+  const momArrow       = momDiff === null ? '' : momDiff >= 0 ? '↑' : '↓';
+
+  const pct       = target > 0 ? Math.min(100, Math.round(thisTotal / target * 100)) : 0;
+  const colPct    = pct >= 100 ? 'var(--green)' : pct >= 60 ? 'var(--gold)' : 'var(--orange)';
+  const remaining = Math.max(0, target - thisTotal);
   const dailyNeeded = daysLeft > 0 ? Math.ceil(remaining / daysLeft) : 0;
 
   if (!target) {
-    el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:11px;color:var(--text3)">No monthly target set</span>
-      <button onclick="navigate('health')" class="btn btn-ghost btn-sm" style="font-size:10px">Set Target →</button>
-    </div>`;
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">This month</span>
+        <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold)">${fmtC(thisTotal)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
+        <span>Day ${dayNum} of ${dim}</span>
+        ${momDiff !== null ? `<span style="color:${momCol};font-weight:700">${momArrow}${Math.abs(momDiff)}% vs last month same point</span>` : ''}
+        <button onclick="navigate('health')" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px">Set Target →</button>
+      </div>`;
     return;
   }
+
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
       <span style="font-size:11px;font-weight:700;color:var(--text2)">Month Target <span style="color:${colPct}">${pct}%</span></span>
-      <span style="font-size:11px;font-family:var(--font-mono);color:var(--text3)">${fmtC(total)} / ${fmtC(target)}</span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">${fmtC(thisTotal)} / ${fmtC(target)}</span>
     </div>
-    <div style="height:8px;background:var(--border2);border-radius:6px;overflow:hidden;margin-bottom:6px">
+    <div style="height:7px;background:var(--border2);border-radius:6px;overflow:hidden;margin-bottom:8px">
       <div style="height:100%;width:${pct}%;background:${colPct};border-radius:6px;transition:width 0.6s cubic-bezier(0.34,1.2,0.64,1)"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
-      <span>${daysLeft} days left in month</span>
-      <span>${remaining > 0 ? 'Need ' + fmtC(dailyNeeded) + '/day' : '🎯 Target reached!'}</span>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+      <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:8px">
+        <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:${dailyNeeded>0?'var(--orange)':'var(--green)'}">${remaining > 0 ? fmtC(dailyNeeded)+'/d' : '🎯 Done!'}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:1px">${daysLeft}d left</div>
+      </div>
+      <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:8px">
+        <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:${projection>=target?'var(--green)':'var(--orange)'}">${fmtC(projection)}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:1px">Projected</div>
+      </div>
+      <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:8px">
+        <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:${momCol}">${momDiff !== null ? momArrow+Math.abs(momDiff)+'%' : '—'}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:1px">vs last month</div>
+      </div>
     </div>`;
 }
 
