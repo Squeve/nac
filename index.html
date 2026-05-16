@@ -5736,16 +5736,28 @@ async function pullRemoteState() {
 }
 
 // On visibility change (tab becomes active)
+// Fix 2: Throttle remote pulls — visibilitychange fires very frequently on mobile
+let _lastRemotePull = 0;
+const PULL_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes minimum between pulls
+
+function _throttledPull() {
+  if (!_sessionUnlocked || !_activeAgent) return;
+  const now = Date.now();
+  if (now - _lastRemotePull < PULL_THROTTLE_MS) return;
+  _lastRemotePull = now;
+  pullRemoteState();
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    pullRemoteState();
+    _throttledPull();
   }
 });
 
-// Every 60 seconds when the page is visible
+// Every 60 seconds when the page is visible — still throttled
 setInterval(() => {
   if (document.visibilityState === 'visible') {
-    pullRemoteState();
+    _throttledPull();
   }
 }, 60000);
 
@@ -5767,29 +5779,36 @@ function _trackBorrowerScores() {
   });
 }
 
+// ── Debounced save: coalesces rapid successive calls into one write ──
+let _saveStateTimer   = null;
+let _saveStatePending = false;
+
 function saveState() {
-    // Add timestamp to track when this save happened
   state._lastLocalSave = Date.now();
-  
-  // Encrypt state before writing to localStorage
+  if (_saveStatePending) return;
+  _saveStatePending = true;
+  clearTimeout(_saveStateTimer);
+  _saveStateTimer = setTimeout(_doSaveState, 0);
+}
+
+function _doSaveState() {
+  _saveStatePending = false;
+  if (!_sessionUnlocked && !_activeAgent) return;
+  _invalidateActiveBorrowersCache(); // Fix 3: ensure next render sees fresh data
   const key     = getStateKey();
   const agentId = _activeAgent?.id || null;
   const json    = JSON.stringify(state);
   if (agentId && crypto?.subtle) {
     _encryptForStorage(json, agentId).then(function(encrypted) {
       localStorage.setItem(key, encrypted);
-  if (window.indexedDB) {
-  _saveStateToIndexedDB(key, state).catch(console.warn);
-}
+      if (window.indexedDB) _saveStateToIndexedDB(key, state).catch(console.warn);
     });
   } else {
-    localStorage.setItem(key, json); // fallback for no-agent or no-crypto
+    localStorage.setItem(key, json);
+    if (window.indexedDB) _saveStateToIndexedDB(key, state).catch(console.warn);
   }
-if (window.indexedDB) {
-  _saveStateToIndexedDB(key, state).catch(console.warn);
-}
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(_pushToSupabaseIncremental, 300);
+  _saveTimer = setTimeout(_pushToSupabaseIncremental, 400);
 }
 
 async function _pushToSupabase(retries = 3) {
@@ -6243,13 +6262,32 @@ function getAgentDayRange() {
   return bands[stage] || bands.M2;
 }
 
+// Fix 3: Cache getActiveBorrowers for the current render tick to avoid re-filtering on every call
+let _activeBorrowersCache = null;
+let _activeBorrowersCacheTs = 0;
+
 function getActiveBorrowers() {
-  if (!_activeAgent) return state.borrowers.filter(b => !b.isPaid && getStatus(b) !== 'Paid');
-  const [minDay, maxDay] = getAgentDayRange();
-  return state.borrowers.filter(function(b) {
-    const od = getOdAge(b.startDate);
-    return !b.isPaid && getStatus(b) !== 'Paid' && od >= minDay && od <= maxDay;
-  });
+  const now = Date.now();
+  // Cache is valid for 200ms — covers all calls within a single synchronous render
+  if (_activeBorrowersCache && now - _activeBorrowersCacheTs < 200) return _activeBorrowersCache;
+  let result;
+  if (!_activeAgent) {
+    result = state.borrowers.filter(b => !b.isPaid && getStatus(b) !== 'Paid');
+  } else {
+    const [minDay, maxDay] = getAgentDayRange();
+    result = state.borrowers.filter(function(b) {
+      const od = getOdAge(b.startDate);
+      return !b.isPaid && getStatus(b) !== 'Paid' && od >= minDay && od <= maxDay;
+    });
+  }
+  _activeBorrowersCache = result;
+  _activeBorrowersCacheTs = now;
+  return result;
+}
+
+function _invalidateActiveBorrowersCache() {
+  _activeBorrowersCache = null;
+  _activeBorrowersCacheTs = 0;
 }
 
 function getAllNonPaid() {
@@ -8355,7 +8393,7 @@ function exportLogMonth() {
 // Improvement 4: Quick note suggestions for log
 function tapLogDelete(el) {
   const date = el.dataset.delbtn;
-  if (date) { haptic('medium'); deleteLogEntry(date); }
+  if (date) { haptic('destructive'); deleteLogEntry(date); }
 }
 
 function tapLogEntry(el) {
@@ -9603,6 +9641,30 @@ function removeBorrowerTag(id, tagId) {
 function openBorrowerDetail(id) {
   var b = state.borrowers.find(function(x){ return x.id === id; });
   if (!b) return;
+
+  // Fix 4: Paint skeleton instantly so tap feels immediate, fill real content after paint
+  const overlay = document.getElementById('modal-overlay');
+  const titleEl = document.getElementById('modal-title');
+  const bodyEl  = document.getElementById('modal-body');
+  const footerEl= document.getElementById('modal-footer');
+  if (titleEl)  titleEl.textContent = b.name;
+  if (bodyEl)   bodyEl.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0">
+      <div class="skeleton" style="height:70px;border-radius:12px"></div>
+      <div class="skeleton" style="height:40px;border-radius:8px"></div>
+      <div class="skeleton" style="height:100px;border-radius:10px"></div>
+      <div class="skeleton" style="height:60px;border-radius:10px"></div>
+    </div>`;
+  if (footerEl) footerEl.innerHTML = '';
+  overlay?.classList.add('open');
+
+  // Fill real content after browser has painted the skeleton
+  requestAnimationFrame(() => requestAnimationFrame(() => _openBorrowerDetailFill(id)));
+}
+
+function _openBorrowerDetailFill(id) {
+  var b = state.borrowers.find(function(x){ return x.id === id; });
+  if (!b) return;
   var od = getOdAge(b.startDate);
   var st = getStatus(b);
   var stColor = st==='Paid'?'var(--green)':st==='Partial'?'var(--gold)':'var(--red)';
@@ -10100,7 +10162,11 @@ function _pushModal(restoreFn) {
   const title  = document.getElementById('modal-title')?.textContent || '';
   const body   = document.getElementById('modal-body')?.innerHTML || '';
   const footer = document.getElementById('modal-footer')?.innerHTML || '';
-  if (title || body) _modalStack.push({ title, body, footer, restoreFn: restoreFn || null });
+  if (title || body) {
+    _modalStack.push({ title, body, footer, restoreFn: restoreFn || null });
+    // Fix 10: Cap stack depth to prevent infinite overflow on repeated taps
+    if (_modalStack.length > 5) _modalStack = _modalStack.slice(-5);
+  }
   _syncModalBackBtn();
 }
 
@@ -10531,7 +10597,7 @@ function clearPromise(id) {
   b.promiseNote = '';
   b.ptpOutcome = '';
   b.ptpBreached = false;
-  haptic('medium');
+  haptic('destructive');
   saveState();
   refreshPtpReminders();
   closeModal();
@@ -11257,6 +11323,17 @@ let currentPage = 'dashboard';
 })();
 
 function navigate(page) {
+  // Fix 8: Warn if a form has unsaved input before navigating away
+  const dirtyInputs = document.querySelectorAll(
+    '#page-new-borrower input[value=""], #page-settings .form-input:not([readonly])'
+  );
+  const activeForm = document.getElementById('page-new-borrower');
+  if (activeForm && currentPage === 'new-borrower' && page !== 'new-borrower') {
+    const hasData = [...activeForm.querySelectorAll('input,textarea')].some(
+      el => el.value && el.value !== el.defaultValue
+    );
+    if (hasData && !confirm('You have unsaved changes. Leave without saving?')) return;
+  }
   // Save the current page's scroll position before leaving
   saveScrollPosition(currentPage);
 
@@ -11308,6 +11385,8 @@ function navigate(page) {
 }
 
 function renderCurrentPage() {
+  // Fix 7: Never render app content during a locked session
+  if (!_sessionUnlocked && !_activeAgent) return;
   const pageId = currentPage;
 
   // Capture scroll NOW (before render mutates DOM) — only if we're re-rendering in place
@@ -11392,13 +11471,17 @@ function toast(msg, type = 'info') {
   const area = document.getElementById('toast-area');
   if (!area) return;
 
-  // Haptic feedback per type
+  // Fix 11: Dismiss any existing toast with identical message immediately
+  area.querySelectorAll('.toast').forEach(function(el) {
+    if (el._toastMsg === msg) _dismissToast(el);
+  });
+
   if (typeof haptic === 'function') {
     if (type === 'success') haptic('light');
     else if (type === 'error') haptic('medium');
+    else if (type === 'warning') haptic('warn');
   }
 
-  // If at cap, remove the oldest with exit animation
   if (_toastActive >= TOAST_MAX) {
     const oldest = area.querySelector('.toast');
     if (oldest) _dismissToast(oldest);
@@ -11406,9 +11489,9 @@ function toast(msg, type = 'info') {
 
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+  el._toastMsg = msg; // Fix 11: tag for dedup
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️', warning: '⚠️' };
   el.innerHTML = `${icons[type] || 'ℹ️'} ${escapeHtml(msg)}`;
-  // Click to dismiss early
   el.addEventListener('click', () => _dismissToast(el));
   area.appendChild(el);
   _toastActive++;
@@ -11525,22 +11608,22 @@ function navigateDrawer(page) {
 // ── Haptic feedback — Android (vibrate API) + visual flash ──────
 function haptic(type) {
   if (localStorage.getItem('sq_haptic') === 'off') return;
-  // Android: Web Vibration API
   if (navigator.vibrate) {
     const patterns = {
-      light:   [12],
-      medium:  [25],
-      success: [20,15,40,10,60],
-      error:   [50,30,50,30,50],
-      pay:     [30,10,30,10,80],
-      ptp:     [20,20,20],
-      aged:    [80,40,80],
-      warn:    [40,20,40],
-      unlock:  [15,10,15,10,50],
+      light:       [12],
+      medium:      [25],
+      success:     [20,15,40,10,60],
+      error:       [50,30,50,30,50],
+      // Fix 12: distinct pattern for destructive actions (delete/clear/wipe)
+      destructive: [80,30,80,30,120],
+      pay:         [30,10,30,10,80],
+      ptp:         [20,20,20],
+      aged:        [80,40,80],
+      warn:        [40,20,40],
+      unlock:      [15,10,15,10,50],
     };
     navigator.vibrate(patterns[type] || patterns.light);
   }
-  // Universal: brief opacity flash on focused element (iOS + any device)
   try {
     const el = document.activeElement;
     if (el && el !== document.body && el.style) {
@@ -12300,8 +12383,12 @@ function renderGlobalSearch() {
     return;
   }
   var matches = state.borrowers.filter(function(b) {
-    return b.name.toLowerCase().includes(q) || b.phone.replace(/\s/g,'').includes(q.replace(/\s/g,''));
-  }).slice(0, 8);
+    const nameMatch  = b.name.toLowerCase().includes(q);
+    const phoneMatch = b.phone.replace(/\D/g,'').includes(q.replace(/\D/g,''));
+    const noteMatch  = b.notes && b.notes.toLowerCase().includes(q);
+    const typeMatch  = b.loanType && b.loanType.toLowerCase().includes(q);
+    return nameMatch || phoneMatch || noteMatch || typeMatch;
+  }).slice(0, 10);
   if (!matches.length) {
     res.style.display = 'block';
     res.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text3)">No results for "' + q + '"</div>';
@@ -12999,7 +13086,7 @@ function _escalPhone() {
 }
 
 function _escalAgentPhone() {
-  return localStorage.getItem('sq_agent_phone') || '+233 25 607 0038';
+  return localStorage.getItem('sq_agent_phone') || '+233 123 456 789';
 }
 
 function _escalVisitDate() {
@@ -13579,7 +13666,7 @@ function openEscalationPanel() {
   
   const escalationOptions = [
     // ── Sympathetic ───────────────────────────────────────────
-    { level:20, label:'💛 L0 – Sympathetic (Good History)',  color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
+    { level:20, label:'💛 L20 – Sympathetic (Good History)',  color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
     // ── Standard warnings ─────────────────────────────────────
     { level:1,  label:'⚠️ L1 – Formal Warning',            color:'#f97316', desc:'First escalation. Credit bureau threat, 24 hr deadline.' },
     { level:2,  label:'⚖️ L2 – Pre-Litigation',            color:'#dc2626', desc:'Final notice. Field dispatch, third-party disclosure.' },
@@ -21089,7 +21176,7 @@ function settingsDeleteAccount(){
 
 async function settingsConfirmDelete(){
   try {
-  if((document.getElementById('delete-confirm-input')?.value||'').trim().toUpperCase()!=='DELETE'){toast('Type DELETE to confirm','error');haptic('medium');return;}
+  if((document.getElementById('delete-confirm-input')?.value||'').trim().toUpperCase()!=='DELETE'){toast('Type DELETE to confirm','error');haptic('destructive');return;}
   closeModal();
   const id=_activeAgent.id;
   saveAgentList(getAgentList().filter(a=>a.id!==id));
@@ -21099,7 +21186,7 @@ async function settingsConfirmDelete(){
     await db.from('app_state').delete().eq('id','main');
   }catch{}}
   clearSession();_activeAgent=null;_sessionUnlocked=false;state=initState();
-  haptic('pay');toast('Account deleted','success');showLockScreen();
+  haptic('destructive');toast('Account deleted','success');showLockScreen();
   } catch(e) {
     console.error("settingsConfirmDelete error:", e);
     toast("Error during delete: " + (e.message||"please try again"), "error");
@@ -21190,7 +21277,7 @@ function lockApp() {
   stopAutoLockTimer();  // cancel any running idle timer
   sessionStorage.removeItem('sq_dcoy_ok'); // force decoy on next open
   showLockScreen();
-  haptic('medium');
+  haptic('destructive');
 }
 
 // ── Auto-lock idle timer ──────────────────────────────────────
@@ -21948,14 +22035,20 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
   // Run aged-out purge every minute (catches day change without reload)
   setInterval(() => {
-    if (document.hidden) return; // skip if tab not active
-    if (!_activeAgent || !_sessionUnlocked) return; // skip if not logged in
+    if (document.hidden) return;
+    if (!_activeAgent || !_sessionUnlocked) return;
+    const countBefore = state.borrowers.length;
+    const ptpBefore   = state.borrowers.filter(b=>b.promisedToPay).length;
     purgeAgedOut();
     autoExpirePtps();
-    saveState();
-    updateBadges();
-    if (currentPage === 'agedout') renderAgedOut();
-    if (currentPage === 'dashboard' || currentPage === 'loans') renderCurrentPage();
+    const changed = state.borrowers.length !== countBefore
+                 || state.borrowers.filter(b=>b.promisedToPay).length !== ptpBefore;
+    if (changed) {
+      saveState();
+      updateBadges();
+      if (currentPage === 'agedout') renderAgedOut();
+      if (currentPage === 'dashboard' || currentPage === 'loans') renderCurrentPage();
+    }
   }, 90000);
 
   // Check if Supabase is configured; show setup if not
