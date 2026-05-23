@@ -3506,92 +3506,103 @@ tr.overdue-critical .heat-ring {
   <!-- RANKING PAGE -->
   <section class="page" id="page-ranking">
     <div class="page-header">
-      <div><div class="page-title">🏆 Ranking Tracker</div><div class="page-sub">Track your daily and monthly ranking positions</div></div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><span class="card-title">📸 Log New Ranking</span></div>
-      <div class="card-body">
-        <div style="margin-bottom:12px;font-size:12px;color:var(--text2);background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.2);border-radius:8px;padding:10px 12px">
-          📐 <strong>M2 Formula:</strong> Monthly = previous monthly + (Daily × 50%). Paste your ranking text from the screenshot — names and percentages are extracted automatically.
-        </div>
-        <div class="form-group">
-          <label>Ranking Type</label>
-          <div style="display:flex;gap:8px;margin-bottom:6px">
-            <button class="btn btn-gold btn-sm" id="rank-type-daily" onclick="setRankType('daily')">📅 Daily</button>
-            <button class="btn btn-ghost btn-sm" id="rank-type-monthly" onclick="setRankType('monthly')">📆 Monthly</button>
-          </div>
-          <div id="rank-eod-row" style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <input type="checkbox" id="rank-eod-check" style="accent-color:var(--gold);width:16px;height:16px;cursor:pointer">
-            <label for="rank-eod-check" style="font-size:12px;color:var(--text2);cursor:pointer;font-weight:600">EOD scan → project tomorrow's monthly ranking</label>
-          </div>
-          <div id="rank-type-hint" style="font-size:10px;color:var(--text3)">Monthly = (monthly×50%) + (daily×50%) applied to every agent</div>
-        </div>
-        <div class="form-group">
-          <label>Your Agent Name (as shown in ranking)</label>
-          <input type="text" class="form-input" id="ranking-my-name" placeholder="e.g. Shadrack Agyei">
-        </div>
-        <div class="form-group">
-          <label>Upload screenshot <span style="color:var(--text3);font-weight:400">(optional — or paste text below)</span></label>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
-            <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;color:var(--text2)">
-              📷 Choose Image
-              <input type="file" id="ranking-image-upload" accept="image/*" style="display:none" onchange="previewRankingImage(this)">
-            </label>
-            <span id="ranking-image-name" style="font-size:11px;color:var(--text3)">No file chosen</span>
-          </div>
-          <img id="ranking-image-preview" style="display:none;max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border2);margin-bottom:8px" alt="Ranking preview">
-        </div>
-        <div class="form-group">
-          <label>Paste ranking text</label>
-          <textarea class="form-input" id="ranking-paste" rows="5" placeholder="Paste screenshot text here e.g.&#10;1. Akos Mensah 87.4%&#10;2. Shadrack Agyei 83.1%&#10;3. Eric Boateng 79.2%"></textarea>
-        </div>
-        <!-- AI Provider selector -->
-        <div class="form-group">
-          <label>AI Scan Provider</label>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-            <button class="scan-provider-btn active" id="spbtn-local" onclick="setScanProvider('local')" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--gold);background:rgba(232,160,32,0.1);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--gold)">📱 Local<br><span style="font-weight:400;color:var(--text3)">Free · offline</span></button>
-            <button class="scan-provider-btn" id="spbtn-gemini" onclick="setScanProvider('gemini')" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">✨ Gemini<br><span style="font-weight:400;color:var(--text3)">Free tier</span></button>
-            <button class="scan-provider-btn" id="spbtn-claude" onclick="setScanProvider('claude')" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">🤖 Claude<br><span style="font-weight:400;color:var(--text3)">Anthropic</span></button>
-            <button class="scan-provider-btn" id="spbtn-openai" onclick="setScanProvider('openai')" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">⚡ GPT-4o<br><span style="font-weight:400;color:var(--text3)">OpenAI</span></button>
-          </div>
-
-          <!-- Provider-specific key inputs -->
-          <div id="scan-key-local" style="font-size:11px;color:var(--green);padding:6px 0">✅ No API key needed — runs entirely on your device using OCR.</div>
-
-          <div id="scan-key-gemini" style="display:none">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-              <input type="password" class="form-input" id="ranking-gemini-key" placeholder="AIza..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('gemini',this.value)">
-              <button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-gemini-key',this)">👁</button>
-            </div>
-            <div style="font-size:10px;color:var(--text3)">Free key from <b>aistudio.google.com</b> — 1,500 scans/day at no cost.</div>
-          </div>
-
-          <div id="scan-key-claude" style="display:none">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-              <input type="password" class="form-input" id="ranking-claude-key" placeholder="sk-ant-api03-..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('claude',this.value)">
-              <button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-claude-key',this)">👁</button>
-            </div>
-            <div style="font-size:10px;color:var(--text3)">Key from <b>console.anthropic.com</b> — stored in your browser only.</div>
-          </div>
-
-          <div id="scan-key-openai" style="display:none">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-              <input type="password" class="form-input" id="ranking-openai-key" placeholder="sk-..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('openai',this.value)">
-              <button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-openai-key',this)">👁</button>
-            </div>
-            <div style="font-size:10px;color:var(--text3)">Key from <b>platform.openai.com</b> — stored in your browser only.</div>
-          </div>
-        </div>
-
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">💡 No key needed for text paste or local OCR. AI providers give better accuracy on complex images.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-gold" onclick="scanRanking()" id="ranking-scan-btn">💾 Save from Text</button>
-          <button class="btn btn-ghost" onclick="scanRankingImage()" id="ranking-ai-btn">🔍 Scan Image</button>
-        </div>
-        <div id="ranking-scan-status" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+      <div>
+        <div class="page-title">🏆 Ranking</div>
+        <div class="page-sub" id="ranking-sub">Track your position in the team</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openRankingLogPanel()" style="font-size:11px">＋ Log</button>
       </div>
     </div>
-    <div id="ranking-body"></div>
+
+    <!-- Gap alert -->
+    <div id="ranking-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;font-size:13px;animation:fadeUp 0.3s ease both"></div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      <button id="rtab-overview"  onclick="switchRankingTab('overview')"  class="atab active">Overview</button>
+      <button id="rtab-board"     onclick="switchRankingTab('board')"     class="atab">Team Board</button>
+      <button id="rtab-trend"     onclick="switchRankingTab('trend')"     class="atab">My Trend</button>
+      <button id="rtab-history"   onclick="switchRankingTab('history')"   class="atab">History</button>
+    </div>
+
+    <!-- Tab panes -->
+    <div id="rpane-overview"></div>
+    <div id="rpane-board"   style="display:none"></div>
+    <div id="rpane-trend"   style="display:none"></div>
+    <div id="rpane-history" style="display:none"></div>
+
+    <!-- Log panel (hidden by default, toggled) -->
+    <div id="ranking-log-panel" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch" onclick="if(event.target===this)closeRankingLogPanel()">
+      <div style="min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding-top:60px">
+        <div style="background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:640px;margin:0 auto;box-sizing:border-box" onclick="event.stopPropagation()">
+          <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px"></div>
+          <div style="font-size:16px;font-weight:800;margin-bottom:14px">📸 Log Ranking</div>
+
+          <!-- Type + EOD -->
+          <div class="form-group">
+            <label style="font-size:11px">Ranking Type</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <button class="btn btn-gold btn-sm" id="rank-type-daily"   onclick="setRankType('daily')">📅 Daily</button>
+              <button class="btn btn-ghost btn-sm" id="rank-type-monthly" onclick="setRankType('monthly')">📆 Monthly</button>
+            </div>
+            <div id="rank-eod-row" style="display:flex;align-items:center;gap:8px;margin-top:8px">
+              <input type="checkbox" id="rank-eod-check" style="accent-color:var(--gold);width:16px;height:16px;cursor:pointer">
+              <label for="rank-eod-check" style="font-size:11px;color:var(--text2);cursor:pointer">EOD scan → project tomorrow's monthly ranking</label>
+            </div>
+            <div id="rank-type-hint" style="font-size:10px;color:var(--text3);margin-top:4px">Monthly = (monthly×50%) + (daily×50%) applied to every agent</div>
+          </div>
+
+          <!-- Agent name -->
+          <div class="form-group">
+            <label style="font-size:11px">Your name (as shown in ranking)</label>
+            <input type="text" class="form-input" id="ranking-my-name" placeholder="e.g. Shadrack Agyei" style="margin-top:4px">
+          </div>
+
+          <!-- Upload -->
+          <div class="form-group">
+            <label style="font-size:11px">Upload screenshot <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+              <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:var(--text2)">
+                📷 Choose
+                <input type="file" id="ranking-image-upload" accept="image/*" style="display:none" onchange="previewRankingImage(this)">
+              </label>
+              <span id="ranking-image-name" style="font-size:11px;color:var(--text3)">No file chosen</span>
+            </div>
+            <img id="ranking-image-preview" style="display:none;max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border2);margin-top:8px" alt="preview">
+          </div>
+
+          <!-- Paste text -->
+          <div class="form-group">
+            <label style="font-size:11px">Paste ranking text</label>
+            <textarea class="form-input" id="ranking-paste" rows="5" style="margin-top:4px"
+              placeholder="1. Akos Mensah 87.4%&#10;2. Shadrack Agyei 83.1%&#10;3. Eric Boateng 79.2%"></textarea>
+          </div>
+
+          <!-- AI provider -->
+          <div class="form-group">
+            <label style="font-size:11px">AI Scan Provider</label>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:4px;margin-bottom:8px">
+              <button class="scan-provider-btn active" id="spbtn-local"  onclick="setScanProvider('local')"  style="padding:7px 3px;border-radius:8px;border:1.5px solid var(--gold);background:rgba(232,160,32,0.1);font-size:9px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--gold)">📱 Local<br><span style="font-weight:400;color:var(--text3)">Free</span></button>
+              <button class="scan-provider-btn" id="spbtn-gemini" onclick="setScanProvider('gemini')" style="padding:7px 3px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:9px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">✨ Gemini<br><span style="font-weight:400;color:var(--text3)">Free tier</span></button>
+              <button class="scan-provider-btn" id="spbtn-claude" onclick="setScanProvider('claude')" style="padding:7px 3px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:9px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">🤖 Claude<br><span style="font-weight:400;color:var(--text3)">Anthropic</span></button>
+              <button class="scan-provider-btn" id="spbtn-openai" onclick="setScanProvider('openai')" style="padding:7px 3px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;font-size:9px;font-weight:700;cursor:pointer;font-family:var(--font-body);color:var(--text2)">⚡ GPT-4o<br><span style="font-weight:400;color:var(--text3)">OpenAI</span></button>
+            </div>
+            <div id="scan-key-local"  style="font-size:11px;color:var(--green);padding:4px 0">✅ No key needed — runs on device.</div>
+            <div id="scan-key-gemini" style="display:none"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><input type="password" class="form-input" id="ranking-gemini-key" placeholder="AIza..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('gemini',this.value)"><button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-gemini-key',this)">👁</button></div><div style="font-size:10px;color:var(--text3)">Free key from aistudio.google.com</div></div>
+            <div id="scan-key-claude" style="display:none"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><input type="password" class="form-input" id="ranking-claude-key" placeholder="sk-ant-api03-..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('claude',this.value)"><button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-claude-key',this)">👁</button></div><div style="font-size:10px;color:var(--text3)">Key from console.anthropic.com</div></div>
+            <div id="scan-key-openai" style="display:none"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><input type="password" class="form-input" id="ranking-openai-key" placeholder="sk-..." style="font-family:var(--font-mono);font-size:11px;flex:1" oninput="saveProviderKey('openai',this.value)"><button class="btn btn-ghost btn-xs" onclick="toggleKeyVis('ranking-openai-key',this)">👁</button></div><div style="font-size:10px;color:var(--text3)">Key from platform.openai.com</div></div>
+          </div>
+
+          <div id="ranking-scan-status" style="margin-bottom:8px;font-size:12px;color:var(--text2)"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" style="flex:1" onclick="scanRanking()" id="ranking-scan-btn">💾 Save Text</button>
+            <button class="btn btn-ghost" onclick="scanRankingImage()" id="ranking-ai-btn">🔍 Scan Image</button>
+            <button class="btn btn-ghost" onclick="closeRankingLogPanel()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- PTP HUB PAGE -->
@@ -5538,6 +5549,13 @@ async function loadState() {
   _db = initSupabase();
   showSkeletons(true);
 
+  // CRITICAL: Clear any in-memory state from a previous agent before loading.
+  // Stale state from Agent A must NEVER be compared against Agent B's remote data
+  // or pushed to Agent B's Supabase row. Reset to null so all guards below
+  // treat this as a genuinely empty start.
+  const loadingForAgentId = _activeAgent ? _activeAgent.id : null;
+  state = null; // intentionally null — prevents cross-agent contamination
+
   // 1. Try to load from Supabase
   if (_db) {
     try {
@@ -5549,49 +5567,53 @@ async function loadState() {
         .single();
       if (!error && data && data.data) {
         const remoteData = data.data;
-        // Safety: if remote is blank but we have local data in memory, don't overwrite
+
+        // Safety guard — only protect against blank remote if we're loading
+        // the SAME agent that was just in memory (not a freshly switched agent).
+        // Since we cleared state above, localHasBorrowers is always false here,
+        // so this guard now only fires from pullRemoteState() where state persists.
         const remoteHasBorrowers = remoteData.borrowers && remoteData.borrowers.length > 0;
-        const localHasBorrowers  = state && state.borrowers && state.borrowers.length > 0;
-        if (localHasBorrowers && !remoteHasBorrowers) {
-          console.warn('loadState: remote state empty but local has data — pushing local up');
-          setSyncStatus('offline');
-          _pushToSupabaseIncremental();
+        if (!remoteHasBorrowers) {
+          // Remote is blank for this agent — start fresh, push nothing up
+          console.warn('loadState: remote empty for', loadingForAgentId, '— initialising fresh');
+          state = initState();
+          if (_db) _pushToSupabase();
           showSkeletons(false);
           return;
         }
+
         state = migrateState(remoteData);
-       _lastFullState = JSON.parse(JSON.stringify(state));
-       _lastKnownHash = await _hashState(state);
-       _syncLocalProfileFromState();
+        _lastFullState = JSON.parse(JSON.stringify(state));
+        _lastKnownHash = await _hashState(state);
+        _syncLocalProfileFromState();
         localStorage.setItem(getStateKey(), JSON.stringify(state)); // warm cache
-       // One-time phone normalisation
-let migrationFlag = localStorage.getItem('sq_phone_migration_done');
-if (!migrationFlag && state.borrowers && state.borrowers.length) {
-  let changed = false;
-  state.borrowers.forEach(b => {
-    if (b.phone) {
-      const normalized = normalizePhone(b.phone);
-      if (normalized !== b.phone) {
-        b.phone = normalized;
-        changed = true;
-      }
-    }
-  });
-  if (changed) {
-    saveState();
-    localStorage.setItem('sq_phone_migration_done', 'true');
-  }
-}
+
+        // One-time phone normalisation
+        const migrationFlag = localStorage.getItem('sq_phone_migration_done_' + loadingForAgentId);
+        if (!migrationFlag && state.borrowers && state.borrowers.length) {
+          let changed = false;
+          state.borrowers.forEach(b => {
+            if (b.phone) {
+              const normalized = normalizePhone(b.phone);
+              if (normalized !== b.phone) { b.phone = normalized; changed = true; }
+            }
+          });
+          if (changed) {
+            saveState();
+            localStorage.setItem('sq_phone_migration_done_' + loadingForAgentId, 'true');
+          }
+        }
+
         purgeAgedOut();
         autoExpirePtps();
         setSyncStatus('saved');
-      // Conflict detection: if our local state is newer, warn
-     showSkeletons(false);
+        showSkeletons(false);
         return;
       }
     } catch(e) {
       console.warn('loadState: Supabase error, falling back to local storage', e.message);
-      /* fall through to localStorage */ }
+      /* fall through to localStorage */
+    }
     setSyncStatus('offline');
   }
 
@@ -5683,7 +5705,10 @@ if (!migrationFlag && state.borrowers && state.borrowers.length) {
 
 async function pullRemoteState() {
   if (!_db || !_activeAgent) return;
-  
+
+  // Snapshot the agent we're pulling for — if it changes mid-await, discard result
+  const pullingForId = _activeAgent.id;
+
   // Don't pull if we just saved locally within the last 2 seconds
   if (state._lastLocalSave && (Date.now() - state._lastLocalSave) < 2000) {
     return;
@@ -5708,14 +5733,19 @@ async function pullRemoteState() {
     const remoteState = data.data;
     const remoteTs = remoteState._lastSaveTs || 0;
     const localTs = state._lastLocalSave || 0;
-    
+
+    // CRITICAL: Verify the agent hasn't changed while we were awaiting the network
+    if (!_activeAgent || _activeAgent.id !== pullingForId) {
+      console.warn('pullRemoteState: agent changed mid-pull, discarding remote data');
+      return;
+    }
+
     if (remoteTs > localTs) {
       if (!state.offlineQueue || state.offlineQueue.length === 0) {
         // Safety: never overwrite with a blank/seed state from remote
-        const hasRealData = remoteState.borrowers && remoteState.borrowers.length > 0;
+        const hasRealData  = remoteState.borrowers && remoteState.borrowers.length > 0;
         const localHasData = state.borrowers && state.borrowers.length > 0;
         if (localHasData && !hasRealData) {
-          // Remote is blank but local has data — push local up instead
           console.warn('pullRemoteState: remote is blank but local has data — pushing local up');
           _pushToSupabaseIncremental();
           return;
@@ -5782,11 +5812,14 @@ function _trackBorrowerScores() {
 // ── Debounced save: coalesces rapid successive calls into one write ──
 let _saveStateTimer   = null;
 let _saveStatePending = false;
+let _saveStateForAgentId = null; // agent snapshot to detect cross-agent writes
 
 function saveState() {
   state._lastLocalSave = Date.now();
   if (_saveStatePending) return;
   _saveStatePending = true;
+  // Snapshot which agent we're saving for — checked in _doSaveState
+  _saveStateForAgentId = _activeAgent ? _activeAgent.id : null;
   clearTimeout(_saveStateTimer);
   _saveStateTimer = setTimeout(_doSaveState, 0);
 }
@@ -5794,7 +5827,16 @@ function saveState() {
 function _doSaveState() {
   _saveStatePending = false;
   if (!_sessionUnlocked && !_activeAgent) return;
-  _invalidateActiveBorrowersCache(); // Fix 3: ensure next render sees fresh data
+
+  // CRITICAL: If the agent changed between saveState() and _doSaveState(),
+  // do not write — we would be saving the previous agent's data to the wrong key
+  const currentAgentId = _activeAgent ? _activeAgent.id : null;
+  if (currentAgentId !== _saveStateForAgentId) {
+    console.warn('_doSaveState: agent changed since save was queued — aborting write');
+    return;
+  }
+
+  _invalidateActiveBorrowersCache();
   const key     = getStateKey();
   const agentId = _activeAgent?.id || null;
   const json    = JSON.stringify(state);
@@ -14756,13 +14798,16 @@ function setRankType(type) {
 }
 
 function scanRanking() {
-  const myName = (document.getElementById('ranking-my-name')?.value || '').trim();
-  const text   = (document.getElementById('ranking-paste')?.value   || '').trim();
-  const isEOD  = document.getElementById('rank-eod-check')?.checked || false;
+  const myName  = (document.getElementById('ranking-my-name')?.value || '').trim();
+  const text    = (document.getElementById('ranking-paste')?.value   || '').trim();
+  const isEOD   = document.getElementById('rank-eod-check')?.checked || false;
   const statusEl = document.getElementById('ranking-scan-status');
   const btn      = document.getElementById('ranking-scan-btn');
 
-  if (!text) { if (statusEl) statusEl.textContent = '❌ Please paste ranking text first'; return; }
+  if (!text) {
+    if (statusEl) { statusEl.textContent = '❌ Please paste ranking text first'; statusEl.style.color = 'var(--red)'; }
+    return;
+  }
   if (myName) localStorage.setItem('ranking_my_name', myName);
   if (btn) btn.disabled = true;
   haptic('light');
@@ -14774,7 +14819,7 @@ function scanRanking() {
   });
 
   if (!agents.length) {
-    if (statusEl) statusEl.textContent = '❌ No agents found. Format: "Name XX.X%" per line';
+    if (statusEl) { statusEl.textContent = '❌ No agents found. Format: "Name XX.X%" per line'; statusEl.style.color = 'var(--red)'; }
     if (btn) btn.disabled = false;
     return;
   }
@@ -14786,15 +14831,12 @@ function scanRanking() {
 
   const entry = { date: today, time, type: _rankType, isEOD: _rankType === 'daily' ? isEOD : false, agents };
 
-  // Allow multiple daily scans same day (morning, midday, EOD)
   if (_rankType === 'monthly') {
     state.rankingHistory = state.rankingHistory.filter(s => !(s.date === today && s.type === 'monthly'));
   }
   state.rankingHistory.push(entry);
 
-  // If EOD daily scan → build full projection table
   if (_rankType === 'daily' && isEOD) {
-    // Find latest monthly entry
     const lastMonthly = [...state.rankingHistory]
       .filter(s => s.type === 'monthly')
       .sort((a,b) => b.date.localeCompare(a.date))[0];
@@ -14813,222 +14855,403 @@ function scanRanking() {
 
   saveState();
   haptic('pay');
-  if (statusEl) statusEl.innerHTML = `✅ ${agents.length} agents saved (${_rankType}${isEOD?' · EOD projection built':''}) for ${today} ${time}`;
+
   if (btn) btn.disabled = false;
-  if (document.getElementById('ranking-paste')) document.getElementById('ranking-paste').value = '';
-  renderRanking();
-  toast('Ranking saved ✅', 'success');
+
+  // Show success in status, clear textarea, close panel after short delay
+  if (statusEl) {
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = `✅ ${agents.length} agents saved (${_rankType}${isEOD ? ' · EOD projection built' : ''}) · ${today} ${time}`;
+  }
+  const pasteEl = document.getElementById('ranking-paste');
+  if (pasteEl) pasteEl.value = '';
+
+  // Close panel and refresh after brief confirmation window
+  setTimeout(() => {
+    closeRankingLogPanel();
+    renderRanking();
+    toast('Ranking saved ✅', 'success');
+  }, 900);
 }
 
 function renderRanking() {
-  if (typeof initScanProviderUI === 'function') initScanProviderUI();
   const myName = (localStorage.getItem('ranking_my_name') || '').toLowerCase();
-  const body   = document.getElementById('ranking-body');
-  if (!body) return;
+  const sub = document.getElementById('ranking-sub');
+  if (sub) sub.textContent = myName ? 'Tracking ' + localStorage.getItem('ranking_my_name') : 'Set your agent name in ＋ Log to start';
+  _renderRankingTab(_rankingTab);
+}
 
-  // Pre-fill saved agent name and API key
+let _rankingTab = 'overview';
+
+function openRankingLogPanel() {
+  const panel = document.getElementById('ranking-log-panel');
+  if (!panel) return;
+  panel.style.display = 'block';
+
+  // Restore saved name
   const nameEl = document.getElementById('ranking-my-name');
-  if (nameEl && !nameEl.value && myName) nameEl.value = localStorage.getItem('ranking_my_name');
-  const keyEl = document.getElementById('ranking-claude-key');
-  if (keyEl && !keyEl.value) { const k = getActiveApiKey(); if (k) keyEl.value = k; }
+  if (nameEl && !nameEl.value) {
+    const saved = localStorage.getItem('ranking_my_name');
+    if (saved) nameEl.value = saved;
+  }
 
+  // Clear status message from last session
+  const statusEl = document.getElementById('ranking-scan-status');
+  if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; }
+
+  // Initialise provider UI now that DOM is visible
+  if (typeof initScanProviderUI === 'function') initScanProviderUI();
+
+  haptic('light');
+}
+function closeRankingLogPanel() {
+  const panel = document.getElementById('ranking-log-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function switchRankingTab(tab) {
+  _rankingTab = tab;
+  ['overview','board','trend','history'].forEach(t => {
+    const btn  = document.getElementById('rtab-' + t);
+    const pane = document.getElementById('rpane-' + t);
+    if (btn)  btn.classList.toggle('active', t === tab);
+    if (pane) pane.style.display = t === tab ? '' : 'none';
+  });
+  _renderRankingTab(tab);
+  haptic('light');
+}
+
+function _renderRankingTab(tab) {
   const history = state.rankingHistory || [];
+  const myName  = (localStorage.getItem('ranking_my_name') || '').toLowerCase();
+
+  const latestDaily   = [...history].filter(s=>s.type==='daily').sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time))[0];
+  const latestMonthly = [...history].filter(s=>s.type==='monthly').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const latestProj    = [...history].filter(s=>s.type==='projected').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const prevDaily     = [...history].filter(s=>s.type==='daily' && s.date!==(latestDaily?.date||'')).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time))[0];
+  const prevMonthly   = [...history].filter(s=>s.type==='monthly' && s!==latestMonthly).sort((a,b)=>b.date.localeCompare(a.date))[0];
+
+  function findMe(scan) { return (!scan||!myName) ? null : scan.agents.find(a=>a.name.toLowerCase().includes(myName)); }
+  function myPos(scan)  { const me=findMe(scan); return me ? scan.agents.indexOf(me)+1 : null; }
+
+  const pane = document.getElementById('rpane-' + tab);
+  if (!pane) return;
+
   if (!history.length) {
-    body.innerHTML = '<div class="empty-state" style="padding:40px 0"><div class="icon">🏆</div><div>No ranking scans yet.<br><span style="font-size:11px;color:var(--text3)">Paste your ranking text and tap Save.</span></div></div>';
+    pane.innerHTML = `<div style="text-align:center;padding:48px 24px;color:var(--text3)">
+      <div style="font-size:40px;margin-bottom:12px">🏆</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:6px">No ranking data yet</div>
+      <div style="font-size:12px;margin-bottom:16px">Tap <strong>＋ Log</strong> above to paste your first ranking screenshot.</div>
+    </div>`;
     return;
   }
 
-  // Get latest of each type
-  const latestDaily    = [...history].filter(s=>s.type==='daily').sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time))[0];
-  const latestMonthly  = [...history].filter(s=>s.type==='monthly').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const latestProj     = [...history].filter(s=>s.type==='projected').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const prevDaily      = [...history].filter(s=>s.type==='daily' && s.date !== (latestDaily?.date||'')).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time))[0];
-  const prevMonthly    = [...history].filter(s=>s.type==='monthly' && s !== latestMonthly).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if (tab === 'overview') _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prevDaily,prevMonthly,myName,findMe,myPos});
+  if (tab === 'board')   _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName});
+  if (tab === 'trend')   _renderRankingTrend(pane, {history,myName});
+  if (tab === 'history') _renderRankingHistory(pane, {history,myName,findMe,myPos});
+}
 
-  function findMe(scan) {
-    if (!scan || !myName) return null;
-    return scan.agents.find(a => a.name.toLowerCase().includes(myName));
-  }
-  function myPos(scan) {
-    if (!scan || !myName) return null;
-    const me = findMe(scan);
-    return me ? scan.agents.indexOf(me) + 1 : null;
-  }
-
-  let html = '';
-
-  // ── My Position Card ──────────────────────────────────────
+// ── Overview tab ─────────────────────────────────────────────
+function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prevDaily,prevMonthly,myName,findMe,myPos}) {
   const meD = findMe(latestDaily);
   const meM = findMe(latestMonthly);
   const meP = findMe(latestProj);
-  if (meD || meM) {
-    html += '<div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">📍 Your Position</span></div><div class="card-body">';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px">';
-    if (meD) {
-      const posD = myPos(latestDaily); const prevD = findMe(prevDaily);
-      const trendD = prevD ? (parseFloat(meD.pct) > parseFloat(prevD.pct) ? '▲' : parseFloat(meD.pct) < parseFloat(prevD.pct) ? '▼' : '—') : '';
-      html += `<div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">📅 Daily</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--gold)">#${posD||'?'}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--gold)">${meD.pct}%</div>
-        ${trendD ? `<div style="font-size:11px;color:${trendD==='▲'?'var(--green)':'var(--red)'};font-weight:700">${trendD} ${prevD?Math.abs(parseFloat(meD.pct)-parseFloat(prevD.pct)).toFixed(2)+'%':''}</div>` : ''}
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">${latestDaily.date} ${latestDaily.time}${latestDaily.isEOD?' · EOD':''}</div>
+
+  let html = '';
+
+  // Hero position card
+  if (meD || meM || meP) {
+    const mainScan   = latestProj || latestMonthly || latestDaily;
+    const meMain     = meP || meM || meD;
+    const posMain    = myPos(mainScan);
+    const totalAgents= mainScan?.agents?.length || 0;
+    const topHalf    = posMain && posMain <= Math.ceil(totalAgents/2);
+    const isTop3     = posMain && posMain <= 3;
+    const heroCol    = isTop3 ? 'var(--green)' : topHalf ? 'var(--gold)' : 'var(--orange)';
+    const medal      = posMain===1?'🥇':posMain===2?'🥈':posMain===3?'🥉':'';
+
+    html += `
+    <div style="background:linear-gradient(135deg,${heroCol}14,${heroCol}06);border:1px solid ${heroCol}33;border-radius:16px;padding:20px;margin-bottom:14px;text-align:center">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${meP?'🔮 Projected Tomorrow':meM?'📆 Monthly Standing':'📅 Daily Position'}</div>
+      <div style="font-size:56px;font-weight:900;color:${heroCol};line-height:1;font-family:var(--font-mono)">#${posMain||'?'}${medal}</div>
+      <div style="font-size:22px;font-weight:800;color:${heroCol};margin-top:4px">${meMain?.pct||'—'}%</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">of ${totalAgents} agents · ${mainScan?.date||''}</div>
+    </div>`;
+
+    // Mini cards row: Daily | Monthly | Projected
+    html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">`;
+
+    const cards = [
+      {label:'📅 Daily',   me:meD, scan:latestDaily,   prev:findMe(prevDaily),   col:'var(--blue)'},
+      {label:'📆 Monthly', me:meM, scan:latestMonthly, prev:findMe(prevMonthly), col:'#a78bfa'},
+      {label:'🔮 Proj',    me:meP, scan:latestProj,    prev:null,                col:'var(--gold)'},
+    ];
+    cards.forEach(({label,me,scan,prev,col}) => {
+      if (!me) { html+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:10px;text-align:center;opacity:0.4"><div style="font-size:10px;color:var(--text3)">${label}</div><div style="font-size:11px;color:var(--text3);margin-top:6px">No data</div></div>`; return; }
+      const pos    = myPos(scan);
+      const pctNow = parseFloat(me.pct||0);
+      const pctPrev= prev ? parseFloat(prev.pct||0) : null;
+      const diff   = pctPrev !== null ? (pctNow - pctPrev).toFixed(2) : null;
+      const dirCol = diff===null?'':parseFloat(diff)>0?'var(--green)':parseFloat(diff)<0?'var(--red)':'var(--text3)';
+      const arrow  = diff===null?'':parseFloat(diff)>0?'▲':parseFloat(diff)<0?'▼':'—';
+      html+=`<div style="background:var(--surface);border:1px solid ${col}30;border-radius:12px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${label}</div>
+        <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${col}">#${pos||'?'}</div>
+        <div style="font-size:12px;font-weight:700;color:${col};margin-top:1px">${me.pct}%</div>
+        ${diff!==null?`<div style="font-size:10px;color:${dirCol};font-weight:700;margin-top:2px">${arrow} ${Math.abs(parseFloat(diff))}%</div>`:''}
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${scan?.date||''}</div>
       </div>`;
-    }
-    if (meM) {
-      const posM = myPos(latestMonthly); const prevM = findMe(prevMonthly);
-      const trendM = prevM ? (parseFloat(meM.pct) > parseFloat(prevM.pct) ? '▲' : parseFloat(meM.pct) < parseFloat(prevM.pct) ? '▼' : '—') : '';
-      html += `<div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">📆 Monthly</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--blue)">#${posM||'?'}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--blue)">${meM.pct}%</div>
-        ${trendM ? `<div style="font-size:11px;color:${trendM==='▲'?'var(--green)':'var(--red)'};font-weight:700">${trendM} ${prevM?Math.abs(parseFloat(meM.pct)-parseFloat(prevM.pct)).toFixed(2)+'%':''}</div>` : ''}
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">${latestMonthly.date}</div>
-      </div>`;
-    }
-    if (meP) {
-      const posP = myPos(latestProj);
-      const posM = myPos(latestMonthly);
-      const moved = posM && posP ? posM - posP : 0;
-      html += `<div style="background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.25);border-radius:8px;padding:12px;text-align:center">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">🔮 Projected Tomorrow</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--gold)">#${posP||'?'}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--gold)">${meP.pct}%</div>
-        ${moved !== 0 ? `<div style="font-size:11px;color:${moved>0?'var(--green)':'var(--red)'};font-weight:700">${moved>0?'▲ Up '+moved:moved<0?'▼ Down '+Math.abs(moved):''}</div>` : ''}
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">formula: monthly×50% + daily×50%</div>
-      </div>`;
-    }
-    html += '</div>';
+    });
+    html += `</div>`;
 
     // Gap cards
-    const scanForGap = latestProj || latestMonthly || latestDaily;
-    if (scanForGap) {
-      const meInScan = findMe(scanForGap);
-      const myPosInScan = myPos(scanForGap);
-      if (meInScan && myPosInScan) {
-        const first = scanForGap.agents[0];
-        const above = myPosInScan > 1 ? scanForGap.agents[myPosInScan - 2] : null;
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-        if (above) {
-          const gap = (parseFloat(meInScan.pct) - parseFloat(above.pct)).toFixed(2);
-          html += `<div style="background:var(--surface2);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Gap to #${myPosInScan-1} (${above.name.split(' ')[0]})</div>
-            <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:${parseFloat(gap)<0?'var(--red)':'var(--green)'}">${gap}%</div>
-          </div>`;
-        }
-        if (first && first.name !== meInScan.name) {
-          const gapFirst = (parseFloat(meInScan.pct) - parseFloat(first.pct)).toFixed(2);
-          html += `<div style="background:var(--surface2);border-radius:8px;padding:10px">
-            <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Gap to #1 (${first.name.split(' ')[0]})</div>
-            <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:${parseFloat(gapFirst)<0?'var(--red)':'var(--green)'}">${gapFirst}%</div>
-          </div>`;
-        }
-        html += '</div>';
+    const gapScan = latestProj || latestMonthly || latestDaily;
+    const meGap   = findMe(gapScan);
+    const posGap  = myPos(gapScan);
+    if (meGap && posGap && gapScan.agents.length > 1) {
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">`;
+      const above = posGap > 1 ? gapScan.agents[posGap-2] : null;
+      const first = gapScan.agents[0];
+      const me1pct = parseFloat(meGap.pct);
+
+      if (above) {
+        const gap = (me1pct - parseFloat(above.pct)).toFixed(2);
+        const gapN= parseFloat(gap);
+        html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Gap to #${posGap-1}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(above.name.split(' ')[0])}</div>
+          <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${gapN<0?'var(--red)':'var(--green)'}">${gapN>0?'+':''}${gap}%</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px">${gapN<0?'You trail by '+Math.abs(gapN).toFixed(2)+'%':'You lead by '+gapN.toFixed(2)+'%'}</div>
+        </div>`;
       }
-    }
-    html += '</div></div>';
-  }
-
-  // ── My % Trend Line Chart ──────────────────────────────────
-  if (myName) {
-    const trendData = [...history]
-      .filter(s => s.type === 'daily' && s.agents.some(a => a.name.toLowerCase().includes(myName)))
-      .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))
-      .slice(-20);
-    if (trendData.length >= 2) {
-      html += '<div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">📈 My % Trend</span><span style="font-size:10px;color:var(--text3)">daily scanning history</span></div><div class="card-body"><div style="height:140px"><canvas id="chart-ranking-trend"></canvas></div></div></div>';
-      setTimeout(() => {
-        const ctx = document.getElementById('chart-ranking-trend');
-        if (!ctx) return;
-        const labels = trendData.map(s => { const d=new Date(s.date); return (d.getMonth()+1)+'/'+d.getDate(); });
-        const vals   = trendData.map(s => parseFloat(s.agents.find(a => a.name.toLowerCase().includes(myName))?.pct || '0'));
-        const first1 = vals[0], last1 = vals[vals.length-1];
-        const trendCol = last1 > first1 ? '#22c55e' : last1 < first1 ? '#ef4444' : '#e8a020';
-        updateOrCreateChart('ranking-trend', ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              data: vals, borderColor: trendCol, backgroundColor: trendCol + '18',
-              fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: trendCol
-            }]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9}} },
-              y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:chartTextColor(),font:{family:'IBM Plex Mono',size:9},callback:v=>v+'%'}, min:0 }
-            }
-          }
-        });
-      }, 80);
+      if (first.name !== meGap.name) {
+        const gapF= (me1pct - parseFloat(first.pct)).toFixed(2);
+        const gapFN=parseFloat(gapF);
+        html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Gap to #1</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(first.name.split(' ')[0])}</div>
+          <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${gapFN<0?'var(--red)':'var(--green)'}">${gapFN>0?'+':''}${gapF}%</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px">${gapFN<0?'Behind leader by '+Math.abs(gapFN).toFixed(2)+'%':'🏆 You are the leader!'}</div>
+        </div>`;
+      }
+      html += `</div>`;
     }
   }
 
-  // ── Tab selector for mini-league view ─────────────────────
-  html += '<div class="card" style="margin-bottom:16px"><div class="card-header"><span class="card-title">👥 Team Board</span><div style="display:flex;gap:4px">';
-  html += `<button class="btn btn-gold btn-xs" id="lb-tab-proj"  onclick="switchLeagueTab('proj')"  style="display:${latestProj?'inline-flex':'none'}">🔮 Projection</button>`;
-  html += `<button class="btn btn-ghost btn-xs" id="lb-tab-monthly" onclick="switchLeagueTab('monthly')" style="display:${latestMonthly?'inline-flex':'none'}">📆 Monthly</button>`;
-  html += `<button class="btn btn-ghost btn-xs" id="lb-tab-daily"   onclick="switchLeagueTab('daily')">📅 Daily</button>`;
-  html += '</div></div><div class="card-body" id="league-table-body">';
-  // Default to projection if available, else monthly, else daily
-  const defaultScan = latestProj || latestMonthly || latestDaily;
-  html += buildLeagueTable(defaultScan, myName, latestProj ? 'proj' : latestMonthly ? 'monthly' : 'daily');
-  html += '</div></div>';
-
-  // ── History list ──────────────────────────────────────────
-  if (history.length > 1) {
-    const grouped = [...history].sort((a,b) => b.date.localeCompare(a.date) || (b.time||'').localeCompare(a.time||'')).slice(0, 20);
-    html += '<div class="card"><div class="card-header"><span class="card-title">📋 History</span></div><div class="card-body" style="padding:0">';
-    html += grouped.map(s => {
-      const me = myName ? s.agents.find(a => a.name.toLowerCase().includes(myName)) : null;
-      const pos = me ? s.agents.indexOf(me) + 1 : null;
-      const typeColors = { daily:'var(--blue)', monthly:'var(--purple)', projected:'var(--gold)' };
-      const typeLabels = { daily:'📅 Daily', monthly:'📆 Monthly', projected:'🔮 Projected' };
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px">
-        <div style="flex:1">
-          <span style="color:${typeColors[s.type]||'var(--text2)'};font-weight:600">${typeLabels[s.type]||s.type}</span>
-          ${s.isEOD ? '<span style="font-size:10px;background:rgba(232,160,32,0.15);color:var(--gold);border-radius:4px;padding:1px 5px;margin-left:4px">EOD</span>' : ''}
-          <span style="color:var(--text3);margin-left:6px">${s.date}${s.time?' '+s.time:''}</span>
+  // Quick mini trend (last 7 daily scans)
+  const last7 = [...(state.rankingHistory||[])].filter(s=>s.type==='daily')
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(-7);
+  if (last7.length >= 2 && myName) {
+    const vals = last7.map(s => { const me=s.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?parseFloat(me.pct):null; }).filter(v=>v!==null);
+    if (vals.length >= 2) {
+      const maxV = Math.max(...vals), minV = Math.min(...vals);
+      const range= maxV - minV || 1;
+      const w    = 100 / (last7.length-1);
+      const points= vals.map((v,i)=>({ x: i*w, y: 100 - ((v-minV)/range*80+10) }));
+      const pathD = points.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+      const trend7col = vals[vals.length-1] >= vals[0] ? '#22c55e' : '#ef4444';
+      html += `
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:700">7-Day Daily Trend</span>
+          <span style="font-size:10px;color:${trend7col};font-weight:700">${vals[vals.length-1] >= vals[0]?'↑ Improving':'↓ Declining'}</span>
         </div>
-        ${pos ? `<span style="font-family:var(--font-mono);font-weight:700;color:var(--gold)">#${pos} · ${me.pct}%</span>` : ''}
-        <span style="font-size:10px;color:var(--text3)">${s.agents.length} agents</span>
+        <svg viewBox="0 0 100 100" style="width:100%;height:60px;overflow:visible">
+          <defs><linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${trend7col}" stop-opacity="0.3"/><stop offset="100%" stop-color="${trend7col}" stop-opacity="0"/></linearGradient></defs>
+          <path d="${pathD} L${points[points.length-1].x},100 L0,100 Z" fill="url(#trendGrad)"/>
+          <path d="${pathD}" fill="none" stroke="${trend7col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          ${points.map((p,i)=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${trend7col}"/>
+            <text x="${p.x.toFixed(1)}" y="${(p.y-6).toFixed(1)}" text-anchor="middle" font-size="8" fill="${trend7col}" font-family="monospace">${vals[i].toFixed(1)}</text>`).join('')}
+        </svg>
       </div>`;
-    }).join('');
-    html += '</div></div>';
+    }
   }
 
-  body.innerHTML = html;
+  pane.innerHTML = html || `<div style="text-align:center;padding:40px;color:var(--text3)">No position data yet — log a ranking scan.</div>`;
+}
 
-  // Draw chart if we have data
-  if (history.filter(s=>s.type==='daily').length > 1 || history.filter(s=>s.type==='monthly').length > 1) {
-    setTimeout(() => _renderRankingChart(myName), 0);
+// ── Board tab ─────────────────────────────────────────────────
+function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}) {
+  const history = state.rankingHistory || [];
+
+  let tab = latestProj ? 'proj' : latestMonthly ? 'monthly' : 'daily';
+  const scans = {
+    proj:    latestProj,
+    monthly: latestMonthly,
+    daily:   latestDaily,
+  };
+
+  function buildBoard(tabType) {
+    const scan = scans[tabType];
+    if (!scan) return `<div style="padding:24px;text-align:center;color:var(--text3)">No ${tabType} data yet</div>`;
+
+    const prevScan = tabType === 'daily'
+      ? [...history].filter(s=>s.type==='daily'&&s.date!==scan.date).sort((a,b)=>b.date.localeCompare(a.date))[0]
+      : tabType === 'monthly'
+      ? [...history].filter(s=>s.type==='monthly'&&s!==scan).sort((a,b)=>b.date.localeCompare(a.date))[0]
+      : null;
+
+    return `<div style="font-size:10px;color:var(--text3);padding:8px 14px;border-bottom:1px solid var(--border)">${{proj:'🔮 Projected',monthly:'📆 Monthly',daily:'📅 Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${scan.agents.length} agents</div>` +
+      scan.agents.map((a,i) => {
+        const isMe     = myName && a.name.toLowerCase().includes(myName);
+        const prevAgent= prevScan?.agents.find(p=>p.name===a.name);
+        const prevPos  = prevAgent ? prevScan.agents.indexOf(prevAgent)+1 : null;
+        const moved    = prevPos ? prevPos - (i+1) : 0;  // positive = moved up
+        const trendIco = moved > 0 ? `<span style="color:var(--green);font-weight:700;font-size:10px">▲${moved}</span>`
+                       : moved < 0 ? `<span style="color:var(--red);font-weight:700;font-size:10px">▼${Math.abs(moved)}</span>`
+                       : prevPos   ? `<span style="color:var(--text3);font-size:10px">—</span>` : '';
+        const pctVal   = parseFloat(a.pct||0);
+        const maxPct   = parseFloat(scan.agents[0]?.pct||100);
+        const barW     = Math.round(pctVal/maxPct*100);
+        const medal    = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':''}">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <div style="font-family:var(--font-mono);font-size:11px;color:${isMe?'var(--gold)':'var(--text3)'};min-width:24px;font-weight:${isMe?700:400}">${medal||'#'+(i+1)}</div>
+            <div style="flex:1;font-size:13px;font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${isMe?' 👈':''}</div>
+            <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:${isMe?'var(--gold)':'var(--text2)'}">${a.pct}%</div>
+            <div style="min-width:28px;text-align:right">${trendIco}</div>
+          </div>
+          <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-left:32px">
+            <div style="height:100%;width:${barW}%;background:${isMe?'var(--gold)':i===0?'#22c55e':i===1?'#a78bfa':i===2?'#60a5fa':'var(--border)'};border-radius:2px;transition:width 0.4s"></div>
+          </div>
+        </div>`;
+      }).join('');
   }
+
+  pane.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden">
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
+        ${['proj','monthly','daily'].map(t => scans[t] ? `<button id="bboard-${t}" onclick="_switchBoard('${t}')" style="flex:1;padding:10px 4px;border:none;background:${t===tab?'rgba(240,160,48,0.1)':'transparent'};color:${t===tab?'var(--gold)':'var(--text3)'};font-size:11px;font-weight:${t===tab?700:500};cursor:pointer;font-family:var(--font-body);border-bottom:2px solid ${t===tab?'var(--gold)':'transparent'};transition:all 0.15s">${t==='proj'?'🔮 Projected':t==='monthly'?'📆 Monthly':'📅 Daily'}</button>` : '').join('')}
+      </div>
+      <div id="board-content">${buildBoard(tab)}</div>
+    </div>`;
+
+  window._switchBoard = function(t) {
+    tab = t;
+    ['proj','monthly','daily'].forEach(t2 => {
+      const b = document.getElementById('bboard-'+t2);
+      if (!b) return;
+      b.style.background = t2===t?'rgba(240,160,48,0.1)':'transparent';
+      b.style.color = t2===t?'var(--gold)':'var(--text3)';
+      b.style.fontWeight = t2===t?'700':'500';
+      b.style.borderBottom = t2===t?'2px solid var(--gold)':'2px solid transparent';
+    });
+    const bc = document.getElementById('board-content');
+    if (bc) bc.innerHTML = buildBoard(t);
+    haptic('light');
+  };
+}
+
+// ── Trend tab ─────────────────────────────────────────────────
+function _renderRankingTrend(pane, {history, myName}) {
+  if (!myName) {
+    pane.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">Set your agent name in the ＋ Log panel first.</div>`;
+    return;
+  }
+
+  const daily = [...history].filter(s=>s.type==='daily').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+  const monthly= [...history].filter(s=>s.type==='monthly').sort((a,b)=>a.date.localeCompare(b.date));
+
+  pane.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">% Score Over Time</div>
+      <div style="height:180px"><canvas id="chart-ranking-trend2"></canvas></div>
+      <div style="display:flex;gap:12px;margin-top:8px;font-size:10px">
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:2px;background:#60a5fa;display:inline-block"></span>Daily</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:2px;background:#a78bfa;display:inline-block;border-top:2px dashed #a78bfa"></span>Monthly</span>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Position Over Time</div>
+      <div style="height:160px"><canvas id="chart-ranking-pos"></canvas></div>
+    </div>`;
+
+  loadChartJS().then(() => {
+    const myPct = scan => { const me=scan.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?parseFloat(me.pct):null; };
+    const myPosN= scan => { const me=scan.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?scan.agents.indexOf(me)+1:null; };
+    const labels = daily.map(s=>s.date.slice(5)+(s.isEOD?' EOD':' '+s.time));
+
+    const ctx1 = document.getElementById('chart-ranking-trend2');
+    if (ctx1) updateOrCreateChart('ranking-trend2', ctx1, {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'Daily %', data:daily.map(myPct), borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.08)', tension:0.4, pointRadius:3, spanGaps:true },
+        { label:'Monthly %', data: daily.map(s=>{ const m=monthly.filter(ms=>ms.date<=s.date).sort((a,b)=>b.date.localeCompare(a.date))[0]; return m?myPct(m):null; }), borderColor:'#a78bfa', borderDash:[5,3], tension:0.4, pointRadius:2, spanGaps:true, fill:false }
+      ]},
+      options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
+          y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},callback:v=>v+'%'}} }}
+    });
+
+    const ctx2 = document.getElementById('chart-ranking-pos');
+    if (ctx2) {
+      const posData = daily.map(myPosN);
+      const maxPos  = Math.max(...posData.filter(Boolean), 1);
+      updateOrCreateChart('ranking-pos', ctx2, {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Position', data:posData, borderColor:'#e8a020', backgroundColor:'rgba(232,160,32,0.08)', tension:0.4, pointRadius:3, spanGaps:true, fill:true }]},
+        options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>'#'+ctx.raw}}},
+          scales:{ x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
+            y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},callback:v=>'#'+v},min:1,max:maxPos+1,reverse:true} }}
+      });
+    }
+  }).catch(()=>{});
+}
+
+// ── History tab ───────────────────────────────────────────────
+function _renderRankingHistory(pane, {history, myName, findMe, myPos}) {
+  if (!history.length) { pane.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">No history yet.</div>'; return; }
+
+  const sorted = [...history].sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||'')).slice(0,40);
+  const typeCol = {daily:'#60a5fa',monthly:'#a78bfa',projected:'#e8a020'};
+  const typeLbl = {daily:'📅 Daily',monthly:'📆 Monthly',projected:'🔮 Projected'};
+
+  pane.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden">
+      ${sorted.map(s => {
+        const me  = findMe(s);
+        const pos = me ? myPos(s) : null;
+        const col = typeCol[s.type]||'var(--text2)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
+          <div style="width:4px;height:36px;border-radius:2px;background:${col};flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:${col}">${typeLbl[s.type]||s.type}${s.isEOD?' <span style="font-size:9px;background:rgba(232,160,32,0.15);color:var(--gold);border-radius:4px;padding:1px 5px">EOD</span>':''}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${s.date}${s.time?' · '+s.time:''} · ${s.agents.length} agents</div>
+          </div>
+          ${pos ? `<div style="text-align:right;flex-shrink:0">
+            <div style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:var(--gold)">#${pos}</div>
+            <div style="font-size:11px;color:var(--text3)">${me.pct}%</div>
+          </div>` : ''}
+          <button onclick="if(confirm('Delete this scan?')){state.rankingHistory=state.rankingHistory.filter(x=>x!==this._s);saveState();renderRanking();haptic('destructive')}" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;flex-shrink:0">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/></svg>
+          </button>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Wire up delete buttons with scan reference
+  pane.querySelectorAll('button[onclick*="this._s"]').forEach((btn, i) => {
+    btn._s = sorted[i];
+    btn.onclick = function() {
+      if (!confirm('Delete this scan?')) return;
+      state.rankingHistory = (state.rankingHistory||[]).filter(x=>x!==this._s);
+      saveState(); renderRanking(); haptic('destructive');
+    };
+  });
 }
 
 function buildLeagueTable(scan, myName, tabType) {
-  if (!scan) return '<div style="color:var(--text3);font-size:12px;padding:8px">No data for this view</div>';
-  const typeLabel = {proj:'Projected Tomorrow', monthly:'Monthly', daily:'Daily'}[tabType] || '';
-  return `<div style="font-size:10px;color:var(--text3);margin-bottom:8px">${typeLabel} — ${scan.date}${scan.time?' '+scan.time:''}</div>`
-    + scan.agents.map((a,i) => {
-      const isMe = myName && a.name.toLowerCase().includes(myName);
-      const prevScan = tabType === 'daily'
-        ? (state.rankingHistory||[]).filter(s=>s.type==='daily'&&s.date!==scan.date).sort((a,b)=>b.date.localeCompare(a.date))[0]
-        : tabType === 'monthly'
-        ? (state.rankingHistory||[]).filter(s=>s.type==='monthly'&&s.date!==scan.date).sort((a,b)=>b.date.localeCompare(a.date))[0]
-        : null;
-      const prevAgent = prevScan ? prevScan.agents.find(p=>p.name===a.name) : null;
-      const prevPos   = prevAgent ? prevScan.agents.indexOf(prevAgent)+1 : null;
-      const trend = prevPos ? (i+1 < prevPos ? '▲' : i+1 > prevPos ? '▼' : '—') : '—';
-      const trendCol = trend === '▲' ? 'var(--green)' : trend === '▼' ? 'var(--red)' : 'var(--text3)';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.06);border-left:3px solid var(--gold);padding-left:8px;margin:0 -14px;padding-right:14px':''}">
-        <span style="font-family:var(--font-mono);color:var(--text3);min-width:20px;font-size:11px">${i+1}</span>
-        <span style="flex:1;font-size:13px;font-weight:${isMe?700:400}">${escapeHtml(a.name)}${isMe?' 👈':''}</span>
-        <span style="font-family:var(--font-mono);font-size:12px;color:${isMe?'var(--gold)':'var(--text2)'};font-weight:${isMe?700:400}">${a.pct}%</span>
-        <span style="min-width:16px;font-size:11px;font-weight:700;color:${trendCol}">${trend}</span>
-      </div>`;
-    }).join('');
+  if (!scan) return '<div style="color:var(--text3);font-size:12px;padding:8px">No data</div>';
+  return scan.agents.map((a,i) => {
+    const isMe = myName && a.name.toLowerCase().includes(myName);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.06);border-left:3px solid var(--gold);':''}">
+      <span style="font-family:var(--font-mono);color:var(--text3);min-width:20px;font-size:11px">${i+1}</span>
+      <span style="flex:1;font-size:13px;font-weight:${isMe?700:400}">${escapeHtml(a.name)}${isMe?' 👈':''}</span>
+      <span style="font-family:var(--font-mono);font-size:12px;color:${isMe?'var(--gold)':'var(--text2)'};font-weight:${isMe?700:400}">${a.pct}%</span>
+    </div>`;
+  }).join('');
 }
 
 function switchLeagueTab(tabType) {
@@ -15052,40 +15275,22 @@ function _renderRankingChart(myName) {
   const history = (state.rankingHistory || []);
   const ctx = document.getElementById('chart-ranking');
   if (!ctx) return;
-
   const daily   = [...history].filter(s=>s.type==='daily').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
   const monthly = [...history].filter(s=>s.type==='monthly').sort((a,b)=>a.date.localeCompare(b.date));
-  const proj    = [...history].filter(s=>s.type==='projected').sort((a,b)=>a.date.localeCompare(b.date));
-
-  function myPct(scan) {
-    if (!myName) return null;
-    const me = scan.agents.find(a=>a.name.toLowerCase().includes(myName));
-    return me ? parseFloat(me.pct) : null;
-  }
-
-  const allDates = [...new Set([...daily.map(s=>s.date+' '+s.time), ...monthly.map(s=>s.date), ...proj.map(s=>s.date)])].sort();
-
+  const myPct   = scan => { const me=scan.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?parseFloat(me.pct):null; };
   updateOrCreateChart('ranking', ctx, {
-    type: 'line',
-    data: {
-      labels: daily.map(s=>s.date.slice(5)+(s.isEOD?' EOD':' '+s.time)),
-      datasets: [
-        { label: 'Daily %',   data: daily.map(myPct),   borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.08)', tension:0.4, pointRadius:3, spanGaps:true },
-        { label: 'Monthly %', data: monthly.length>0 ? daily.map(s=>{ const m=monthly.filter(ms=>ms.date<=s.date).sort((a,b)=>b.date.localeCompare(a.date))[0]; return m?myPct(m):null; }) : [], borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,0.08)', tension:0.4, pointRadius:3, spanGaps:true, borderDash:[4,2] },
-        { label: 'Projected', data: proj.length>0 ? daily.map(s=>{ const p=proj.find(ps=>ps.date===s.date); return p?myPct(p):null; }) : [], borderColor:'#e8a020', backgroundColor:'rgba(232,160,32,0.08)', tension:0.4, pointRadius:3, spanGaps:true, borderDash:[6,3] },
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:true, labels:{ color:chartTextColor(), font:{size:10} } } },
-      scales:{
-        x:{ grid:{color:chartColor(0.05)}, ticks:{color:chartTextColor(),font:{size:9}} },
-        y:{ grid:{color:chartColor(0.05)}, ticks:{color:chartTextColor(),font:{size:9},callback:v=>v+'%'} }
-      }
-    }
+    type:'line',
+    data:{ labels:daily.map(s=>s.date.slice(5)+(s.isEOD?' EOD':' '+s.time)),
+      datasets:[
+        { label:'Daily %',   data:daily.map(myPct),   borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.08)', tension:0.4, pointRadius:3, spanGaps:true },
+        { label:'Monthly %', data:monthly.length>0?daily.map(s=>{const m=monthly.filter(ms=>ms.date<=s.date).sort((a,b)=>b.date.localeCompare(a.date))[0];return m?myPct(m):null;}):[], borderColor:'#a78bfa', tension:0.4, pointRadius:3, spanGaps:true, borderDash:[4,2] },
+      ]},
+    options:{ responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:chartTextColor(),font:{size:10}}}},
+      scales:{x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9}}},
+        y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},callback:v=>v+'%'}}}}
   });
 }
-
 
 // ── SUPERVISOR REPORTS PAGE ────────────────────────────
 function renderReportsPage() {
