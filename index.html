@@ -2878,7 +2878,7 @@ tr.overdue-critical .heat-ring {
     <div class="page-header">
       <div>
         <div class="page-title" id="dash-greeting">Dashboard</div>
-        <div class="page-sub" id="dash-date-sub">March 2026 — Loan Tracking</div>
+        <div class="page-sub" id="dash-date-sub"></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <span id="streak-badge-dash" class="streak-badge" style="display:none">🔥 0 day streak</span>
@@ -11951,6 +11951,87 @@ function checkOdAdvance() {
 }
 
 // ── MONTHLY ROLLOVER WITH MONTH PICKER ───────────────────
+// ── AUTO ROLLOVER ─────────────────────────────────────────────
+// Silently rolls over when the calendar month has changed since last rollover.
+// Runs on every app load after state is loaded.
+function checkAutoRollover() {
+  if (!_sessionUnlocked || !_activeAgent) return;
+
+  const now         = new Date();
+  const thisYear    = now.getFullYear();
+  const thisMonth   = now.getMonth(); // 0-indexed
+  const monthNames  = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const thisMonthStr = monthNames[thisMonth] + ' ' + thisYear;
+
+  // Determine what month the current state belongs to
+  const stateMonthStr = state.month || '';
+
+  // If state has no month stamp, stamp it now — first run
+  if (!stateMonthStr) {
+    state.month = thisMonthStr;
+    saveState();
+    return;
+  }
+
+  // Parse stored month to compare
+  const [storedMonthName, storedYearStr] = stateMonthStr.split(' ');
+  const storedMonthIdx = monthNames.indexOf(storedMonthName);
+  const storedYear     = parseInt(storedYearStr, 10);
+
+  if (isNaN(storedMonthIdx) || isNaN(storedYear)) {
+    state.month = thisMonthStr; saveState(); return;
+  }
+
+  // Is the current calendar month strictly after the stored month?
+  const storedDate  = new Date(storedYear, storedMonthIdx, 1);
+  const currentDate = new Date(thisYear, thisMonth, 1);
+  if (currentDate <= storedDate) return; // same month or future — no rollover needed
+
+  // Month has changed — auto rollover
+  console.log('Auto-rollover: ' + stateMonthStr + ' → ' + thisMonthStr);
+
+  const today   = now.toISOString().split('T')[0];
+  const active  = getActiveBorrowers();
+
+  // Archive current month summary
+  if (!state.archive) state.archive = [];
+  state.archive.push({
+    month:         stateMonthStr,
+    archivedAt:    today,
+    borrowerCount: state.borrowers.length,
+    paidCount:     state.borrowers.filter(b => getStatus(b) === 'Paid').length,
+    activeCount:   active.length,
+    totalCollected: (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0),
+    monthlyTarget:  state.monthlyTarget || 0,
+    autoRolled:     true,
+  });
+
+  // Move remaining active accounts to aged-out log
+  if (!state.agedOutLog) state.agedOutLog = [];
+  active.forEach(b => {
+    if (!state.agedOutLog.some(a => a.id === b.id)) {
+      state.agedOutLog.unshift({
+        id: b.id, name: b.name, phone: b.phone,
+        loanType: b.loanType, loanDue: b.loanDue,
+        amountPaid: b.amountPaid, odAge: getOdAge(b.startDate),
+        agedDate: today, status: 'Auto-rolled → ' + thisMonthStr,
+      });
+    }
+  });
+
+  // Reset for new month — keep monthly target unless agent has set one for new month
+  state.borrowers    = [];
+  state.dailyLog     = [];
+  state.month        = thisMonthStr;
+  // Keep monthlyTarget — agent can update it; clear only ptpHistory for new month
+  // (keep overall ranking history and archive)
+
+  saveState();
+  updateBadges();
+  toast('📅 Auto-rolled over to ' + thisMonthStr + ' — fresh start!', 'success');
+}
+
 function openRolloverModal() {
   const active = getActiveBorrowers();
   const paid = state.borrowers.filter(b => getStatus(b) === 'Paid');
@@ -20581,6 +20662,7 @@ function lockAddNewAgent() {
 async function loadStateForAgent() {
   try {
   await loadState();
+  checkAutoRollover(); // auto-rollover if calendar month changed since last session
   updateBadges();
   checkOdAdvance();
   checkRankingGapAlert();
@@ -22241,6 +22323,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadState();
   state.messageBank = MESSAGE_BANK;
+
+  // Auto-rollover: silently move to new month if calendar has ticked over
+  checkAutoRollover();
+
   // Silently auto-mark paid accounts on every load
   if (state.borrowers) {
     state.borrowers.forEach(b => {
@@ -22285,7 +22371,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   if (mdrawMonth) mdrawMonth.textContent = '📅 ' + monthLabel;
 
   document.getElementById('sidebar-month').textContent = `📅 ${monthLabel}`;
-  document.getElementById('dash-date-sub').textContent = `${monthShort} — Loan Tracking`;
+  // dash-date-sub is set dynamically by renderDashboard — don't overwrite here
 
   // Wire sidebar nav clicks
   document.querySelectorAll('.nav-item').forEach(item => {
