@@ -6378,7 +6378,7 @@ function ptpAutoFlagMissed() {
     // Never breach today's or future promises — only strictly past dates
     if (promDate >= today) return;
     // Already resolved — don't re-flag
-    if (b.ptpOutcome === 'honoured' || b.ptpOutcome === 'missed' || b.isPaid) return;
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
     // Partial payment counts as not fully breached
     if ((b.amountPaid||0) > 0) return;
     // Past due, no payment, not resolved → breach
@@ -6541,7 +6541,7 @@ function renderDashActivityFeed() {
     }
 
     // ── PTP honours (paid today via ptpOutcome) ───────────────
-    if (b.ptpOutcome === 'honoured' && b.promiseDate) {
+    if (b.ptpOutcome === 'paid' && b.promiseDate) {
       const ms = new Date(b.promiseDate).getTime();
       if (!isNaN(ms) && now - ms < 86400000 && ms <= now) {
         events.push({
@@ -7679,7 +7679,7 @@ function renderAnalyticsMyStage() {
   const stagePd = mine.reduce((s,b)=>s+(b.amountPaid||0),0);
   const stageRate = stageDue>0?Math.round(stagePd/stageDue*100):0;
   const stagePtps = mine.filter(b=>b.promisedToPay&&!b.isPaid);
-  const stageHon = mine.filter(b=>b.ptpOutcome==='honoured'||b.isPaid);
+  const stageHon = mine.filter(b=>b.ptpOutcome==='paid'||b.isPaid);
   const agingOut = mine.filter(b=>{const od=getOdAge(b.startDate);return dayMax!==999&&od>=dayMax-2&&od<=dayMax&&!b.isPaid;});
   const noContact = mine.filter(b=>!(b.callLog||[]).length&&!(b.payLog||[]).length);
   const dayRange=[];
@@ -7711,7 +7711,7 @@ function renderAnalyticsPtpIntel() {
   if (!el) return;
   const all = state.borrowers || [];
   const active = all.filter(b=>b.promisedToPay&&!b.isPaid&&!b.ptpBreached);
-  const honoured = all.filter(b=>b.isPaid||b.ptpOutcome==='honoured');
+  const honoured = all.filter(b=>b.isPaid||b.ptpOutcome==='paid');
   const breached = all.filter(b=>b.ptpBreached);
   const rescheduled = all.filter(b=>(b.rescheduleHistory||[]).length>0);
   const withPtp = all.filter(b=>b.promisedToPay||(b.rescheduleHistory||[]).length||(b.promiseHistory||[]).length);
@@ -7721,7 +7721,7 @@ function renderAnalyticsPtpIntel() {
   const repeat3=rescheduled.filter(b=>(b.rescheduleHistory||[]).length>=3).length;
   const reschMax=rescheduled.length?Math.max(...rescheduled.map(b=>(b.rescheduleHistory||[]).length)):0;
   const topResch=[...rescheduled].sort((a,b)=>(b.rescheduleHistory||[]).length-(a.rescheduleHistory||[]).length).slice(0,5);
-  const reliable=all.filter(b=>(b.isPaid||b.ptpOutcome==='honoured')&&!b.ptpBreached&&!(b.rescheduleHistory||[]).length).sort((a,b)=>(b.amountPaid||0)-(a.amountPaid||0)).slice(0,5);
+  const reliable=all.filter(b=>(b.isPaid||b.ptpOutcome==='paid')&&!b.ptpBreached&&!(b.rescheduleHistory||[]).length).sort((a,b)=>(b.amountPaid||0)-(a.amountPaid||0)).slice(0,5);
   const circ=Math.round(2*Math.PI*32);
   let html='';
   html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px"><div style="position:relative;width:84px;height:84px;flex-shrink:0"><svg viewBox="0 0 80 80" style="width:84px;height:84px;transform:rotate(-90deg)"><circle cx="40" cy="40" r="32" fill="none" stroke="var(--border2)" stroke-width="8"/><circle cx="40" cy="40" r="32" fill="none" stroke="${rateCol}" stroke-width="8" stroke-dasharray="${Math.round(circ*rate/100)} ${Math.round(circ*(100-rate)/100)}" stroke-linecap="round"/></svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-family:var(--font-mono);font-size:17px;font-weight:800;color:${rateCol};line-height:1">${rate}%</div><div style="font-size:8px;color:var(--text3)">kept</div></div></div><div style="flex:1"><div style="font-size:13px;font-weight:700;margin-bottom:8px">Overall PTP Honour Rate</div>${[['Total PTPs',withPtp.length,'var(--text2)'],['✅ Honoured',honoured.length,'var(--green)'],['🔴 Breached',breached.length,'var(--red)'],['🔄 Rescheduled',rescheduled.length,'var(--gold)'],['🟡 Active',active.length,'var(--blue)']].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text3)">${l}</span><span style="font-family:var(--font-mono);font-weight:700;color:${c}">${v}</span></div>`).join('')}</div></div>`;
@@ -10557,49 +10557,18 @@ function openPromiseModal(id, isEdit = false) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
   const now = new Date();
-  const todayStr   = now.toISOString().split('T')[0];
-  const defaultDate = b.promiseDate ? b.promiseDate.split(' ')[0] : todayStr;
+  const defaultDate = b.promiseDate ? b.promiseDate.split(' ')[0] : now.toISOString().split('T')[0];
   const defaultTime = b.promiseDate && b.promiseDate.includes(' ') ? b.promiseDate.split(' ')[1] : now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
   const defaultNote = b.promiseNote || '';
-  const curConf     = b.ptpConfidence || '';
-
-  // Build quick-date chips
-  const chips = [];
-  const d0 = new Date(now); chips.push({ label:'Today',    date: todayStr });
-  const d1 = new Date(now); d1.setDate(d1.getDate()+1);
-  chips.push({ label:'Tomorrow', date: d1.toISOString().split('T')[0] });
-  // Rest of this week (Mon–Fri, skip today & tomorrow)
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  for (let offset = 2; offset <= 6; offset++) {
-    const d = new Date(now); d.setDate(d.getDate()+offset);
-    if (d.getDay() === 0 || d.getDay() === 6) continue; // skip weekend
-    chips.push({ label: dayNames[d.getDay()] + ' ' + d.getDate(), date: d.toISOString().split('T')[0] });
-  }
-
-  window._ptpConfSelected = curConf;
+  const curConf = b.ptpConfidence || '';
 
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
   document.getElementById('modal-body').innerHTML = `
-    <!-- Quick-date chips -->
-    <div style="margin-bottom:12px">
-      <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">Quick Set</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${chips.map(ch => `<button type="button" class="ptp-chip" data-date="${ch.date}"
-          onclick="ptpChipSelect('${ch.date}',this)"
-          style="padding:5px 11px;border-radius:20px;border:1px solid var(--border2);background:${defaultDate===ch.date?'rgba(240,160,48,0.15)':'var(--surface2)'};color:${defaultDate===ch.date?'var(--gold)':'var(--text2)'};font-size:11px;font-weight:${defaultDate===ch.date?700:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
-          ${ch.label}
-        </button>`).join('')}
-      </div>
-    </div>
-    <!-- Manual date/time -->
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div class="form-group" style="flex:1;margin-bottom:0"><label style="font-size:11px">Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${todayStr}" style="margin-top:4px" oninput="ptpChipSyncFromInput(this.value)"></div>
-      <div class="form-group" style="flex:1;margin-bottom:0"><label style="font-size:11px">Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}" style="margin-top:4px"></div>
-    </div>
-    <div class="form-group" style="margin-bottom:10px"><label style="font-size:11px">Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}" style="margin-top:4px"></div>
-    <!-- Confidence -->
-    <div class="form-group" style="margin-bottom:0">
-      <label style="font-size:11px;margin-bottom:6px;display:block">Confidence</label>
+    <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${defaultDate}"></div>
+    <div class="form-group"><label>Promise Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}"></div>
+    <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
+    <div class="form-group">
+      <label style="margin-bottom:6px;display:block">Confidence</label>
       <div style="display:flex;gap:8px">
         ${[['hot','🔥 Hot','rgba(239,68,68,0.12)','var(--red)'],['warm','⚡ Warm','rgba(240,160,48,0.12)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.12)','var(--blue)']].map(([val,label,bg,col]) => `
           <button type="button" id="conf-${val}" onclick="ptpSetConf('${val}')"
@@ -10611,31 +10580,11 @@ function openPromiseModal(id, isEdit = false) {
   `;
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    ${isEdit ? '<button class="btn btn-red" id="promise-clear-btn">🗑 Clear</button>' : ''}
-    <button class="btn btn-gold" id="promise-save-btn">${isEdit ? 'Update' : 'Set Promise'}</button>
+    ${isEdit ? '<button class="btn btn-red" id="promise-clear-btn">🗑 Clear Promise</button>' : ''}
+    <button class="btn btn-gold" id="promise-save-btn">${isEdit ? 'Update Promise' : 'Save Promise'}</button>
   `;
-
-  // Chip selection handler
-  window.ptpChipSelect = function(date, el) {
-    document.getElementById('promise-date').value = date;
-    document.querySelectorAll('.ptp-chip').forEach(btn => {
-      const active = btn.dataset.date === date;
-      btn.style.background   = active ? 'rgba(240,160,48,0.15)' : 'var(--surface2)';
-      btn.style.borderColor  = active ? 'var(--gold)' : 'var(--border2)';
-      btn.style.color        = active ? 'var(--gold)' : 'var(--text2)';
-      btn.style.fontWeight   = active ? '700' : '500';
-    });
-    haptic('light');
-  };
-  window.ptpChipSyncFromInput = function(date) {
-    document.querySelectorAll('.ptp-chip').forEach(btn => {
-      const active = btn.dataset.date === date;
-      btn.style.background  = active ? 'rgba(240,160,48,0.15)' : 'var(--surface2)';
-      btn.style.borderColor = active ? 'var(--gold)' : 'var(--border2)';
-      btn.style.color       = active ? 'var(--gold)' : 'var(--text2)';
-      btn.style.fontWeight  = active ? '700' : '500';
-    });
-  };
+  // Store selected confidence in a closure var so save can read it
+  window._ptpConfSelected = curConf;
   window.ptpSetConf = function(val) {
     window._ptpConfSelected = val;
     ['hot','warm','cold'].forEach(v => {
@@ -10644,19 +10593,20 @@ function openPromiseModal(id, isEdit = false) {
       const map = { hot:['rgba(239,68,68,0.12)','var(--red)'], warm:['rgba(240,160,48,0.12)','var(--gold)'], cold:['rgba(96,165,250,0.12)','var(--blue)'] };
       const [bg,col] = map[v];
       const active = v === val;
-      btn.style.background  = active ? bg  : 'var(--surface)';
-      btn.style.borderColor = active ? col : 'var(--border2)';
-      btn.style.color       = active ? col : 'var(--text3)';
-      btn.style.fontWeight  = active ? '700' : '500';
+      btn.style.background   = active ? bg : 'var(--surface)';
+      btn.style.borderColor  = active ? col : 'var(--border2)';
+      btn.style.color        = active ? col : 'var(--text3)';
+      btn.style.fontWeight   = active ? '700' : '500';
     });
   };
-
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => {
-    const saveBtn  = document.getElementById('promise-save-btn');
-    if (saveBtn)  saveBtn.addEventListener('click', () => savePromise(id, isEdit));
-    const clearBtn = document.getElementById('promise-clear-btn');
-    if (clearBtn) clearBtn.addEventListener('click', () => clearPromise(id));
+    const saveBtn = document.getElementById('promise-save-btn');
+    if (saveBtn) saveBtn.addEventListener('click', () => savePromise(id, isEdit));
+    if (isEdit) {
+      const clearBtn = document.getElementById('promise-clear-btn');
+      if (clearBtn) clearBtn.addEventListener('click', () => clearPromise(id));
+    }
   }, 0);
 }
 
@@ -10666,27 +10616,29 @@ function savePromise(id, isEdit = false) {
   const date = document.getElementById('promise-date')?.value || '';
   const time = document.getElementById('promise-time')?.value || '';
   const note = document.getElementById('promise-note')?.value?.trim() || '';
-  if (!date) { toast('Please pick a date', 'error'); return; }
-
-  b.promisedToPay    = true;
-  b.promiseDate      = date + (time ? ' ' + time : '');
-  b.promiseNote      = note;
-  b.ptpConfidence    = window._ptpConfSelected || b.ptpConfidence || '';
-  b.ptpOutcome       = 'pending';   // always reset to pending on set/edit
-  b.ptpBreached      = false;
-  b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString();
+  b.promisedToPay = true;
+  b.promiseDate = date + (time ? ' ' + time : '');
+  b.promiseNote = note;
+  b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || '';
+  b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
+  if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
   haptic('light');
   saveState();
   refreshPtpReminders();
   closeModal();
   renderCurrentPage();
-  toast(b.name.split(' ')[0] + ' promise ' + (isEdit ? 'updated' : 'set') + ' 🤝', 'success');
+  toast(b.name.split(' ')[0] + ` promise ${isEdit ? 'updated' : 'set'} 🤝`, 'success');
 }
 
 function clearPromise(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
-  ptpResolve(id, 'cleared');
+  // Remove all PTP fields
+  b.promisedToPay = false;
+  b.promiseDate = null;
+  b.promiseNote = '';
+  b.ptpOutcome = '';
+  b.ptpBreached = false;
   haptic('destructive');
   saveState();
   refreshPtpReminders();
@@ -10695,89 +10647,31 @@ function clearPromise(id) {
   toast('Promise cleared for ' + b.name.split(' ')[0], 'info');
 }
 
-// ══════════════════════════════════════════════════════════════
-// PTP LIFECYCLE — canonical state machine
-// ══════════════════════════════════════════════════════════════
-// ptpOutcome values: '' | 'pending' | 'honoured' | 'broken' | 'rescheduled' | 'cleared'
-// This is the single function that transitions PTP state.
-// All other paths (autoExpire, checkBreaches, EOD, toggle) call this.
-
-function ptpResolve(borrowerId, outcome, opts) {
-  opts = opts || {};
-  const b = state.borrowers.find(x => x.id === borrowerId);
-  if (!b) return;
-
-  const now = new Date().toISOString();
-  const today = now.split('T')[0];
-
-  // Append to per-borrower PTP log
-  if (!b.ptpLog) b.ptpLog = [];
-
-  if (outcome === 'honoured') {
-    b.ptpOutcome  = 'honoured';
-    b.ptpBreached = false;
-    b.ptpLog.push({ date: today, outcome: 'honoured', promiseDate: b.promiseDate, resolvedAt: now });
-    if (!b.promiseHistory) b.promiseHistory = [];
-    b.promiseHistory.push({ outcome: 'paid', date: today });
-
-  } else if (outcome === 'broken') {
-    // Only break once — don't re-break an already-broken promise
-    if (b.ptpOutcome === 'broken') return;
-    b.ptpOutcome  = 'broken';
-    b.ptpBreached = true;
-    b.ptpLog.push({ date: today, outcome: 'broken', promiseDate: b.promiseDate, resolvedAt: now });
-    if (!b.promiseHistory) b.promiseHistory = [];
-    b.promiseHistory.push({ outcome: 'broken', date: today });
-    // Strike system: count breaks this month
-    const monthStart = today.slice(0,7) + '-01';
-    b.ptpBreakStrikes = (b.ptpLog || []).filter(e => e.outcome === 'broken' && (e.date||'') >= monthStart).length;
-
-  } else if (outcome === 'rescheduled') {
-    b.ptpOutcome  = 'rescheduled';
-    b.ptpBreached = false;
-    b.ptpLog.push({ date: today, outcome: 'rescheduled', promiseDate: b.promiseDate,
-      newDate: opts.newDate || '', reason: opts.reason || '', resolvedAt: now });
-
-  } else if (outcome === 'cleared') {
-    b.ptpLog.push({ date: today, outcome: 'cleared', promiseDate: b.promiseDate, resolvedAt: now });
-    b.promisedToPay  = false;
-    b.promiseDate    = null;
-    b.promiseNote    = '';
-    b.ptpOutcome     = 'cleared';
-    b.ptpBreached    = false;
-    b.ptpConfidence  = '';
-  }
-
-  return b;
-}
-
-// ── Single canonical expire function (replaces autoExpirePtps,
-//    checkPtpBreaches, ptpAutoFlagMissed — all three were identical) ──────
-function ptpExpireOverdue() {
+function autoExpirePtps() {
+  // Use simple ISO string comparison — avoids timezone issues with Date objects
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
-  (state.borrowers || []).forEach(b => {
+
+  state.borrowers.forEach(b => {
     if (!b.promisedToPay || !b.promiseDate) return;
     const promDate = b.promiseDate.split(' ')[0];
-    if (promDate >= today) return;                          // today or future — safe
-    if (b.ptpOutcome === 'honoured' || b.ptpOutcome === 'broken' ||
-        b.ptpOutcome === 'cleared'  || b.isPaid) return;   // already resolved
-    if ((b.amountPaid||0) > 0) {                           // partial payment = partial honour
-      ptpResolve(b.id, 'honoured');
-    } else {
-      ptpResolve(b.id, 'broken');
-    }
+    // ONLY expire promises strictly in the past — never today or future
+    if (promDate >= today) return;
+    // Never breach if already resolved
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') return;
+    // Never breach if any payment has been made
+    if ((b.amountPaid||0) > 0) return;
+    // Past due, unpaid, unresolved → mark as missed/breached
+    b.ptpOutcome  = 'missed';
+    b.ptpBreached = true;
     changed = true;
   });
-  if (changed) saveState();
+
+  if (changed) {
+    saveState();
+    if (currentPage === 'ptp') renderPtpHub();
+  }
 }
-
-// Keep old names as aliases so nothing else breaks
-function autoExpirePtps()    { ptpExpireOverdue(); }
-function checkPtpBreaches()  { ptpExpireOverdue(); }
-function ptpAutoFlagMissed() { ptpExpireOverdue(); }
-
-
 
 function renderAgedOut() {
   const list = state.agedOutLog || [];
@@ -14756,13 +14650,9 @@ function getBorrowerBadges(b) {
   const status = getStatus(b);
   if (status === 'Paid') badges.push('<span class="badge-star" title="Fully paid ✅" style="font-size:10px">✅</span>');
   else if (payRatio >= 0.5 && b.amountPaid > 0) badges.push('<span class="badge-star" title="Reliable payer (50%+)">⭐</span>');
-  if (b.promisedToPay && b.amountPaid === 0 && b.ptpOutcome !== 'broken') badges.push('<span class="badge-warn" title="Promise pending">🤝</span>');
+  if (b.promisedToPay && b.amountPaid === 0) badges.push('<span class="badge-warn" title="Promise not yet honoured">⚠️</span>');
   if ((b.callLog||[]).some(cl => cl.outcome === 'Fraud')) badges.push('<span title="Fraud suspected" style="font-size:10px">🚨</span>');
-  // Strike system: show badge for broken promises this month
-  const monthStart = new Date().toISOString().slice(0,7) + '-01';
-  const strikesThisMonth = (b.ptpLog||[]).filter(e => e.outcome === 'broken' && (e.date||'') >= monthStart).length;
-  if (strikesThisMonth >= 2) badges.push(`<span title="${strikesThisMonth}× broken this month" style="font-size:10px;background:rgba(239,68,68,0.15);color:var(--red);border-radius:4px;padding:0 3px">🔴${strikesThisMonth}</span>`);
-  else if (b.ptpOutcome === 'broken') badges.push('<span title="Broken promise" style="font-size:10px">🔴</span>');
+  if (b.ptpBreached && b.amountPaid === 0) badges.push('<span title="PTP Breached" style="font-size:10px">🔴</span>');
   const _3d = new Date(Date.now()-3*86400000).toISOString().split('T')[0];
   if ((b.payLog||[]).some(p=>p.date>=_3d&&(p.delta||0)>0) && getStatus(b)!=='Paid') badges.push('<span title="🔥 Active — paid in last 3 days" style="font-size:10px">🔥</span>');
   return badges.length ? ' ' + badges.join('') : '';
@@ -16029,7 +15919,7 @@ function ptpSendAllReminders() {
   // Today's PTPs (pending)
   var todayPtps = state.borrowers.filter(function(b) {
     return b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today)
-      && b.amountPaid <= 0 && b.ptpOutcome !== 'honoured';
+      && b.amountPaid <= 0 && b.ptpOutcome !== 'paid';
   });
 
   // Upcoming PTPs (future dates)
@@ -16159,7 +16049,7 @@ function ptpCarryoverMoveAll() {
   const today     = new Date().toISOString().split('T')[0];
   const carryover = state.borrowers.filter(b =>
     b.promisedToPay && (b.promiseDate||'').startsWith(yesterday) &&
-    b.ptpOutcome !== 'honoured' && !b.isPaid
+    b.ptpOutcome !== 'paid' && !b.isPaid
   );
   if (!carryover.length) { toast('Nothing to carry over', 'info'); return; }
   carryover.forEach(b => {
@@ -16307,17 +16197,14 @@ function ptpRescheduleSave(id) {
 function ptpToggleHonour(bid) {
   const b = state.borrowers.find(x => x.id === bid);
   if (!b) return;
-  if (b.ptpOutcome === 'honoured') {
-    b.ptpOutcome = 'pending';
-    b.ptpBreached = false;
-    if (b.ptpLog && b.ptpLog.length) {
-      const idx = [...b.ptpLog].reverse().findIndex(e => e.outcome === 'honoured');
-      if (idx >= 0) b.ptpLog.splice(b.ptpLog.length - 1 - idx, 1);
-    }
+
+  if (b.ptpOutcome === 'paid') {
+    b.ptpOutcome = '';
     toast(b.name.split(' ')[0] + ' marked as pending', 'info');
   } else {
-    ptpResolve(bid, 'honoured');
-    if (_ptpReminderTimeouts && _ptpReminderTimeouts[bid]) {
+    b.ptpOutcome = 'paid';
+    // Cancel this borrower's individual alarm immediately
+    if (_ptpReminderTimeouts[bid]) {
       clearTimeout(_ptpReminderTimeouts[bid]);
       delete _ptpReminderTimeouts[bid];
     }
@@ -16416,7 +16303,7 @@ function ptpForecastSelect(ds) {
     // Sort hot → warm → unset → cold
     const cOrd = {hot:0,warm:1,'':2,cold:3};
     ptps.slice().sort((a,b) => (cOrd[a.ptpConfidence||'']??2)-(cOrd[b.ptpConfidence||'']??2)).forEach(b => {
-      const ok    = b.isPaid || b.ptpOutcome === 'honoured';
+      const ok    = b.isPaid || b.ptpOutcome === 'paid';
       const phone = b.phone.replace(/\s/g,'').replace('+','');
       const cf    = b.ptpConfidence && confMap[b.ptpConfidence]
         ? `<span style="font-size:9px;color:${confMap[b.ptpConfidence][1]};background:${confMap[b.ptpConfidence][2]};padding:1px 5px;border-radius:5px;font-weight:700">${confMap[b.ptpConfidence][0]} ${b.ptpConfidence}</span>` : '';
@@ -16467,7 +16354,7 @@ function buildPtpWeekForecastHtml() {
     const ptps = state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds));
     const amt  = ptps.reduce((s,b) => s + getDueToday(b), 0);
     const hot  = ptps.filter(b => b.ptpConfidence === 'hot').length;
-    const hon  = ptps.filter(b => b.isPaid || b.ptpOutcome === 'honoured').length;
+    const hon  = ptps.filter(b => b.isPaid || b.ptpOutcome === 'paid').length;
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en-GB',{weekday:'short'});
     days.push({ ds, label, count:ptps.length, amt, hot, hon, isToday:i===0 });
   }
@@ -16529,47 +16416,102 @@ function buildPtpWeekForecastHtml() {
 }
 
 function buildPtpMorningHtml() {
-  const now      = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
-  const tmrwStr  = tomorrow.toISOString().split('T')[0];
+  const today     = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const tomorrow  = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const todayStr  = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  const ptps      = getTodayPtps2();
 
-  // Build this-week date range (Mon–Fri of current week)
-  const weekDates = [];
-  for (let offset = 0; offset <= 6; offset++) {
-    const d = new Date(now); d.setDate(d.getDate() + offset);
-    const ds = d.toISOString().split('T')[0];
-    if (ds !== todayStr && ds !== tmrwStr) weekDates.push(ds);
+  const carryover = state.borrowers.filter(b =>
+    b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(yesterday) &&
+    b.ptpOutcome !== 'paid' && !b.isPaid
+  );
+
+  const honoured  = ptps.filter(b => b.amountPaid > 0 || b.ptpOutcome === 'paid');
+  const rate      = ptps.length > 0 ? Math.round(honoured.length / ptps.length * 100) : 0;
+  const rateCol   = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)';
+  const totalExp  = ptps.reduce((s,b) => s + getDueToday(b), 0);
+  const totalColl = ptps.filter(b => b.amountPaid > 0).reduce((s,b) => s + b.amountPaid, 0);
+  const upcoming  = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.split(' ')[0] > today)
+                      .sort((a,b) => a.promiseDate.localeCompare(b.promiseDate));
+  const tomorrowPtps = upcoming.filter(b => b.promiseDate.startsWith(tomorrow));
+  const agentName = getAgentProfileName();
+
+  // ── Week strip ───────────────────────────────────────────────
+  const weekDays = [];
+  for (let i = -1; i <= 5; i++) {
+    const d    = new Date(Date.now() + i * 86400000);
+    const ds   = d.toISOString().split('T')[0];
+    const cnt  = state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds)).length;
+    const label = i === -1 ? 'Yest' : i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en-GB',{weekday:'short'});
+    const isToday = i === 0;
+    weekDays.push({ ds, cnt, label, isToday });
+  }
+  const weekStripHtml = `
+    <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none">
+      ${weekDays.map(w => {
+        const col = w.cnt > 0 ? (w.isToday ? 'var(--gold)' : 'var(--text2)') : 'var(--text3)';
+        const bg  = w.isToday ? 'rgba(240,160,48,0.12)' : w.cnt > 0 ? 'var(--surface2)' : 'transparent';
+        const bor = w.isToday ? '2px solid var(--gold)' : '1px solid var(--border2)';
+        return `<div onclick="switchPtpHub('calendar')" style="flex-shrink:0;text-align:center;padding:7px 10px;border-radius:10px;background:${bg};border:${bor};cursor:pointer;min-width:48px">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px;font-weight:${w.isToday?700:400}">${w.label}</div>
+          <div style="font-family:var(--font-mono);font-size:16px;font-weight:800;color:${col}">${w.cnt}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // ── Progress bar: expected vs collected ─────────────────────
+  const collPct  = totalExp > 0 ? Math.min(100, Math.round(totalColl / totalExp * 100)) : 0;
+  const collBar  = `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+        <span>Collected from PTPs today</span>
+        <span>${fmtC(totalColl)} / ${fmtC(totalExp)}</span>
+      </div>
+      <div style="height:6px;background:var(--border2);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${collPct}%;background:${rateCol};border-radius:4px;transition:width 0.5s cubic-bezier(0.34,1.2,0.64,1)"></div>
+      </div>
+    </div>`;
+
+  // ── Helper: reliability score ────────────────────────────────
+  function reliabilityBadge(b) {
+    const hist = (b.promiseHistory||[]);
+    const kept = hist.filter(h => h.outcome === 'paid').length;
+    const total = hist.length;
+    if (total < 2) return '';
+    const pct = Math.round(kept/total*100);
+    const col = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--gold)' : 'var(--red)';
+    return `<span style="font-size:9px;color:${col};font-weight:700;background:${col}18;padding:1px 5px;border-radius:6px">${pct}% reliable</span>`;
   }
 
-  const all      = state.borrowers || [];
-  const agentName = localStorage.getItem('ptp_agent_name') || (_activeAgent?.name || '');
+  // ── Confidence badge helper ───────────────────────────────────
+  function confBadge(b) {
+    const map = { hot:['🔥','var(--red)','rgba(239,68,68,0.1)'], warm:['⚡','var(--gold)','rgba(240,160,48,0.1)'], cold:['❄️','var(--blue)','rgba(96,165,250,0.1)'] };
+    if (!b.ptpConfidence || !map[b.ptpConfidence]) return '';
+    const [ico,col,bg] = map[b.ptpConfidence];
+    return `<span style="font-size:9px;color:${col};background:${bg};padding:1px 5px;border-radius:6px;font-weight:700">${ico} ${b.ptpConfidence.charAt(0).toUpperCase()+b.ptpConfidence.slice(1)}</span>`;
+  }
 
-  // Partition borrowers
-  const todayPtps   = all.filter(b => b.promisedToPay && b.promiseDate?.startsWith(todayStr) && b.ptpOutcome !== 'cleared');
-  const tmrwPtps    = all.filter(b => b.promisedToPay && b.promiseDate?.startsWith(tmrwStr)   && b.ptpOutcome !== 'cleared');
-  const weekPtps    = all.filter(b => b.promisedToPay && weekDates.some(d => b.promiseDate?.startsWith(d)) && b.ptpOutcome !== 'cleared');
-  const brokenPtps  = all.filter(b => b.ptpOutcome === 'broken' && !b.isPaid);
-  const honoured    = todayPtps.filter(b => b.ptpOutcome === 'honoured' || b.isPaid);
-  const pending     = todayPtps.filter(b => b.ptpOutcome !== 'honoured' && !b.isPaid && b.ptpOutcome !== 'broken');
-  const totalExp    = todayPtps.reduce((s,b) => s + getDueToday(b), 0);
-  const rate        = todayPtps.length > 0 ? Math.round(honoured.length / todayPtps.length * 100) : 0;
-  const rateCol     = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)';
+  // ── Reschedule count badge helper ─────────────────────────────
+  function reschBadge(b) {
+    const n = (b.rescheduleHistory||[]).length;
+    if (n === 0) return '';
+    const col = n >= 3 ? 'var(--red)' : n >= 2 ? 'var(--gold)' : 'var(--text3)';
+    return `<span style="font-size:9px;color:${col};background:${col}18;padding:1px 5px;border-radius:6px;font-weight:700">↻${n}×</span>`;
+  }
 
-  // Sort pending by confidence: hot → warm → cold → unset
-  const confOrder = { hot:0, warm:1, cold:2 };
-  pending.sort((a,b) => (confOrder[a.ptpConfidence??'']??3) - (confOrder[b.ptpConfidence??'']??3));
+  // ── Sort PTPs by confidence: hot → warm → unset → cold ───────
+  const confOrder = { hot:0, warm:1, '':2, cold:3 };
+  const sortedPtps = ptps.slice().sort((a,b) => (confOrder[a.ptpConfidence||'']??2) - (confOrder[b.ptpConfidence||'']??2));
 
-  let html = '';
+  let html = buildPtpWeekForecastHtml();
+  // ── NO separate week strip — forecast card already has the 7-day view ──
 
-  // ── Week forecast ─────────────────────────────────────────
-  html += buildPtpWeekForecastHtml();
-
-  // ── Today header + quick actions ─────────────────────────
+  // ── Compact header bar: today date + actions ─────────────────
   html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
     <div>
       <div style="font-size:13px;font-weight:700">📋 Today · ${todayStr}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">${todayPtps.length} promise${todayPtps.length!==1?'s':''} · ${honoured.length} honoured · <span style="color:${rateCol}">${rate}%</span> · ${fmtC(totalExp)} expected</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">${ptps.length} promise${ptps.length!==1?'s':''} · ${honoured.length} honoured · ${rate}% <span style="color:${rateCol}">●</span></div>
     </div>
     <div style="display:flex;gap:6px">
       <button onclick="ptpQuickSet()" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);color:var(--text2)">＋ PTP</button>
@@ -16577,145 +16519,126 @@ function buildPtpMorningHtml() {
     </div>
   </div>`;
 
-  // ── Collection pace bar ───────────────────────────────────
-  if (totalExp > 0) {
-    const honouredAmt = honoured.reduce((s,b) => s + getDueToday(b), 0);
-    const pctW        = Math.min(100, Math.round(honouredAmt / totalExp * 100));
-    html += `<div style="margin-bottom:14px">
-      <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-bottom:4px">
-        <div style="height:100%;width:${pctW}%;background:${rateCol};border-radius:3px;transition:width 0.6s"></div>
+  html += collBar;
+
+  // ── Carryover banner ─────────────────────────────────────────
+  if (carryover.length > 0) {
+    html += `<div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--red)">⚠️ ${carryover.length} Unresolved from Yesterday</div>
+        <button onclick="ptpCarryoverMoveAll()" style="font-size:10px;font-weight:700;color:var(--gold);background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--font-body)">Move all → Today</button>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
-        <span>${fmtC(honouredAmt)} collected</span><span>${fmtC(totalExp - honouredAmt)} remaining</span>
-      </div>
-    </div>`;
+      <div style="display:flex;flex-direction:column;gap:4px">`;
+    carryover.forEach(b => {
+      const phone = b.phone.replace(/\s/g,'').replace('+','');
+      const oc = b.ptpOutcome || 'no outcome';
+      const ocColor = oc === 'broken' ? 'var(--red)' : oc === 'no_answer' ? 'var(--orange)' : 'var(--text3)';
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:8px">
+        <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--red)"></div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
+          <div style="font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
+          <div style="font-size:10px;color:${ocColor}">${oc.replace(/_/g,' ')}</div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red)">${fmtC(getDueToday(b))}</div>
+        <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
+        <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
+        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+      </div>`;
+    });
+    html += `</div></div>`;
   }
 
-  // ══════════════════════════════════════════════════════════
-  // SECTION 1: BROKEN — NEEDS ACTION
-  // ══════════════════════════════════════════════════════════
-  if (brokenPtps.length > 0) {
-    html += `<div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.28);border-radius:12px;padding:12px 14px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:12px;font-weight:700;color:var(--red)">🔴 Broken — Needs Action (${brokenPtps.length})</div>
-        <span style="font-size:10px;color:var(--text3)">Act before they go cold</span>
-      </div>`;
-
-    brokenPtps.forEach(b => {
-      const strikes  = b.ptpBreakStrikes || 0;
-      const strikeBadge = strikes >= 2
-        ? `<span style="background:rgba(239,68,68,0.15);color:var(--red);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:3px">🔴 ${strikes}× broke</span>`
-        : strikes === 1
-        ? `<span style="background:rgba(249,115,22,0.12);color:var(--orange);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:3px">⚠️ 1× broke</span>`
-        : '';
-      const phone = (b.phone||'').replace(/\s/g,'').replace('+','');
-      const breakDate = (b.ptpLog||[]).filter(e=>e.outcome==='broken').slice(-1)[0]?.promiseDate?.split(' ')[0] || b.promiseDate?.split(' ')[0] || '';
-      const defMsg = encodeURIComponent(`Hi ${b.name.split(' ')[0]}, we noticed your payment of ${fmtC(getDueToday(b))} which was promised on ${breakDate} hasn't come through yet. Please call us or reply to this message to let us know how we can help. LoanBase.`);
-
-      html += `<div style="background:var(--surface);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${escapeHtml(b.name)}${strikeBadge}</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:1px">Promised ${breakDate} · ${fmtC(getDueToday(b))}</div>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div>
+  // ── Today's list header (minimal) ────────────────────────────
+  if (ptps.length === 0) {
+    html += `<div style="background:var(--surface2);border-radius:10px;padding:24px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:14px">
+      No promises today.<br><span style="font-size:11px">Tap <strong>＋ PTP</strong> or open a borrower → 🤝 Promise.</span></div>`;
+  } else {
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--text3)">${honoured.length} honoured · ${ptps.length - honoured.length} pending</span>
+      <button onclick="ptpSendAllReminders();haptic('medium')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.08);color:#25d366;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-body)">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="width:12px;height:12px"><path d="M3 10l14-7-7 14V10H3z"/></svg>
+        Remind All
+      </button>
+    </div>`;
+    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">`;
+    sortedPtps.forEach(b => {
+      const ok    = b.isPaid === true || b.ptpOutcome === 'paid';
+      const phone = b.phone.replace(/\s/g,'').replace('+','');
+      const rel   = reliabilityBadge(b);
+      const conf  = confBadge(b);
+      const resch = reschBadge(b);
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);${ok?'background:rgba(34,197,94,0.04)':''}">
+        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${ok?'var(--green)':'var(--orange)'}"></div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${b.name.split(' ')[0]} ${conf} ${resch} ${rel}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:1px">${b.promiseDate||''} ${b.promiseNote?'· '+b.promiseNote:''}</div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="openPromiseModal('${b.id}',true);haptic('light')" style="flex:1;padding:6px 4px;border-radius:7px;border:1px solid var(--gold);background:rgba(240,160,48,0.08);font-size:11px;font-weight:700;cursor:pointer;color:var(--gold);font-family:var(--font-body)">📅 Reschedule</button>
-          <a href="https://wa.me/${phone}?text=${defMsg}" target="_blank" style="flex:1;padding:6px 4px;border-radius:7px;border:1px solid rgba(37,211,102,0.4);background:rgba(37,211,102,0.07);font-size:11px;font-weight:700;cursor:pointer;color:#25d366;font-family:var(--font-body);text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px" onclick="haptic('light')">📩 WhatsApp</a>
-          <button onclick="ptpToggleHonour('${b.id}')" style="flex:1;padding:6px 4px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.07);font-size:11px;font-weight:700;cursor:pointer;color:var(--green);font-family:var(--font-body)">✅ Paid</button>
-          <button onclick="clearPromise('${b.id}')" style="padding:6px 8px;border-radius:7px;border:1px solid var(--border2);background:transparent;font-size:11px;cursor:pointer;color:var(--text3);font-family:var(--font-body)" title="Clear promise">🗑</button>
+        <div style="text-align:right;margin-right:4px;flex-shrink:0">
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700">${fmtC(getDueToday(b))}</div>
+          <div style="font-size:10px;color:${ok?'var(--green)':'var(--text3)'}">${ok?'✅ Honoured':'⏳ Pending'}</div>
         </div>
+        <button class="btn btn-green btn-xs" onclick="openPayModal('${b.id}');haptic('light')" title="Record payment">💰</button>
+        <button class="btn btn-xs" style="background:${ok?'rgba(239,68,68,0.12)':'rgba(34,197,94,0.1)'};color:${ok?'var(--red)':'var(--green)'};border:1px solid ${ok?'rgba(239,68,68,0.3)':'rgba(34,197,94,0.3)'};font-size:10px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer" onclick="ptpToggleHonour('${b.id}');haptic('medium')">${ok?'↩':'✅'}</button>
+        <button class="btn btn-ghost btn-xs" style="color:var(--gold)" onclick="ptpReschedule('${b.id}');haptic('light')" title="Reschedule">📅</button>
+        <button class="btn btn-ghost btn-xs" style="color:#25d366" onclick="ptpShowRemindMenu('${b.id}');haptic('light')" title="Remind">📩</button>
+        <button class="btn btn-ghost btn-xs" onclick="clearPromise('${b.id}');event.stopPropagation()" title="Clear">🗑</button>
       </div>`;
     });
     html += `</div>`;
   }
 
-  // ══════════════════════════════════════════════════════════
-  // SECTION 2: TODAY'S PROMISES
-  // ══════════════════════════════════════════════════════════
-  if (todayPtps.length === 0) {
-    html += `<div style="background:var(--surface2);border-radius:10px;padding:24px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:14px">
-      No promises today.<br><span style="font-size:11px">Tap <strong>＋ PTP</strong> to set one.</span></div>`;
-  } else {
-    // Pending today
-    if (pending.length > 0) {
-      pending.forEach(b => {
-        const conf   = b.ptpConfidence;
-        const cMap   = { hot:['🔥','var(--red)','rgba(239,68,68,0.1)'], warm:['⚡','var(--gold)','rgba(240,160,48,0.1)'], cold:['❄️','var(--blue)','rgba(96,165,250,0.1)'] };
-        const cb     = conf && cMap[conf] ? `<span style="font-size:9px;color:${cMap[conf][1]};background:${cMap[conf][2]};padding:1px 5px;border-radius:4px;font-weight:700">${cMap[conf][0]}</span>` : '';
-        const strikes= b.ptpBreakStrikes || 0;
-        const sb     = strikes >= 2 ? `<span style="font-size:9px;color:var(--red);background:rgba(239,68,68,0.1);padding:1px 5px;border-radius:4px;font-weight:700">🔴 ${strikes}×</span>` : '';
-        const promTime = b.promiseDate?.split(' ')[1] || '';
-        const phone  = (b.phone||'').replace(/\s/g,'').replace('+','');
-
-        html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;flex-wrap:wrap">${escapeHtml(b.name)} ${cb} ${sb}</div>
-              <div style="font-size:10px;color:var(--text3);margin-top:1px">${promTime ? '⏰ ' + promTime + ' · ' : ''}${fmtC(getDueToday(b))}${b.promiseNote ? ' · ' + escapeHtml(b.promiseNote) : ''}</div>
-            </div>
-            <div style="font-family:var(--font-mono);font-size:13px;font-weight:800;color:var(--gold);flex-shrink:0">${fmtC(getDueToday(b))}</div>
-          </div>
-          <div style="display:flex;gap:6px">
-            <button onclick="ptpToggleHonour('${b.id}')" style="flex:2;padding:7px 4px;border-radius:7px;border:1px solid rgba(34,197,94,0.4);background:rgba(34,197,94,0.07);font-size:11px;font-weight:700;cursor:pointer;color:var(--green);font-family:var(--font-body)">✅ Mark Paid</button>
-            <a href="https://wa.me/${phone}" target="_blank" style="flex:1;padding:7px 4px;border-radius:7px;border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.06);font-size:11px;font-weight:700;color:#25d366;font-family:var(--font-body);text-decoration:none;display:flex;align-items:center;justify-content:center" onclick="haptic('light')">📩</a>
-            <button onclick="openPromiseModal('${b.id}',true);haptic('light')" style="flex:1;padding:7px 4px;border-radius:7px;border:1px solid var(--border2);background:transparent;font-size:11px;cursor:pointer;color:var(--text2);font-family:var(--font-body)">✏️</button>
-          </div>
-        </div>`;
-      });
-    }
-
-    // Honoured today
-    if (honoured.length > 0) {
-      html += `<div style="margin-top:10px;margin-bottom:6px;font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.6px">✅ Honoured Today</div>`;
-      honoured.forEach(b => {
-        html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.15);border-radius:8px;margin-bottom:6px;opacity:0.8;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-          <span style="font-size:14px">✅</span>
-          <div style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">${escapeHtml(b.name)}</div>
-          <div style="font-family:var(--font-mono);font-size:11px;color:var(--green)">${fmtC(getDueToday(b))}</div>
-          <button onclick="event.stopPropagation();ptpToggleHonour('${b.id}')" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text3)">↩</button>
-        </div>`;
-      });
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // SECTION 3: COMING UP (Tomorrow + This Week) — collapsible
-  // ══════════════════════════════════════════════════════════
-  const upcoming = [...tmrwPtps, ...weekPtps];
+  // ── This week (tomorrow + upcoming) — collapsed by default ───
   if (upcoming.length > 0) {
-    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-top:14px">
-      <div onclick="var b=document.getElementById('ptp-upcoming-body');var ic=document.getElementById('ptp-upcoming-ic');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'›':'⌄'"
+    const thisWeekId = 'ptp-upcoming-body';
+    html += `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">
+      <div onclick="var b=document.getElementById('${thisWeekId}');var ic=document.getElementById('ptp-upcoming-ic');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'›':'⌄'"
         style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer">
         <div style="font-size:12px;font-weight:700">📅 Coming Up <span style="font-size:10px;font-weight:400;color:var(--text3)">${upcoming.length} promise${upcoming.length!==1?'s':''}</span></div>
         <span id="ptp-upcoming-ic" style="color:var(--text3);font-size:16px;line-height:1">›</span>
       </div>
-      <div id="ptp-upcoming-body" style="display:none">
-        ${upcoming.map(b => {
-          const isTmrw = b.promiseDate?.startsWith(tmrwStr);
-          const dateLabel = isTmrw ? 'Tomorrow' : b.promiseDate?.split(' ')[0] || '';
-          const conf   = b.ptpConfidence;
-          const cMap   = { hot:['🔥','var(--red)'], warm:['⚡','var(--gold)'], cold:['❄️','var(--blue)'] };
-          const cb     = conf && cMap[conf] ? `<span style="font-size:9px;color:${cMap[conf][1]};background:${cMap[conf][1]}18;padding:1px 4px;border-radius:4px;font-weight:700">${cMap[conf][0]}</span>` : '';
-          const phone  = (b.phone||'').replace(/\s/g,'').replace('+','');
-          const reminderMsg = encodeURIComponent(`Hi ${b.name.split(' ')[0]}, this is a friendly reminder that your loan repayment of ${fmtC(getDueToday(b))} is scheduled for ${dateLabel}. Dial *714*674# to pay. LoanBase.`);
+      <div id="${thisWeekId}" style="display:none">
+        ${upcoming.slice(0,20).map(b => {
+          const phone = b.phone.replace(/\s/g,'').replace('+','');
+          const isTmrw = b.promiseDate.startsWith(tomorrow);
+          const conf = b.ptpConfidence;
+          const confBadge = conf ? `<span style="font-size:9px;color:${conf==='hot'?'var(--red)':conf==='warm'?'var(--gold)':'var(--blue)'};background:${conf==='hot'?'rgba(239,68,68,0.1)':conf==='warm'?'rgba(240,160,48,0.1)':'rgba(96,165,250,0.1)'};padding:1px 4px;border-radius:4px;font-weight:700">${conf==='hot'?'🔥':conf==='warm'?'⚡':'❄️'}</span>` : '';
           return `<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--border)">
             <div style="flex:1;min-width:0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
-              <div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px">${escapeHtml(b.name.split(' ')[0])} ${cb} <span style="font-size:9px;color:var(--gold);background:rgba(240,160,48,0.1);padding:1px 5px;border-radius:4px;font-weight:700">${dateLabel}</span></div>
-              <div style="font-size:10px;color:var(--text3)">${b.promiseNote||''}</div>
+              <div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px">${escapeHtml(b.name.split(' ')[0])} ${confBadge} ${isTmrw?'<span style="font-size:9px;color:var(--gold);background:rgba(240,160,48,0.1);padding:1px 5px;border-radius:4px;font-weight:700">Tmrw</span>':''}</div>
+              <div style="font-size:10px;color:var(--text3)">${b.promiseDate.split(' ')[0]} ${b.promiseNote?'· '+b.promiseNote:''}</div>
             </div>
             <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0">${fmtC(getDueToday(b))}</div>
-            <a href="https://wa.me/${phone}?text=${reminderMsg}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;flex-shrink:0" onclick="haptic('light')">📩</a>
-            <button onclick="openPromiseModal('${b.id}',true);haptic('light')" class="btn btn-ghost btn-xs" style="flex-shrink:0">📅</button>
+            <a href="https://wa.me/${phone}?text=${encodeURIComponent('Hi '+escapeHtml(b.name.split(' ')[0])+', reminder that your loan repayment of '+fmtC(getDueToday(b))+' is due '+b.promiseDate.split(' ')[0]+'. Dial *714*674# to pay. LoanBase.')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="haptic('light')">📩</a>
+            <button class="btn btn-ghost btn-xs" style="color:var(--gold)" onclick="ptpReschedule('${b.id}');haptic('light')">📅</button>
           </div>`;
         }).join('')}
+        ${upcoming.length > 20 ? `<div style="padding:8px 14px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">+${upcoming.length-20} more · tap calendar tab to see all</div>` : ''}
       </div>
     </div>`;
   }
 
+  html += `
+  <div style="display:flex;justify-content:flex-end;margin-top:12px;margin-bottom:12px">
+    <button class="btn btn-ghost btn-sm" id="enable-reminders-btn" style="gap:4px">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,13"/></svg>
+      Enable Daily Reminders
+    </button>
+  </div>`;
+
   return html;
 }
+
+// ── Per-PTP reminder scheduler ───────────────────────────────
+// One setTimeout per promise, keyed by borrower id.
+// Fires at the exact promiseDate time with a configurable lead-time.
+// Also fires a morning briefing and an EOD summary.
+
+var _ptpReminderTimeouts = {}; // { borrowerId: timeoutId }
+var _ptpMorningTimeout   = null;
+var _ptpEodTimeout       = null;
+
+const PTP_LEAD_MINS = 15; // how many minutes before promise time to alert
 
 function _clearAllPtpTimeouts() {
   Object.values(_ptpReminderTimeouts).forEach(id => clearTimeout(id));
@@ -16754,7 +16677,7 @@ function schedulePtpReminders() {
 
   // ── 1. Per-borrower reminders at promise time minus lead ───
   (state.borrowers || []).forEach(b => {
-    if (!b.promisedToPay || !b.promiseDate || b.isPaid || b.ptpOutcome === 'honoured') return;
+    if (!b.promisedToPay || !b.promiseDate || b.isPaid || b.ptpOutcome === 'paid') return;
 
     // Parse promise datetime; fall back to 09:00 if no time given
     const rawDate = b.promiseDate.trim();
@@ -16793,7 +16716,7 @@ function schedulePtpReminders() {
   _ptpMorningTimeout = setTimeout(() => {
     const ds     = new Date().toISOString().split('T')[0];
     const ptps   = (state.borrowers||[]).filter(b =>
-      b.promisedToPay && (b.promiseDate||'').startsWith(ds) && !b.isPaid && b.ptpOutcome !== 'honoured'
+      b.promisedToPay && (b.promiseDate||'').startsWith(ds) && !b.isPaid && b.ptpOutcome !== 'paid'
     );
     if (!ptps.length) return;
     const total  = ptps.reduce((s,b) => s + getDueToday(b), 0);
@@ -16819,8 +16742,8 @@ function schedulePtpReminders() {
     const ptps    = (state.borrowers||[]).filter(b =>
       b.promisedToPay && (b.promiseDate||'').startsWith(ds)
     );
-    const honoured = ptps.filter(b => b.isPaid || b.ptpOutcome === 'honoured').length;
-    const pending  = ptps.filter(b => !b.isPaid && b.ptpOutcome !== 'honoured').length;
+    const honoured = ptps.filter(b => b.isPaid || b.ptpOutcome === 'paid').length;
+    const pending  = ptps.filter(b => !b.isPaid && b.ptpOutcome !== 'paid').length;
     if (!ptps.length) return;
     const rate = Math.round(honoured / ptps.length * 100);
     _fireNotif(
@@ -16887,7 +16810,7 @@ function buildPtpEodHtml() {
   const todayStr = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
   const ptps = getTodayPtps2();
   const agentName = getAgentProfileName();
-  const paid_c    = ptps.filter(b => b.ptpOutcome === 'honoured').length;
+  const paid_c    = ptps.filter(b => b.ptpOutcome === 'paid').length;
   const partial_c = ptps.filter(b => b.ptpOutcome === 'partial').length;
   const broken_c  = ptps.filter(b => b.ptpOutcome === 'broken').length;
   const pending_c = ptps.filter(b => !b.ptpOutcome).length;
@@ -17222,11 +17145,11 @@ function savePtpSnapshot2() {
   const today = new Date().toISOString().split('T')[0];
   const ptps = getTodayPtps2();
   if (ptps.length === 0) return;
-  const honoured = ptps.filter(b => b.ptpOutcome === 'honoured').length;
+  const honoured = ptps.filter(b => b.ptpOutcome === 'paid').length;
   const partial  = ptps.filter(b => b.ptpOutcome === 'partial').length;
   const broken   = ptps.filter(b => b.ptpOutcome === 'broken').length;
   const pending  = ptps.filter(b => !b.ptpOutcome).length;
-  const collected= ptps.filter(b => b.ptpOutcome === 'honoured').reduce((s,b) => s + b.amountPaid, 0);
+  const collected= ptps.filter(b => b.ptpOutcome === 'paid').reduce((s,b) => s + b.amountPaid, 0);
   if (!state.ptpHistory) state.ptpHistory = [];
   const entry = { date: today, total: ptps.length, honoured, partial, broken, pending, collected };
   const idx = state.ptpHistory.findIndex(d => d.date === today);
@@ -17323,7 +17246,7 @@ function buildPtpText(type, fmt) {
       });
     });
     if (isEod) {
-      const paid_c = ptps.filter(b=>b.ptpOutcome==='honoured').length;
+      const paid_c = ptps.filter(b=>b.ptpOutcome==='paid').length;
       const partial_c = ptps.filter(b=>b.ptpOutcome==='partial').length;
       const conv = ptps.length > 0 ? Math.round((paid_c+partial_c*0.5)/ptps.length*100) : 0;
       txt += '\n*Summary:* ' + paid_c + ' paid · ' + partial_c + ' partial · ' + conv + '% rate';
@@ -17359,7 +17282,7 @@ function buildPtpText(type, fmt) {
       txt += '\n';
     });
     if (isEod) {
-      const paid_c = ptps.filter(b=>b.ptpOutcome==='honoured').length;
+      const paid_c = ptps.filter(b=>b.ptpOutcome==='paid').length;
       const partial_c = ptps.filter(b=>b.ptpOutcome==='partial').length;
       const broken_c = ptps.filter(b=>b.ptpOutcome==='broken').length;
       const conv = ptps.length > 0 ? Math.round((paid_c+partial_c*0.5)/ptps.length*100) : 0;
@@ -19420,7 +19343,7 @@ function checkPtpBreaches() {
     // Only flag strictly past promises — never today or future
     if (promDate >= today) return;
     // Skip if already resolved or partial payment made
-    if (b.ptpOutcome === 'honoured' || b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') return;
+    if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') return;
     if ((b.amountPaid||0) > 0) return;
     b.ptpBreached = true;
     b.ptpOutcome  = 'missed';
