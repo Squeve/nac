@@ -5500,6 +5500,8 @@ function migrateState(s) {
   if (!s.ptpHistory)        s.ptpHistory = [];
   if (!s.templatePerf)      s.templatePerf = {};
   if (!s.scoreHistory)      s.scoreHistory = [];
+  // MESSAGE_BANK is local-only — always re-attach after any state load/merge
+  if (!s.messageBank || !s.messageBank.length) s.messageBank = (typeof MESSAGE_BANK !== 'undefined' ? MESSAGE_BANK : []);
   (s.borrowers||[]).forEach(b => {
     if (b.promisedToPay === undefined) b.promisedToPay = false;
     if (b.isPaid === undefined) b.isPaid = (b.amountPaid >= b.loanDue && b.amountPaid > 0);
@@ -5751,6 +5753,10 @@ async function pullRemoteState() {
           return;
         }
         state = migrateState(remoteState);
+        // MESSAGE_BANK is bundled locally — never pull from remote, always re-attach
+        if (!state.messageBank || !state.messageBank.length) {
+          state.messageBank = (typeof MESSAGE_BANK !== 'undefined' ? MESSAGE_BANK : []);
+        }
         _lastFullState = JSON.parse(JSON.stringify(state));
         _lastKnownHash = await _hashState(state);
         saveState();
@@ -10566,7 +10572,7 @@ function openPromiseModal(id, isEdit = false) {
   const _qd_today    = new Date();
   const _qd_tomorrow = new Date(Date.now() + 86400000);
   const _qd_endweek  = new Date();
-  _qd_endweek.setDate(_qd_endweek.getDate() + (5 - _qd_endweek.getDay() + 7) % 7 || 7); // next Friday
+  _qd_endweek.setDate(_qd_endweek.getDate() + (5 - _qd_endweek.getDay() + 7) % 7 || 7);
   const _iso = d => d.toISOString().split('T')[0];
 
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
@@ -10660,7 +10666,6 @@ function savePromise(id, isEdit = false) {
 }
 
 function rescueBreachedPtp(id) {
-  // Clears the breach flag without removing the promise — agent is actively re-negotiating
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
   const date = document.getElementById('promise-date')?.value || new Date().toISOString().split('T')[0];
@@ -21796,10 +21801,13 @@ function _dispatchSearchDebounce() {
 
 // ── Render Message Bank Page ─────────────────────────────────
 function renderMessageBank() {
+  // Always ensure messageBank is populated — re-attach from bundled data if needed
   if (!state || !state.messageBank || !state.messageBank.length) {
-    if (window.MESSAGE_BANK && window.MESSAGE_BANK.length) {
-      state.messageBank = window.MESSAGE_BANK;
+    if (typeof MESSAGE_BANK !== 'undefined' && MESSAGE_BANK.length) {
+      if (state) state.messageBank = MESSAGE_BANK;
     } else {
+      const container = document.getElementById('msg-bank-list');
+      if (container) container.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:var(--text3)">Message bank unavailable. Please reload the app.</div>';
       return;
     }
   }
