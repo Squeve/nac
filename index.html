@@ -10562,9 +10562,24 @@ function openPromiseModal(id, isEdit = false) {
   const defaultNote = b.promiseNote || '';
   const curConf = b.ptpConfidence || '';
 
+  // Quick-date helpers
+  const _qd_today    = new Date();
+  const _qd_tomorrow = new Date(Date.now() + 86400000);
+  const _qd_endweek  = new Date();
+  _qd_endweek.setDate(_qd_endweek.getDate() + (5 - _qd_endweek.getDay() + 7) % 7 || 7); // next Friday
+  const _iso = d => d.toISOString().split('T')[0];
+
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
   document.getElementById('modal-body').innerHTML = `
-    <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${defaultDate}"></div>
+    <div class="form-group">
+      <label style="margin-bottom:6px;display:block">Quick Date</label>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 0.15s" class="ptp-qd-btn">📅 Today</button>
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 0.15s" class="ptp-qd-btn">🌅 Tomorrow</button>
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 0.15s" class="ptp-qd-btn">📆 End of Week</button>
+      </div>
+    </div>
+    <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"></div>
     <div class="form-group"><label>Promise Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}"></div>
     <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
     <div class="form-group">
@@ -10578,9 +10593,16 @@ function openPromiseModal(id, isEdit = false) {
       </div>
     </div>
   `;
+  window.ptpHighlightQD = function(btn) {
+    document.querySelectorAll('.ptp-qd-btn').forEach(b => {
+      b.style.background = 'var(--surface)'; b.style.color = 'var(--text2)'; b.style.borderColor = 'var(--border2)';
+    });
+    btn.style.background = 'rgba(240,160,48,0.14)'; btn.style.color = 'var(--gold)'; btn.style.borderColor = 'rgba(240,160,48,0.5)';
+  };
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    ${isEdit ? '<button class="btn btn-red" id="promise-clear-btn">🗑 Clear Promise</button>' : ''}
+    ${isEdit ? '<button class="btn btn-red" id="promise-clear-btn">🗑 Clear</button>' : ''}
+    ${isEdit && b.ptpBreached ? `<button class="btn btn-ghost" id="promise-rescue-btn" style="color:var(--orange);border-color:rgba(249,115,22,0.4)" title="Reset breach flag and push to new date">🔄 Rescue</button>` : ''}
     <button class="btn btn-gold" id="promise-save-btn">${isEdit ? 'Update Promise' : 'Save Promise'}</button>
   `;
   // Store selected confidence in a closure var so save can read it
@@ -10606,6 +10628,8 @@ function openPromiseModal(id, isEdit = false) {
     if (isEdit) {
       const clearBtn = document.getElementById('promise-clear-btn');
       if (clearBtn) clearBtn.addEventListener('click', () => clearPromise(id));
+      const rescueBtn = document.getElementById('promise-rescue-btn');
+      if (rescueBtn) rescueBtn.addEventListener('click', () => rescueBreachedPtp(id));
     }
   }, 0);
 }
@@ -10622,12 +10646,39 @@ function savePromise(id, isEdit = false) {
   b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || '';
   b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
   if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
+  // If editing and the new date is today or future, clear any stale breach flag
+  if (isEdit && date >= new Date().toISOString().split('T')[0]) {
+    b.ptpBreached = false;
+    b.ptpOutcome  = 'pending';
+  }
   haptic('light');
   saveState();
   refreshPtpReminders();
   closeModal();
   renderCurrentPage();
   toast(b.name.split(' ')[0] + ` promise ${isEdit ? 'updated' : 'set'} 🤝`, 'success');
+}
+
+function rescueBreachedPtp(id) {
+  // Clears the breach flag without removing the promise — agent is actively re-negotiating
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  const date = document.getElementById('promise-date')?.value || new Date().toISOString().split('T')[0];
+  const time = document.getElementById('promise-time')?.value || '';
+  const note = document.getElementById('promise-note')?.value?.trim() || '';
+  b.ptpBreached   = false;
+  b.ptpOutcome    = 'pending';
+  b.promisedToPay = true;
+  b.promiseDate   = date + (time ? ' ' + time : '');
+  b.promiseNote   = note || (b.promiseNote || '') + ' [Rescued]';
+  b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || 'warm';
+  if (!b.promiseHistory) b.promiseHistory = [];
+  b.promiseHistory.push({ rescheduled: new Date().toISOString(), to: b.promiseDate, note: 'Breach rescued — new PTP set' });
+  haptic('light');
+  saveState();
+  closeModal();
+  renderCurrentPage();
+  toast(b.name.split(' ')[0] + ' PTP rescued 🔄 — breach cleared', 'success');
 }
 
 function clearPromise(id) {
@@ -16541,6 +16592,7 @@ function buildPtpMorningHtml() {
         </div>
         <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red)">${fmtC(getDueToday(b))}</div>
         <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
+        <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
         <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
         <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
       </div>`;
