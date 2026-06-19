@@ -3023,6 +3023,20 @@ tr.overdue-critical .heat-ring {
           <option value="ghost">👻 Ghost</option>
           <option value="part-pay">💰 Part-Payer</option>
         </select>
+        <select class="bl-chip-sel" id="loan-filter-amount" onchange="_onAmountPreset(this.value)" style="min-width:100px">
+          <option value="">₵ Amount</option>
+          <option value="0-500">Under ₵500</option>
+          <option value="500-1000">₵500–1k</option>
+          <option value="1000-2000">₵1k–2k</option>
+          <option value="2000-5000">₵2k–5k</option>
+          <option value="5000-99999">₵5k+</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <span id="loan-amount-custom" style="display:none;align-items:center;gap:4px">
+          <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="renderLoansTable()" style="width:68px" min="0">
+          <span style="font-size:11px;color:var(--text3)">–</span>
+          <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="renderLoansTable()" style="width:68px" min="0">
+        </span>
         <div class="bl-sort-wrap">
           <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
             <option value="dueToday_-1">Due Today ↑ High</option>
@@ -4554,7 +4568,7 @@ function _renderFocusBody() {
   const todayLog = state.dailyLog.find(e => e.date === todayStr);
   const collected = todayLog?.collected || 0;
   const target = state.monthlyTarget || 0;
-  const critical = active.filter(b => getOdAge(b.startDate) >= 13).sort((a,b) => getOdAge(b.startDate) - getOdAge(a.startDate));
+  const critical = active.filter(b => getOdAge(b.startDate, b) >= 13).sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
   const ptps = (state.ptpList || []).filter(p => { const d = p.promiseDate?.split(' ')[0]; return d === todayStr; });
   const promised = active.filter(b => b.promisedToPay);
 
@@ -4584,7 +4598,7 @@ function _renderFocusBody() {
     html += '<div class="focus-section-label">Critical — Act Today</div>'
       + '<div style="background:var(--surface);border:1px solid rgba(239,68,68,0.2);border-radius:12px;overflow:hidden;margin-bottom:14px">';
     critical.slice(0,8).forEach(b => {
-      const od = getOdAge(b.startDate);
+      const od = getOdAge(b.startDate, b);
       html += '<div class="focus-row" data-fid="'+b.id+'">'
         + '<div style="width:3px;height:36px;border-radius:2px;background:'+(od>=15?'var(--red)':od>=13?'#f44':'var(--orange)')+';flex-shrink:0"></div>'
         + '<div style="flex:1;min-width:0">'
@@ -4606,7 +4620,7 @@ function _renderFocusBody() {
         + '<div style="width:3px;height:36px;border-radius:2px;background:var(--purple);flex-shrink:0"></div>'
         + '<div style="flex:1;min-width:0">'
           + '<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.name+'</div>'
-          + '<div style="font-size:11px;color:var(--text3)">Promised · Day '+getOdAge(b.startDate)+'</div>'
+          + '<div style="font-size:11px;color:var(--text3)">Promised · Day '+getOdAge(b.startDate, b)+'</div>'
         + '</div>'
         + '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--purple);flex-shrink:0">'+fmtC(getDueToday(b))+'</div>'
       + '</div>';
@@ -4677,7 +4691,7 @@ function _getCmdItems(q) {
     return aStart - bStart;
   }).slice(0, 8).map(bor => {
     const isPaid = bor.isPaid || getStatus(bor) === 'Paid';
-    const od = getOdAge(bor.startDate);
+    const od = getOdAge(bor.startDate, bor);
     return {
       icon: isPaid
         ? '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px;color:var(--green)"><circle cx="10" cy="10" r="8"/><polyline points="7,10 9,12 13,8" stroke-width="2"/></svg>'
@@ -5221,7 +5235,7 @@ const STAGE_CONFIG = {
 };
 
 function getAccountStage(b) {
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   if (od <= 0)  return STAGE_CONFIG.M0;   // Same day — no default
   if (od <= 5)  return STAGE_CONFIG.M1;   // Day 1-5
   if (od <= 15) return STAGE_CONFIG.M2;   // Day 6-15
@@ -5528,7 +5542,7 @@ function purgeAgedOut() {
   const toRemove = state.borrowers.filter(b =>
     !b.isPaid &&
     (b.amountPaid || 0) < (b.loanDue || 1) &&
-    getOdAge(b.startDate) >= threshold
+    getOdAge(b.startDate, b) >= threshold
   );
   if (!toRemove.length) return;
   const today = new Date().toISOString().split('T')[0];
@@ -5538,7 +5552,7 @@ function purgeAgedOut() {
       state.agedOutLog.unshift({
         id: b.id, name: b.name, phone: b.phone, loanType: b.loanType,
         loanDue: b.loanDue, amountPaid: b.amountPaid,
-        odAge: getOdAge(b.startDate), agedDate: today, status: getStatus(b),
+        odAge: getOdAge(b.startDate, b), agedDate: today, status: getStatus(b),
         stage: agentStage
       });
     }
@@ -5546,7 +5560,7 @@ function purgeAgedOut() {
   state.borrowers = state.borrowers.filter(b =>
     b.isPaid ||
     (b.amountPaid || 0) >= (b.loanDue || 1) ||
-    getOdAge(b.startDate) < threshold
+    getOdAge(b.startDate, b) < threshold
   );
 }
 
@@ -5914,8 +5928,12 @@ async function _pushToSupabase(retries = 3) {
 
 const _odAgeCache = new Map();
 let   _odAgeCacheDay = '';
-function getOdAge(startDate) {
+function getOdAge(startDate, borrower) {
   if (!startDate) return 0;
+  // ── FREEZE: paid accounts never age beyond the day they settled ──
+  if (borrower && borrower.isPaid && borrower.paidAtOdAge != null) {
+    return borrower.paidAtOdAge;
+  }
   // Cache key: date + today (resets each new day)
   const todayObj = new Date(); todayObj.setHours(0,0,0,0);
   const todayStr = todayObj.toISOString().split('T')[0];
@@ -6036,7 +6054,7 @@ function _getOdFeeCached(b) {
   const today = new Date().toISOString().split('T')[0];
   if (today !== _odFeeCacheDate) { _odFeeCache.clear(); _odFeeCacheDate = today; }
   // Include current OD age in cache key
-  const key = b.id + ':' + getOdAge(b.startDate) + ':' + (b.amountPaid||0) + ':' + (b.isPaid?1:0) + ':' + (b.odFeeSnapshotDate||'') + ':' + (b.odFeeSnapshot||0);
+  const key = b.id + ':' + getOdAge(b.startDate, b) + ':' + (b.amountPaid||0) + ':' + (b.isPaid?1:0) + ':' + (b.odFeeSnapshotDate||'') + ':' + (b.odFeeSnapshot||0);
   if (_odFeeCache.has(key)) return _odFeeCache.get(key);
   const val = getOdFee(b);
   _odFeeCache.set(key, val);
@@ -6103,7 +6121,7 @@ function getOdFee(b) {
   }
 
   // ── Standard path (no snapshot) ──────────────────────────────
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   if (od <= 0) return 0;
 
   const amountPaid = b.amountPaid || 0;
@@ -6173,7 +6191,7 @@ function getOdLog(b) {
   }
 
   // ── Standard path ─────────────────────────────────────────────
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   if (od <= 0) return [];
 
   const amountPaid  = b.amountPaid || 0;
@@ -6241,7 +6259,7 @@ function getStageTonePrefix(b) {
 
 function getSmsMessage(b, useGenerous) {
   const name = getFirstName(b);
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   const isPartial = getStatus(b) === 'Partial';
   const amount = fmtC(useGenerous ? getGenerous(b) : getDueToday(b));
   const genAmount = fmtC(getGenerous(b));
@@ -6330,7 +6348,7 @@ function getActiveBorrowers() {
   } else {
     const [minDay, maxDay] = getAgentDayRange();
     result = state.borrowers.filter(function(b) {
-      const od = getOdAge(b.startDate);
+      const od = getOdAge(b.startDate, b);
       return !b.isPaid && getStatus(b) !== 'Paid' && od >= minDay && od <= maxDay;
     });
   }
@@ -6599,7 +6617,7 @@ function renderDashActionStrip(activeList) {
   // Count each signal
   const ptpDue     = active.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today) && !b.isPaid).length;
   const ptpBreached = active.filter(b => b.ptpBreached && !b.isPaid).length;
-  const critical   = active.filter(b => getOdAge(b.startDate) >= 13 && !b.isPaid).length;
+  const critical   = active.filter(b => getOdAge(b.startDate, b) >= 13 && !b.isPaid).length;
   const quickWins  = active.filter(b => !b.isPaid && b.loanDue > 0 && b.amountPaid / b.loanDue >= 0.75).length;
   const partialPaid = active.filter(b => getStatus(b) === 'Partial').length;
 
@@ -6791,8 +6809,8 @@ async function renderDashboard() {
   document.getElementById('dash-days-label').textContent = loggedDays + ' days logged (' + activeDays + ' with collections)';
 
   // ── Alert widgets ────────────────────────────────────────
-  const agingTomorrow = active.filter(b => getOdAge(b.startDate) === 15); // hits 16 = aged out tomorrow
-  const criticalToday = active.filter(b => getOdAge(b.startDate) >= 13);
+  const agingTomorrow = active.filter(b => getOdAge(b.startDate, b) === 15); // hits 16 = aged out tomorrow
+  const criticalToday = active.filter(b => getOdAge(b.startDate, b) >= 13);
   let alertHtml = '';
   if (agingTomorrow.length) {
     alertHtml += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin-bottom:14px;animation:fadeUp 0.3s ease both">'
@@ -6872,7 +6890,7 @@ async function renderDashboard() {
   // Urgency
   const odGroups = {};
   active.forEach(b => {
-    const od = getOdAge(b.startDate);
+    const od = getOdAge(b.startDate, b);
     const key = 'Day ' + od;
     if (!odGroups[key]) odGroups[key] = { count:0, total:0, od };
     odGroups[key].count++;
@@ -6904,7 +6922,7 @@ async function renderDashboard() {
       + '<span class="priority-score ' + pCls + '" style="flex-shrink:0">' + ps + '</span>'
       + '<div style="min-width:0">'
       + '<div class="name-cell" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + b.name.split(' ')[0] + ' ' + (b.name.split(' ').slice(-1)[0]||'') + '</div>'
-      + '<div style="font-size:10px;color:var(--text3)">Day ' + getOdAge(b.startDate) + '</div>'
+      + '<div style="font-size:10px;color:var(--text3)">Day ' + getOdAge(b.startDate, b) + '</div>'
       + '</div></div>'
       + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'
       + '<div style="text-align:right">'
@@ -6928,7 +6946,7 @@ async function renderDashboard() {
       + '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);min-width:14px">' + (i+1) + '</span>'
       + '<div style="min-width:0">'
       + '<div class="name-cell" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + b.name.split(' ')[0] + ' ' + (b.name.split(' ').slice(-1)[0]||'') + '</div>'
-      + '<div style="font-size:10px;color:var(--text3)">Paid ' + fmtC(b.amountPaid) + ' · Day ' + getOdAge(b.startDate) + '</div>'
+      + '<div style="font-size:10px;color:var(--text3)">Paid ' + fmtC(b.amountPaid) + ' · Day ' + getOdAge(b.startDate, b) + '</div>'
       + '</div></div>'
       + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'
       + '<div style="text-align:right">'
@@ -7145,7 +7163,7 @@ function renderPaidPage() {
     const initials = b.name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
     const lastPay  = (b.payLog||[]).slice(-1)[0];
     const paidDate = lastPay?.date ? new Date(lastPay.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}) : '—';
-    const odDays   = getOdAge(b.startDate);
+    const odDays   = getOdAge(b.startDate, b);
     html += `
       <div class="bl-card" data-bid="${b.id}" style="cursor:pointer;animation:fadeUp 0.2s ease both;animation-delay:${Math.min(i,12)*0.02}s;position:relative;overflow:hidden"
            onclick="_pushModal();openBorrowerDetail('${b.id}')">
@@ -7191,6 +7209,21 @@ var _loanFilterBadge    = '';
 
 let _lastLoanSearch = '', _lastFilterStatus = '', _lastFilterType = '', _lastFilterOd = '', _lastFilterPriority = '', _lastFilterBadge = '';
   
+function _onAmountPreset(val) {
+  const customEl = document.getElementById('loan-amount-custom');
+  if (val === 'custom') {
+    if (customEl) { customEl.style.display = 'flex'; }
+    // clear min/max so user types fresh
+    const minEl = document.getElementById('loan-amt-min');
+    const maxEl = document.getElementById('loan-amt-max');
+    if (minEl) minEl.value = '';
+    if (maxEl) maxEl.value = '';
+  } else {
+    if (customEl) customEl.style.display = 'none';
+  }
+  renderLoansTable();
+}
+
 function renderLoansTable() {
   const searchEl   = document.getElementById('loan-search');
   const statusEl2  = document.getElementById('loan-filter-status');
@@ -7207,6 +7240,18 @@ function renderLoansTable() {
   const fPriority = priorityEl?.value || '';
   const fBadge    = badgeEl?.value    || '';
   const fTag      = document.getElementById('loan-filter-tag')?.value || '';
+  // Amount range filter
+  const fAmountPreset = document.getElementById('loan-filter-amount')?.value || '';
+  let fAmtMin = null, fAmtMax = null;
+  if (fAmountPreset && fAmountPreset !== 'custom') {
+    const [_amin, _amax] = fAmountPreset.split('-').map(Number);
+    fAmtMin = _amin; fAmtMax = _amax;
+  } else if (fAmountPreset === 'custom') {
+    const _minVal = parseFloat(document.getElementById('loan-amt-min')?.value);
+    const _maxVal = parseFloat(document.getElementById('loan-amt-max')?.value);
+    if (!isNaN(_minVal)) fAmtMin = _minVal;
+    if (!isNaN(_maxVal)) fAmtMax = _maxVal;
+  }
 
   // Filter paid first (cheapest check) before doing expensive computations
   let source = fStatus === 'Paid'
@@ -7220,7 +7265,7 @@ function renderLoansTable() {
     const odFeeCalc = _getOdFeeCached(b);
     const remaining = Math.max(0, (b.loanDue||0) - (b.amountPaid||0));
     const status    = getStatus(b);
-    const odAge     = getOdAge(b.startDate);
+    const odAge     = getOdAge(b.startDate, b);
     const dueToday  = remaining + odFeeCalc;
     const generous  = Math.max(0, remaining + Math.round(odFeeCalc * (state.discountRate||0.30)));
     return { id:b.id, name:b.name, phone:b.phone, principal:b.principal, loanDue:b.loanDue,
@@ -7264,6 +7309,9 @@ function renderLoansTable() {
     if (fBadge === 'fraud')     return (r.callLog||[]).some(c => c.outcome === 'Fraud');
     return true;
   });
+  // Amount range filter — filters on dueToday (total balance owed)
+  if (fAmtMin !== null) rows = rows.filter(r => r.dueToday >= fAmtMin);
+  if (fAmtMax !== null) rows = rows.filter(r => r.dueToday < fAmtMax);
 
   rows.sort((a,b) => {
     let av = a[loanSortCol], bv = b[loanSortCol];
@@ -7618,7 +7666,7 @@ function renderAnalytics() {
     const totalDue = active.reduce((s,b)=>s+getDueToday(b),0);
     agingEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
       agBands.map(band => {
-        const grp  = active.filter(b=>{ const od=getOdAge(b.startDate); return od>=band.min&&od<=band.max; });
+        const grp  = active.filter(b=>{ const od=getOdAge(b.startDate, b); return od>=band.min&&od<=band.max; });
         const due  = grp.reduce((s,b)=>s+getDueToday(b),0);
         const pct  = totalDue>0?Math.round(due/totalDue*100):0;
         const barW = active.length>0?Math.round(grp.length/active.length*100):0;
@@ -7692,11 +7740,11 @@ function renderAnalyticsMyStage() {
   const stageRate = stageDue>0?Math.round(stagePd/stageDue*100):0;
   const stagePtps = mine.filter(b=>b.promisedToPay&&!b.isPaid);
   const stageHon = mine.filter(b=>b.ptpOutcome==='paid'||b.isPaid);
-  const agingOut = mine.filter(b=>{const od=getOdAge(b.startDate);return dayMax!==999&&od>=dayMax-2&&od<=dayMax&&!b.isPaid;});
+  const agingOut = mine.filter(b=>{const od=getOdAge(b.startDate, b);return dayMax!==999&&od>=dayMax-2&&od<=dayMax&&!b.isPaid;});
   const noContact = mine.filter(b=>!(b.callLog||[]).length&&!(b.payLog||[]).length);
   const dayRange=[];
   for(let d=dayMin;d<=Math.min(dayMax===999?dayMin+14:dayMax,dayMin+14);d++) dayRange.push(d);
-  const dayDist=dayRange.map(d=>({d,n:mine.filter(b=>getOdAge(b.startDate)===d).length,amt:mine.filter(b=>getOdAge(b.startDate)===d).reduce((s,b)=>s+getDueToday(b),0)}));
+  const dayDist=dayRange.map(d=>({d,n:mine.filter(b=>getOdAge(b.startDate, b)===d).length,amt:mine.filter(b=>getOdAge(b.startDate, b)===d).reduce((s,b)=>s+getDueToday(b),0)}));
   const ddMax=Math.max(...dayDist.map(d=>d.n),1);
   const ptpHot=stagePtps.filter(b=>b.ptpConfidence==='hot').length;
   const ptpWarm=stagePtps.filter(b=>b.ptpConfidence==='warm').length;
@@ -7706,11 +7754,11 @@ function renderAnalyticsMyStage() {
   const topAccs=[...mine].sort((a,b)=>getDueToday(b)-getDueToday(a)).slice(0,8);
   let html='';
   html+=`<div style="background:linear-gradient(135deg,${stageCol}18,${stageCol}06);border:1px solid ${stageCol}33;border-radius:14px;padding:16px;margin-bottom:14px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div><div style="font-size:20px;font-weight:800;color:${stageCol}">${agentStage} Stage</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Day ${dayMin}–${dayMax===999?dayMin+'+':dayMax} · ${mine.length} accounts</div></div><div style="text-align:right"><div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:${stageCol};line-height:1">${mine.length}</div><div style="font-size:10px;color:var(--text3)">accounts</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${[['Expected',fmtC(stageTotal),'var(--text2)'],['Recovery',stageRate+'%',stageRate>=70?'var(--green)':stageRate>=40?'var(--gold)':'var(--red)'],['PTPs',stagePtps.length+'',stageCol]].map(([l,v,c])=>`<div style="text-align:center;padding:8px 4px;background:var(--surface);border-radius:10px;border:1px solid var(--border2)"><div style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:${c};line-height:1">${v}</div><div style="font-size:9px;color:var(--text3);margin-top:3px">${l}</div></div>`).join('')}</div></div>`;
-  if(agingOut.length>0) html+=`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--red)">🚨 Aging Out Soon (${agingOut.length})</div><span style="font-size:10px;color:var(--red)">2–3 days to next stage</span></div>${agingOut.slice(0,5).map(b=>{const od=getOdAge(b.startDate),dl=dayMax-od;return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(239,68,68,0.15);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--red);flex-shrink:0">D${od}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div><div style="font-size:9px;color:var(--red)">${dl} day${dl!==1?'s':''} left in ${agentStage}</div></div><div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div></div>`;}).join('')}${agingOut.length>5?`<div style="font-size:10px;color:var(--text3);text-align:center;padding-top:6px">+${agingOut.length-5} more</div>`:''}</div>`;
+  if(agingOut.length>0) html+=`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--red)">🚨 Aging Out Soon (${agingOut.length})</div><span style="font-size:10px;color:var(--red)">2–3 days to next stage</span></div>${agingOut.slice(0,5).map(b=>{const od=getOdAge(b.startDate, b),dl=dayMax-od;return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(239,68,68,0.15);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--red);flex-shrink:0">D${od}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div><div style="font-size:9px;color:var(--red)">${dl} day${dl!==1?'s':''} left in ${agentStage}</div></div><div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div></div>`;}).join('')}${agingOut.length>5?`<div style="font-size:10px;color:var(--text3);text-align:center;padding-top:6px">+${agingOut.length-5} more</div>`:''}</div>`;
   if(dayDist.some(d=>d.n>0)) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">📊 Day-by-Day Distribution <span style="font-size:10px;font-weight:400;color:var(--text3)">tap to view</span></div><div style="display:flex;align-items:flex-end;gap:4px;height:80px">${dayDist.map(({d,n,amt})=>{const bh=n>0?Math.max(10,Math.round(n/ddMax*68)):3;const isU=dayMax!==999&&d>=dayMax-2;const col=isU?'var(--red)':d<=dayMin+2?'var(--green)':stageCol;return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:${n?'pointer':'default'}" onclick="${n?`showBorrowersPopup('','',${d},'',${d});haptic('light')`:''}" title="Day ${d}: ${n}"><div style="width:100%;height:${bh}px;background:${col};opacity:${n?0.85:0.2};border-radius:3px 3px 0 0;min-height:3px"></div><div style="font-size:8px;color:${n?col:'var(--text3)'};font-family:var(--font-mono);font-weight:${n?700:400}">${d}</div>${n?`<div style="font-size:9px;font-family:var(--font-mono);font-weight:800;color:${col}">${n}</div>`:''}</div>`;}).join('')}</div><div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text3)"><span style="color:var(--green)">● Early</span><span style="color:${stageCol}">● Mid</span><span style="color:var(--red)">● Aging out</span></div></div>`;
   const ptpDenom=stagePtps.length+stageHon.length||1;
   html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🤝 ${agentStage} PTP Performance</div><div style="display:flex;gap:8px;margin-bottom:10px">${[['Honour Rate',ptpRate+'%',ptpRate>=70?'var(--green)':ptpRate>=40?'var(--gold)':'var(--red)'],['🔥 Hot',ptpHot+'','var(--red)'],['↻ Reschd',reschN+'','var(--orange)']].map(([l,v,c])=>`<div style="flex:1;text-align:center;padding:8px 4px;background:var(--surface2);border-radius:10px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${c};line-height:1">${v}</div><div style="font-size:9px;color:var(--text3);margin-top:3px">${l}</div></div>`).join('')}</div>${stagePtps.length>0?`<div style="display:flex;flex-direction:column;gap:5px">${[['🔥 Hot',ptpHot,'var(--red)'],['⚡ Warm',ptpWarm,'var(--gold)'],['❄️ Cold',ptpCold,'var(--blue)'],['✅ Honoured',stageHon.length,'var(--green)']].map(([l,v,c])=>`<div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:var(--text3);min-width:72px">${l}</span><div style="flex:1;height:6px;background:var(--border2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(v/ptpDenom*100)}%;background:${c};border-radius:3px"></div></div><span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:${c};min-width:16px;text-align:right">${v}</span></div>`).join('')}</div>`:'<div style="color:var(--text3);font-size:11px;text-align:center">No PTP data for this stage yet</div>'}</div>`;
-  if(topAccs.length>0) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🏆 Top Balances — ${agentStage}</div>${topAccs.map((b,i)=>{const od=getOdAge(b.startDate),pct=b.loanDue>0?Math.round((b.amountPaid||0)/b.loanDue*100):0;const cmap={hot:['🔥','var(--red)'],warm:['⚡','var(--gold)'],cold:['❄️','var(--blue)']};const cb=b.ptpConfidence&&cmap[b.ptpConfidence]?`<span style="font-size:9px;color:${cmap[b.ptpConfidence][1]};background:${cmap[b.ptpConfidence][1]}18;padding:1px 4px;border-radius:4px;font-weight:700">${cmap[b.ptpConfidence][0]}</span>`:'';return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);min-width:18px">${i+1}</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:5px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</span>${cb}${b.promisedToPay?'<span style="font-size:10px">🤝</span>':''}</div><div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pct}%;background:${stageCol};border-radius:2px"></div></div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--font-mono);font-size:11px;font-weight:700">${fmtC(getDueToday(b))}</div><div style="font-size:9px;color:var(--text3)">Day ${od}</div></div></div>`;}).join('')}</div>`;
+  if(topAccs.length>0) html+=`<div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:10px">🏆 Top Balances — ${agentStage}</div>${topAccs.map((b,i)=>{const od=getOdAge(b.startDate, b),pct=b.loanDue>0?Math.round((b.amountPaid||0)/b.loanDue*100):0;const cmap={hot:['🔥','var(--red)'],warm:['⚡','var(--gold)'],cold:['❄️','var(--blue)']};const cb=b.ptpConfidence&&cmap[b.ptpConfidence]?`<span style="font-size:9px;color:${cmap[b.ptpConfidence][1]};background:${cmap[b.ptpConfidence][1]}18;padding:1px 4px;border-radius:4px;font-weight:700">${cmap[b.ptpConfidence][0]}</span>`:'';return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);min-width:18px">${i+1}</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:5px"><span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</span>${cb}${b.promisedToPay?'<span style="font-size:10px">🤝</span>':''}</div><div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pct}%;background:${stageCol};border-radius:2px"></div></div></div><div style="text-align:right;flex-shrink:0"><div style="font-family:var(--font-mono);font-size:11px;font-weight:700">${fmtC(getDueToday(b))}</div><div style="font-size:9px;color:var(--text3)">Day ${od}</div></div></div>`;}).join('')}</div>`;
   if(noContact.length>0) html+=`<div style="background:rgba(240,160,48,0.06);border:1px solid rgba(240,160,48,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px">📵 No Contact Yet (${noContact.length})</div>${noContact.slice(0,4).map(b=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')"><span style="font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--font-mono);font-size:11px">${fmtC(getDueToday(b))}</span><a href="https://wa.me/${b.phone.replace(/\s/g,'').replace('+','')}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" onclick="event.stopPropagation();haptic('light')">📩</a></div></div>`).join('')}${noContact.length>4?`<div style="font-size:10px;color:var(--text3);margin-top:6px">+${noContact.length-4} more</div>`:''}</div>`;
   el.innerHTML = html;
 }
@@ -7820,7 +7868,7 @@ function getDispatchCustomMsg(b) {
     .replace(/\{lastname\}/gi,  last)
     .replace(/\{amount\}/gi,    fmtC(getDueToday(b)))
     .replace(/\{generous\}/gi,  fmtC(getGenerous(b)))
-    .replace(/\{days\}/gi,      String(getOdAge(b.startDate)))
+    .replace(/\{days\}/gi,      String(getOdAge(b.startDate, b)))
     .replace(/\{loantype\}/gi,  b.loanType || 'LoanBase');
 }
 // Update every visible dispatch row preview + WA link when custom msg changes
@@ -7920,7 +7968,7 @@ function renderDispatch() {
 
   let list = state.borrowers.filter(b => {
     const s = getStatus(b);
-    const od = getOdAge(b.startDate);
+    const od = getOdAge(b.startDate, b);
     const due = getDueToday(b);
     if (filter === 'Unpaid') return s === 'Unpaid';
     if (filter === 'Partial') return s === 'Partial';
@@ -7938,7 +7986,7 @@ function renderDispatch() {
     const due = getDueToday(b);
     return due >= (minV ? parseFloat(minV) : 0) && due <= (maxV ? parseFloat(maxV) : Infinity);
   })
-  .map(b => ({...b, status: getStatus(b), odAge: getOdAge(b.startDate),
+  .map(b => ({...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     generous: getGenerous(b), dueToday: getDueToday(b) }))
     .sort((a,b) => a.odAge - b.odAge);
 
@@ -8567,7 +8615,9 @@ function importLogFromPayments() {
   let todayPay = 0;
   (state.borrowers||[]).forEach(b => {
     (b.payLog||[]).forEach(p => {
-      if ((p.date||'').split('T')[0] === todayStr) todayPay += Number(p.amount)||0;
+      // Use delta (new cash received), not amount (cumulative total)
+      // Skip negative deltas — corrections should not subtract from daily log
+      if ((p.date||'').split('T')[0] === todayStr && (Number(p.delta)||0) > 0) todayPay += Number(p.delta)||0;
     });
   });
   if (todayPay === 0) { toast('No payment records found for today', 'info'); return; }
@@ -8680,7 +8730,7 @@ function openExportModal() {
       var amtMax=parseFloat(document.getElementById('exp-amt-max')?.value||'')||Infinity;
       var n = state.borrowers.filter(function(b){
         if(onlyPr) return b.promisedToPay;
-        var s=getStatus(b), od=getOdAge(b.startDate), due=getDueToday(b);
+        var s=getStatus(b), od=getOdAge(b.startDate, b), due=getDueToday(b);
         if(s==='Unpaid'&&!incU) return false;
         if(s==='Partial'&&!incPa) return false;
         if(s==='Paid'&&!incPd) return false;
@@ -8725,7 +8775,7 @@ function openExportModal() {
     { id:'serial',      label:'Serial (1/2)',      def:false },
   ];
 
-  const allOdAges = [...new Set(state.borrowers.map(b=>getOdAge(b.startDate)))].sort((a,b)=>a-b);
+  const allOdAges = [...new Set(state.borrowers.map(b=>getOdAge(b.startDate, b)))].sort((a,b)=>a-b);
   const minOd = allOdAges.length ? allOdAges[0] : 6;
   const maxOd = allOdAges.length ? allOdAges[allOdAges.length-1] : 15;
   const totalActive = getActiveBorrowers().length;
@@ -8903,7 +8953,7 @@ function doExportWANumbers() {
   const { borrowers } = _getExportData();
   if (!borrowers.length) { toast('No accounts match your filters', 'error'); return; }
 
-  const sorted = [...borrowers].sort((a,b) => getOdAge(b.startDate) - getOdAge(a.startDate));
+  const sorted = [...borrowers].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
   const lines = sorted.map(b => {
     const raw = b.phone.replace(/\D/g,'');
     return raw.startsWith('0') ? '233' + raw.slice(1) : raw;
@@ -8919,7 +8969,7 @@ function doExportWANumbers() {
       ${sorted.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
         <div style="flex:1;font-size:11px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
         <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">${b.phone}</div>
-        <div style="font-size:10px;color:var(--red)">Day ${getOdAge(b.startDate)}</div>
+        <div style="font-size:10px;color:var(--red)">Day ${getOdAge(b.startDate, b)}</div>
       </div>`).join('')}
     </div>
     <textarea readonly id="wa-exp-numbers" style="width:100%;height:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px;font-family:var(--font-mono);font-size:11px;color:var(--text);resize:none;box-sizing:border-box">${lines.join('\n')}</textarea>`;
@@ -9010,7 +9060,7 @@ function _getExportData() {
     name:        { label:'Name',           fn:b=>'"'+exportName(b)+'"',                                 raw:b=>exportName(b) },
     phone:       { label:'Phone',          fn:b=>b.phone,                                               raw:b=>b.phone },
     loanType:    { label:'Loan Type',      fn:b=>b.loanType,                                            raw:b=>b.loanType },
-    odAge:       { label:'OD Age',         fn:b=>'Day '+getOdAge(b.startDate),                          raw:b=>getOdAge(b.startDate) },
+    odAge:       { label:'OD Age',         fn:b=>'Day '+getOdAge(b.startDate, b),                          raw:b=>getOdAge(b.startDate, b) },
     promiseDate: { label:'Promise Date',   fn:b=>b.promiseDate||'',                                     raw:b=>b.promiseDate||'' },
     generous:    { label:'Generous Amt',   fn:b=>getGenerous(b),                                        raw:b=>getGenerous(b) },
     dueToday:    { label:'Full Balance',   fn:b=>getDueToday(b),                                        raw:b=>getDueToday(b) },
@@ -9027,7 +9077,7 @@ function _getExportData() {
 
   // ── Filter ─────────────────────────────────────────────────
   let borrowers = state.borrowers.filter(function(b) {
-    const age    = getOdAge(b.startDate);
+    const age    = getOdAge(b.startDate, b);
     const bal    = getDueToday(b);
     const status = getStatus(b);
 
@@ -9053,7 +9103,7 @@ function _getExportData() {
       case 'paid':        return (b.amountPaid||0) - (a.amountPaid||0);
       case 'name':        return a.name.localeCompare(b.name);
       case 'promiseDate': return (a.promiseDate||'zzz').localeCompare(b.promiseDate||'zzz');
-      default:            return getOdAge(b.startDate) - getOdAge(a.startDate); // most overdue first
+      default:            return getOdAge(b.startDate, b) - getOdAge(a.startDate); // most overdue first
     }
   });
 
@@ -9155,7 +9205,7 @@ function doExportPDF(mode) {
     return {label:'Day '+min+'-'+max, min, max};
   }).filter(function(band){ return band.min <= _aBandMax; });
   const agingRows = agingBands.map(band => {
-    const grp = active.filter(b=>{const od=getOdAge(b.startDate);return od>=band.min&&od<=band.max;});
+    const grp = active.filter(b=>{const od=getOdAge(b.startDate, b);return od>=band.min&&od<=band.max;});
     const due = grp.reduce((s,b)=>s+getDueToday(b),0);
     const pctShare = totalOutstanding > 0 ? (due/totalOutstanding*100).toFixed(0)+'%' : '0%';
     return '<tr><td style="padding:5px 10px;border-bottom:1px solid #f3f4f6">' + band.label + '</td><td style="padding:5px 10px;border-bottom:1px solid #f3f4f6;text-align:center">' + grp.length + '</td><td style="padding:5px 10px;border-bottom:1px solid #f3f4f6;text-align:right">₵' + fmt(due) + '</td><td style="padding:5px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:#c47a0a">' + pctShare + '</td></tr>';
@@ -9165,7 +9215,7 @@ function doExportPDF(mode) {
   const top10Rows = top10.map((b,i) => {
     const st = getStatus(b);
     const sColor = st==='Paid'?'#16a34a':st==='Partial'?'#ea580c':'#dc2626';
-    return '<tr style="background:' + (i%2===0?'#f9fafb':'#fff') + '"><td style="padding:5px 8px;color:#9ca3af">' + (i+1) + '</td><td style="padding:5px 8px;font-weight:600">' + b.name + '</td><td style="padding:5px 8px">' + b.phone + '</td><td style="padding:5px 8px;text-align:center">Day ' + getOdAge(b.startDate) + '</td><td style="padding:5px 8px">' + b.loanType + '</td><td style="padding:5px 8px;text-align:right">₵' + fmt(b.loanDue) + '</td><td style="padding:5px 8px;text-align:right;color:#16a34a">₵' + fmt(b.amountPaid||0) + '</td><td style="padding:5px 8px;text-align:right;color:#c47a0a;font-weight:bold">₵' + fmt(getDueToday(b)) + '</td><td style="padding:5px 8px;color:'+sColor+';font-weight:bold">' + st + '</td></tr>';
+    return '<tr style="background:' + (i%2===0?'#f9fafb':'#fff') + '"><td style="padding:5px 8px;color:#9ca3af">' + (i+1) + '</td><td style="padding:5px 8px;font-weight:600">' + b.name + '</td><td style="padding:5px 8px">' + b.phone + '</td><td style="padding:5px 8px;text-align:center">Day ' + getOdAge(b.startDate, b) + '</td><td style="padding:5px 8px">' + b.loanType + '</td><td style="padding:5px 8px;text-align:right">₵' + fmt(b.loanDue) + '</td><td style="padding:5px 8px;text-align:right;color:#16a34a">₵' + fmt(b.amountPaid||0) + '</td><td style="padding:5px 8px;text-align:right;color:#c47a0a;font-weight:bold">₵' + fmt(getDueToday(b)) + '</td><td style="padding:5px 8px;color:'+sColor+';font-weight:bold">' + st + '</td></tr>';
   }).join('');
   // Loan type breakdown
   const lbActive = active.filter(b=>b.loanType==='LoanBase');
@@ -9223,20 +9273,20 @@ function doExportPDF(mode) {
       + '<h2>Top 10 Accounts by Balance Due Today</h2>'
       + '<table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th style="text-align:center">OD Day</th><th>Type</th><th style="text-align:right">Loan Due</th><th style="text-align:right">Paid</th><th style="text-align:right">Due Today</th><th>Status</th></tr></thead><tbody>' + top10Rows + '</tbody></table>'
       + '<h2>Accounts Needing Immediate Action (Day 13+)</h2>';
-    const critical = active.filter(b=>getOdAge(b.startDate)>=13).sort((a,b)=>getDueToday(b)-getDueToday(a));
+    const critical = active.filter(b=>getOdAge(b.startDate, b)>=13).sort((a,b)=>getDueToday(b)-getDueToday(a));
     if (critical.length) {
       html += '<table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th style="text-align:center">Day</th><th style="text-align:right">Due Today</th><th>Status</th></tr></thead><tbody>'
-        + critical.map((b,i)=>'<tr style="background:' + (i%2===0?'#fff7f7':'#fff') + '"><td style="color:#dc2626;font-weight:bold">'+(i+1)+'</td><td>'+b.name+'</td><td>'+b.phone+'</td><td style="text-align:center;color:#dc2626;font-weight:bold">Day '+getOdAge(b.startDate)+'</td><td style="text-align:right;color:#dc2626;font-weight:bold">₵'+fmt(getDueToday(b))+'</td><td>'+tagStatus(getStatus(b))+'</td></tr>').join('')
+        + critical.map((b,i)=>'<tr style="background:' + (i%2===0?'#fff7f7':'#fff') + '"><td style="color:#dc2626;font-weight:bold">'+(i+1)+'</td><td>'+b.name+'</td><td>'+b.phone+'</td><td style="text-align:center;color:#dc2626;font-weight:bold">Day '+getOdAge(b.startDate, b)+'</td><td style="text-align:right;color:#dc2626;font-weight:bold">₵'+fmt(getDueToday(b))+'</td><td>'+tagStatus(getStatus(b))+'</td></tr>').join('')
         + '</tbody></table>';
     } else { html += '<p style="color:#9ca3af;font-style:italic">No critical accounts.</p>'; }
   } else {
     // ── FULL LIST: every borrower sorted by OD age ──
-    const sorted = [...(activeOnly ? all.filter(b=>getStatus(b)!=='Paid') : all)].sort((a,b) => getOdAge(a.startDate) - getOdAge(b.startDate));
+    const sorted = [...(activeOnly ? all.filter(b=>getStatus(b)!=='Paid') : all)].sort((a,b) => getOdAge(a.startDate) - getOdAge(b.startDate, b));
     html += '<table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th style="text-align:center">OD Age</th><th>Type</th><th style="text-align:right">Loan Due</th><th style="text-align:right">Paid</th><th style="text-align:right">OD Fee</th><th style="text-align:right">Due Today</th><th>Status</th></tr></thead><tbody>'
       + sorted.map((b,i) => {
           const status = getStatus(b);
           const rowBg = status==='Paid'?'#f0fdf4':status==='Partial'?'#fff7ed':i%2===0?'#fff':'#f9fafb';
-          return '<tr style="background:'+rowBg+'"><td style="color:#9ca3af">'+(i+1)+'</td><td style="font-weight:600">'+b.name+'</td><td>'+b.phone+'</td><td style="text-align:center">Day '+getOdAge(b.startDate)+'</td><td>'+b.loanType+'</td><td style="text-align:right">₵'+fmt(b.loanDue)+'</td><td style="text-align:right;color:#16a34a">₵'+fmt(b.amountPaid||0)+'</td><td style="text-align:right;color:#7c3aed">₵'+fmt(_getOdFeeCached(b))+'</td><td style="text-align:right;font-weight:bold;color:'+  (getDueToday(b)>0?'#dc2626':'#16a34a')+'">₵'+fmt(getDueToday(b))+'</td><td>'+tagStatus(status)+'</td></tr>';
+          return '<tr style="background:'+rowBg+'"><td style="color:#9ca3af">'+(i+1)+'</td><td style="font-weight:600">'+b.name+'</td><td>'+b.phone+'</td><td style="text-align:center">Day '+getOdAge(b.startDate, b)+'</td><td>'+b.loanType+'</td><td style="text-align:right">₵'+fmt(b.loanDue)+'</td><td style="text-align:right;color:#16a34a">₵'+fmt(b.amountPaid||0)+'</td><td style="text-align:right;color:#7c3aed">₵'+fmt(_getOdFeeCached(b))+'</td><td style="text-align:right;font-weight:bold;color:'+  (getDueToday(b)>0?'#dc2626':'#16a34a')+'">₵'+fmt(getDueToday(b))+'</td><td>'+tagStatus(status)+'</td></tr>';
         }).join('')
       + '</tbody></table>';
   }
@@ -9886,7 +9936,7 @@ function openBorrowerDetail(id) {
 function _openBorrowerDetailFill(id) {
   var b = state.borrowers.find(function(x){ return x.id === id; });
   if (!b) return;
-  var od = getOdAge(b.startDate);
+  var od = getOdAge(b.startDate, b);
   var st = getStatus(b);
   var stColor = st==='Paid'?'var(--green)':st==='Partial'?'var(--gold)':'var(--red)';
   var odColor = od>=15?'var(--red)':od>=13?'var(--orange)':od>=11?'#fbbf24':'var(--blue)';
@@ -10150,6 +10200,7 @@ function recordPayment(id) {
   b.amountPaid = newPaid;
   b.notes = notes;
   if (newPaid >= fullSettlement && fullSettlement > 0) {
+    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
     b.isPaid = true;
     // Fully paid — clear any snapshot, OD is frozen at 0 via isPaid check
     delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
@@ -10164,8 +10215,24 @@ function recordPayment(id) {
     }
   }
   if (!b.payLog) b.payLog = [];
+  const payDelta = newPaid - prevPaid;
   if (newPaid !== prevPaid) {
-    b.payLog.push({ date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: newPaid - prevPaid, note: notes, isPaid: b.isPaid });
+    const payDate = new Date().toISOString().split('T')[0];
+    b.payLog.push({ date: payDate, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: payDelta, note: notes, isPaid: b.isPaid });
+    // ── Write delta directly to daily log (accurate: only new cash, not cumulative total) ──
+    if (payDelta > 0) {
+      if (!state.dailyLog) state.dailyLog = [];
+      let logEntry = state.dailyLog.find(e => e.date === payDate);
+      if (!logEntry) { logEntry = { date: payDate, collected: 0, notes: '' }; state.dailyLog.push(logEntry); }
+      logEntry.collected = (logEntry.collected || 0) + payDelta;
+    }
+    // If payment was reduced (correction), subtract the over-count from today's log
+    if (payDelta < 0) {
+      if (!state.dailyLog) state.dailyLog = [];
+      const payDate2 = new Date().toISOString().split('T')[0];
+      let logEntry = state.dailyLog.find(e => e.date === payDate2);
+      if (logEntry) logEntry.collected = Math.max(0, (logEntry.collected || 0) + payDelta); // payDelta is negative
+    }
   }
   purgeAgedOut(); saveState(); setTimeout(() => { state._blockRemotePullUntil = 0; }, 3000); _odFeeCache.clear(); closeModal();
   updateTemplatePerfFromPayment(id);
@@ -10180,7 +10247,7 @@ function recordPayment(id) {
 }
 
 function buildOdOptions(b) {
-  const currentOd = b ? getOdAge(b.startDate) : 1;
+  const currentOd = b ? getOdAge(b.startDate, b) : 1;
   // Restrict day options to the range of the active agent's stage
   const stage = (_activeAgent && STAGE_CONFIG[_activeAgent.stage]) ? _activeAgent.stage : null;
   const stageBands = {
@@ -11031,7 +11098,7 @@ function getSmsBlastMsg(b) {
   const genAmount = fmtC(getGenerous(b));
   const fullAmount = fmtC(getDueToday(b));
   const type = b.loanType;
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   const serial = b.loanType === 'LoanBase Pro' ? '2' : '1';
   const name = getFirstName(b);
 
@@ -11140,7 +11207,7 @@ function getSmsFilteredContacts() {
   return state.borrowers.filter(b => {
     const s = getStatus(b);
     const due = getDueToday(b);
-    const od = getOdAge(b.startDate);
+    const od = getOdAge(b.startDate, b);
     if (s === 'Paid') return false;
     if (filter === 'Unpaid' && s !== 'Unpaid') return false;
     if (filter === 'Partial' && s !== 'Partial') return false;
@@ -11167,7 +11234,7 @@ function renderSmsBlast() {
     const rows = contacts.map(function(b) {
       const checked = smsSelected.has(b.id);
       const due = getDueToday(b);
-      const od = getOdAge(b.startDate);
+      const od = getOdAge(b.startDate, b);
       const odCls = odClass(od);
       const bg = checked ? 'background:rgba(232,160,32,0.06)' : '';
       return '<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);cursor:pointer;' + bg + '" data-smsid="' + b.id + '">'
@@ -11405,7 +11472,7 @@ function showSeqModal() {
   document.getElementById('modal-body').innerHTML =
     '<div style="margin-bottom:12px">'
     + '<div style="font-weight:700;font-size:15px">' + b.name + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate) + ' · ' + fmtC(getDueToday(b)) + ' due</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + ' due</div>'
     + '</div>'
     + '<div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px">' + msg + '</div>'
     + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
@@ -11507,7 +11574,7 @@ function doSmsExport() {
   const headers = ['Name','Phone','OD Age','Due Today','Loan Type','Status'].concat(includeMsg?['Message']:[]);
   const rows = reviewContacts.map(b => {
     const row = [
-      '"' + b.name + '"', b.phone, 'Day ' + getOdAge(b.startDate),
+      '"' + b.name + '"', b.phone, 'Day ' + getOdAge(b.startDate, b),
       getDueToday(b), b.loanType, getStatus(b)
     ];
     if (includeMsg) row.push('"' + getSmsBlastMsg(b).replace(/"/g,"'") + '"');
@@ -11528,7 +11595,7 @@ function doSmsExportXLSX() {
   const includeMsg = document.getElementById('export-sms-msg')?.checked;
   const headers = ['Name','Phone','OD Age','Loan Due','Paid','Due Today','Loan Type','Status'].concat(includeMsg?['Message']:[]);
   const dataRows = reviewContacts.map(b => {
-    const row = [b.name, b.phone, 'Day '+getOdAge(b.startDate), b.loanDue, b.amountPaid||0, getDueToday(b), b.loanType, getStatus(b)];
+    const row = [b.name, b.phone, 'Day '+getOdAge(b.startDate, b), b.loanDue, b.amountPaid||0, getDueToday(b), b.loanType, getStatus(b)];
     if (includeMsg) row.push(getSmsBlastMsg(b));
     return row;
   });
@@ -11901,7 +11968,7 @@ function haptic(type) {
 
 
 function getRiskBreakdown(b) {
-  var od = getOdAge(b.startDate);
+  var od = getOdAge(b.startDate, b);
   var ratio = b.loanDue > 0 ? b.amountPaid / b.loanDue : 0;
   var factors = [], score = 50;
   factors.push({ label:'Base score', points:50, desc:'Starting point for all borrowers', pos:true });
@@ -12056,6 +12123,7 @@ function bulkAction(action) {
       const delta = fullSettlement - b.amountPaid;          // what's being paid now
       if (delta > 0) totalDelta += delta;
       b.amountPaid = fullSettlement;
+      if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
       b.isPaid = true;
       if (!b.payLog) b.payLog = [];
       b.payLog.push({ date: todayStr, time: timeStr, amount: fullSettlement, delta, note: 'Bulk mark paid', isPaid: true });
@@ -12161,7 +12229,7 @@ function checkOdAdvance() {
   localStorage.setItem('last_od_check', today);
   const active = getActiveBorrowers();
   const movedUp = active.filter(b => {
-    const od = getOdAge(b.startDate);
+    const od = getOdAge(b.startDate, b);
     const prevOd = parseInt(localStorage.getItem('od_' + b.id) || '0');
     localStorage.setItem('od_' + b.id, od);
     return prevOd > 0 && od > prevOd;
@@ -12237,7 +12305,7 @@ function checkAutoRollover() {
       state.agedOutLog.unshift({
         id: b.id, name: b.name, phone: b.phone,
         loanType: b.loanType, loanDue: b.loanDue,
-        amountPaid: b.amountPaid, odAge: getOdAge(b.startDate),
+        amountPaid: b.amountPaid, odAge: getOdAge(b.startDate, b),
         agedDate: today, status: 'Auto-rolled → ' + thisMonthStr,
       });
     }
@@ -12375,7 +12443,7 @@ function doRollover() {
       state.agedOutLog.unshift({ 
         id: b.id, name: b.name, phone: b.phone, loanType: b.loanType, 
         loanDue: b.loanDue, amountPaid: b.amountPaid, 
-        odAge: getOdAge(b.startDate), agedDate: today, 
+        odAge: getOdAge(b.startDate, b), agedDate: today, 
         status: 'Rolled Over to ' + newMonthStr 
       });
     }
@@ -12781,7 +12849,7 @@ function renderGlobalSearch() {
       const st       = getStatus(b);
       const isPaid   = b.isPaid || st === 'Paid';
       const stColor  = isPaid ? 'var(--green)' : st === 'Partial' ? 'var(--gold)' : 'var(--orange)';
-      const od       = getOdAge(b.startDate);
+      const od       = getOdAge(b.startDate, b);
       const stage    = getAccountStage(b);
       const phoneHl  = hasDigits && b.phone.replace(/\D/g,'').includes(qDigits)
         ? `<span style="color:var(--gold);font-weight:600">${formatPhoneDisplay(b.phone)}</span>`
@@ -13514,7 +13582,7 @@ function buildEscalationMsg(b, level) {
   const balance   = fmtC(getDueToday(b));
   const deadline  = _escalDeadline();
   const payNum    = _escalPhone();
-  const odDays    = getOdAge(b.startDate);
+  const odDays    = getOdAge(b.startDate, b);
   const loanType = b.loanType;
 
   if (level === 20) {
@@ -14238,7 +14306,7 @@ function escalRenderModal() {
     // Contact card
     + '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + col + '">'
     + '<div style="font-weight:700;font-size:14px">' + escapeHtml(b.name) + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate) + ' · ' + fmtC(getDueToday(b)) + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
     + '</div>'
     // Editable message
     + '<textarea id="escal-msg-edit" style="width:100%;max-width:100%;background:var(--surface2);border:1px solid ' + col + '44;border-radius:8px;padding:10px;font-size:11px;color:var(--text2);line-height:1.6;min-height:140px;max-height:220px;resize:vertical;font-family:var(--font-body);box-sizing:border-box;overflow-wrap:break-word">' + msg + '</textarea>'
@@ -14367,7 +14435,7 @@ function renderSegments() {
   function getSegment(b) {
     var score = 0;
     var ratio = b.loanDue > 0 ? (b.amountPaid||0)/b.loanDue : 0;
-    var od = getOdAge(b.startDate);
+    var od = getOdAge(b.startDate, b);
     if (ratio >= 0.5) score += 3; else if (ratio > 0) score += 1;
     if (b.promisedToPay) score += 2;
     var _sr=getAgentDayRange(),_smin=_sr[0],_srng=Math.max(1,_sr[1]-_smin),_sp=(od-_smin)/_srng;
@@ -14401,7 +14469,7 @@ function renderSegments() {
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick=\"openBorrowerDetail(\\\''+b.id+'\\\')\">'
             +'<div style="min-width:0">'
             +'<div style="font-size:12px;font-weight:600;color:var(--text)">'+escapeHtml(b.name)+'</div>'
-            +'<div style="font-size:10px;color:var(--text3)">Day '+getOdAge(b.startDate)+' &middot; Paid '+ratio+'%'+(b.promisedToPay?' &middot; 🤝':'')+'</div>'
+            +'<div style="font-size:10px;color:var(--text3)">Day '+getOdAge(b.startDate, b)+' &middot; Paid '+ratio+'%'+(b.promisedToPay?' &middot; 🤝':'')+'</div>'
             +'</div>'
             +'<div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:'+d.color+';flex-shrink:0;margin-left:8px">'+fmtC(getDueToday(b))+'</div>'
             +'</div>';
@@ -14606,7 +14674,7 @@ function renderHitList() {
       <span style="cursor:grab;color:var(--text3);font-size:16px">⋮⋮</span>
       <div style="flex:1">
         <div style="font-weight:600;font-size:12px">${escapeHtml(b.name)}</div>
-        <div style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate)} · ${fmtC(getDueToday(b))}</div>
+        <div style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate, b)} · ${fmtC(getDueToday(b))}</div>
       </div>
       <div style="display:flex;gap:6px">
         <a href="tel:${b.phone}" class="btn btn-ghost btn-xs" onclick="haptic('light')">📞</a>
@@ -14818,7 +14886,7 @@ function renderGapWidget() { /* removed — info shown in target section */ }
 function renderTreadmillAlert() {
   const stage = (_activeAgent && _activeAgent.stage) ? _activeAgent.stage : 'M2';
   const tDay = (STAGE_CONFIG[stage] && STAGE_CONFIG[stage].treadmillDay) ? STAGE_CONFIG[stage].treadmillDay : 6;
-  const allDay6 = state.borrowers.filter(b => getOdAge(b.startDate) === tDay);
+  const allDay6 = state.borrowers.filter(b => getOdAge(b.startDate, b) === tDay);
   const el = document.getElementById('treadmill-alert');
   if (!el) return;
   if (allDay6.length === 0) { el.style.display = 'none'; return; }
@@ -14847,7 +14915,7 @@ function renderTreadmillAlert() {
 // ── PRIORITY SCORE ENGINE ──────────────────────────────
 function calcPriorityScore(b) {
   let score = 0;
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   const [minDay, maxDay] = getAgentDayRange();
   const range = Math.max(1, maxDay - minDay);
   // OD urgency within stage (max 4 pts) — how far through their stage are they?
@@ -14989,8 +15057,8 @@ function showWaQueueModal() {
 function renderSmartClusters() {
   const active = getActiveBorrowers();
   const high     = active.filter(b => b.amountPaid > 0 && calcPriorityScore(b) <= 5);
-  const pressure = active.filter(b => getOdAge(b.startDate) >= 8 && b.amountPaid === 0 && !b.promisedToPay);
-  const escalate = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate) >= 13);
+  const pressure = active.filter(b => getOdAge(b.startDate, b) >= 8 && b.amountPaid === 0 && !b.promisedToPay);
+  const escalate = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate, b) >= 13);
 
   function clusterRows(list, max, clusterId) {
     const shown = list.slice(0, max);
@@ -15002,7 +15070,7 @@ function renderSmartClusters() {
       return `<div class="cluster-borrower-row" onclick="openBorrowerDetail('${b.id}');haptic('light')" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer">
         <span class="priority-score ${pCls}" style="flex-shrink:0">${ps}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.name.split(' ')[0]} <span style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate)}</span></div>
+          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.name.split(' ')[0]} <span style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate, b)}</span></div>
           <div style="font-size:10px;color:var(--text3)">${fmtC(getDueToday(b))}</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0">
@@ -15046,15 +15114,15 @@ function showClusterPopup(cls) {
   const active = getActiveBorrowers();
   let list, title;
   if (cls === 'high')     { list = active.filter(b => b.amountPaid > 0 && calcPriorityScore(b) <= 5);  title = '🟢 High Probability'; }
-  else if (cls === 'pressure') { list = active.filter(b => getOdAge(b.startDate) >= 8 && b.amountPaid === 0 && !b.promisedToPay); title = '🟡 Needs Pressure'; }
-  else { list = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate) >= 13); title = '🔴 Escalation Ready'; }
+  else if (cls === 'pressure') { list = active.filter(b => getOdAge(b.startDate, b) >= 8 && b.amountPaid === 0 && !b.promisedToPay); title = '🟡 Needs Pressure'; }
+  else { list = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate, b) >= 13); title = '🔴 Escalation Ready'; }
 
   document.getElementById('modal-title').textContent = title + ' (' + list.length + ')';
   document.getElementById('modal-body').innerHTML = list.map(b => {
     const phone = b.phone.replace(/\s/g,'').replace('+','');
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="_pushModal();openBorrowerDetail('${b.id}');haptic('light')">
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600">${escapeHtml(b.name)} <span style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate)}</span></div>
+        <div style="font-size:12px;font-weight:600">${escapeHtml(b.name)} <span style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate, b)}</span></div>
         <div style="font-size:10px;color:var(--text3)">${escapeHtml(b.phone)}</div>
       </div>
       <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;margin-right:8px">${fmtC(getDueToday(b))}</div>
@@ -16294,7 +16362,7 @@ function ptpQuickSet() {
     .sort((a,b) => {
       // Unpromised first, then by OD age descending
       if (a.promisedToPay !== b.promisedToPay) return a.promisedToPay ? 1 : -1;
-      return getOdAge(b.startDate) - getOdAge(a.startDate);
+      return getOdAge(b.startDate, b) - getOdAge(a.startDate);
     });
 
   const renderList = (q) => {
@@ -16306,7 +16374,7 @@ function ptpQuickSet() {
 
     return filtered.map(b => {
       const hasPtp = b.promisedToPay;
-      const od = getOdAge(b.startDate);
+      const od = getOdAge(b.startDate, b);
       const conf = b.ptpConfidence;
       const confBadge = conf ? `<span style="font-size:9px;padding:1px 4px;border-radius:4px;font-weight:700;color:${conf==='hot'?'var(--red)':conf==='warm'?'var(--gold)':'var(--blue)'};background:${conf==='hot'?'rgba(239,68,68,0.1)':conf==='warm'?'rgba(240,160,48,0.1)':'rgba(96,165,250,0.1)'}">${conf==='hot'?'🔥':conf==='warm'?'⚡':'❄️'}</span>` : '';
       const ptpBadge = hasPtp ? `<span style="font-size:9px;color:var(--gold);background:rgba(240,160,48,0.1);padding:1px 5px;border-radius:4px;font-weight:700">🤝 ${(b.promiseDate||'').split(' ')[0]||'set'}</span>` : '';
@@ -16654,7 +16722,12 @@ function buildPtpMorningHtml() {
   const rate      = ptps.length > 0 ? Math.round(honoured.length / ptps.length * 100) : 0;
   const rateCol   = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)';
   const totalExp  = ptps.reduce((s,b) => s + getDueToday(b), 0);
-  const totalColl = ptps.filter(b => b.amountPaid > 0).reduce((s,b) => s + b.amountPaid, 0);
+  // Only count cash received TODAY from PTP borrowers (delta, not cumulative amountPaid)
+  const _ptpTodayStr = today;
+  const totalColl = ptps.reduce((s, b) => {
+    const todayDeltas = (b.payLog||[]).filter(p => (p.date||'').startsWith(_ptpTodayStr) && (Number(p.delta)||0) > 0);
+    return s + todayDeltas.reduce((a, p) => a + (Number(p.delta)||0), 0);
+  }, 0);
   const upcoming  = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.split(' ')[0] > today)
                       .sort((a,b) => a.promiseDate.localeCompare(b.promiseDate));
   const tomorrowPtps = upcoming.filter(b => b.promiseDate.startsWith(tomorrow));
@@ -17654,7 +17727,7 @@ function buildPtpReportHtml() {
         <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${isHonoured?'var(--green)':'var(--orange)'}"></div>
         <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
           <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div>
-          <div style="font-size:10px;color:var(--text3)">${b.promiseDate||''} · Day ${getOdAge(b.startDate)}</div>
+          <div style="font-size:10px;color:var(--text3)">${b.promiseDate||''} · Day ${getOdAge(b.startDate, b)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-right:8px">
           <div style="font-family:var(--font-mono);font-size:12px;font-weight:700">${fmtC(getDueToday(b))}</div>
@@ -17723,10 +17796,21 @@ function setPtpOutcome(id, outcome) {
   if (!b) return;
   b.ptpOutcome = outcome;
   if (outcome === 'paid') {
+    const _ptpPrevPaid = b.amountPaid;
     const full = getDueToday(b) + b.amountPaid;
+    const _ptpDelta = full - _ptpPrevPaid; // actual new cash (remaining + OD fee)
+    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
     b.amountPaid = full; b.isPaid = true;
     if (!b.payLog) b.payLog = [];
-    b.payLog.push({ date: new Date().toISOString().split('T')[0], amount: full, delta: full - (b.amountPaid||0), note: 'PTP honoured', isPaid: true });
+    const _ptpDate = new Date().toISOString().split('T')[0];
+    b.payLog.push({ date: _ptpDate, amount: full, delta: _ptpDelta, note: 'PTP honoured', isPaid: true });
+    // Write delta to daily log
+    if (_ptpDelta > 0) {
+      if (!state.dailyLog) state.dailyLog = [];
+      let _ptpLog = state.dailyLog.find(e => e.date === _ptpDate);
+      if (!_ptpLog) { _ptpLog = { date: _ptpDate, collected: 0, notes: '' }; state.dailyLog.push(_ptpLog); }
+      _ptpLog.collected = (_ptpLog.collected || 0) + _ptpDelta;
+    }
   } else if (outcome === 'partial') {
     openPayModal(id); return;
   }
@@ -18311,9 +18395,21 @@ function quickPay(id, pct) {
   pushUndo('Quick pay ' + b.name.split(' ')[0], { borrowers: state.borrowers, dailyLog: state.dailyLog });
   const _qpPrevPaid = b.amountPaid;
   b.amountPaid = newPaid;
+  if (!b.isPaid && newPaid >= fullSettlement && fullSettlement > 0 && b.paidAtOdAge == null) {
+    b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
+  }
   b.isPaid = b.isPaid || (newPaid >= fullSettlement && fullSettlement > 0);
   if (!b.payLog) b.payLog = [];
-  b.payLog.push({ date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: newPaid - _qpPrevPaid, note: 'Quick pay', isPaid: b.isPaid });
+  const _qpDelta = newPaid - _qpPrevPaid;
+  const _qpDate  = new Date().toISOString().split('T')[0];
+  b.payLog.push({ date: _qpDate, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: _qpDelta, note: 'Quick pay', isPaid: b.isPaid });
+  // Write delta to daily log immediately
+  if (_qpDelta > 0) {
+    if (!state.dailyLog) state.dailyLog = [];
+    let _qpLog = state.dailyLog.find(e => e.date === _qpDate);
+    if (!_qpLog) { _qpLog = { date: _qpDate, collected: 0, notes: '' }; state.dailyLog.push(_qpLog); }
+    _qpLog.collected = (_qpLog.collected || 0) + _qpDelta;
+  }
   haptic(b.isPaid ? 'fullpay' : 'pay');
   const st = getStatus(b);
   toast((b.isPaid ? '✅ ' : '💰 ') + b.name.split(' ')[0] + (b.isPaid ? ' fully paid! 🎉' : ' payment recorded'), 'success');
@@ -18548,7 +18644,7 @@ function getTemplateRanking() {
 
 // ── SMART REPLY SUGGESTIONS (item 34) ──────────────────
 function getSmartReplySuggestions(b) {
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   const status = getStatus(b);
   const hasPTP = b.promisedToPay;
   const brokenPTP = hasPTP && b.amountPaid === 0;
@@ -18917,7 +19013,7 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   <h3 style="font-size:13px;margin-bottom:6px">Top 10 Overdue Accounts</h3>
   <table>
     <tr><th>#</th><th>Name</th><th>Phone</th><th>OD Age</th><th>Loan Due</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr>
-    ${topDue.map((b,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(b.name)}</td><td>${escapeHtml(b.phone)}</td><td>Day ${getOdAge(b.startDate)}</td><td>₵${fmt(b.loanDue)}</td><td>₵${fmt(b.amountPaid||0)}</td><td>₵${fmt(getDueToday(b))}</td><td>${getStatus(b)}</td></tr>`).join('')}
+    ${topDue.map((b,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(b.name)}</td><td>${escapeHtml(b.phone)}</td><td>Day ${getOdAge(b.startDate, b)}</td><td>₵${fmt(b.loanDue)}</td><td>₵${fmt(b.amountPaid||0)}</td><td>₵${fmt(getDueToday(b))}</td><td>${getStatus(b)}</td></tr>`).join('')}
   </table>
   <div class="footer">SqueveTrack · LoanBase ${_activeAgent?.stage||'M2'} Collection Manager · ${today}</div>
   </body></html>`;
@@ -19026,7 +19122,7 @@ function hideRowSwipe(tr) {
 }
 
 function showTreadmillPopup() {
-  const allDay6 = state.borrowers.filter(b => getOdAge(b.startDate) === 6);
+  const allDay6 = state.borrowers.filter(b => getOdAge(b.startDate, b) === 6);
   document.getElementById('modal-title').textContent = '🔄 Day 6 Accounts — Act Now';
   document.getElementById('modal-body').innerHTML =
     '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">These accounts just entered recovery. Every day counts. Tap to act.</div>'
@@ -19121,7 +19217,7 @@ function waqRenderModal() {
     // Contact card
     + '<div style="background:rgba(37,211,102,0.08);border:1px solid rgba(37,211,102,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px">'
     + '<div style="font-weight:700;font-size:14px">' + escapeHtml(b.name) + '</div>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate) + ' · Due: ' + fmtC(getDueToday(b)) + (ug?' · Offer: '+fmtC(getGenerous(b)):'') + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · Due: ' + fmtC(getDueToday(b)) + (ug?' · Offer: '+fmtC(getGenerous(b)):'') + '</div>'
     + '</div>'
     // Editable message
     + '<textarea id="waq-msg-edit" style="width:100%;max-width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);line-height:1.6;min-height:100px;max-height:160px;resize:vertical;font-family:var(--font-body);box-sizing:border-box;overflow-wrap:break-word">' + msg + '</textarea>'
@@ -19169,7 +19265,7 @@ function getActiveApiKey() {
 // Master borrower popup — shows filtered list in a modal instead of navigating
 function showBorrowersPopup(status, loanType, odAge, odMin, odMax) {
   let rows = state.borrowers.map(b => ({
-    ...b, status: getStatus(b), odAge: getOdAge(b.startDate),
+    ...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     dueToday: getDueToday(b)
   }));
   if (status) rows = rows.filter(r => r.status === status);
@@ -19395,7 +19491,7 @@ function _bulkDispatchNext() {
         const waPhone   = rawPhone.startsWith('0') ? '233' + rawPhone.slice(1) : rawPhone;
         const waLink    = `https://wa.me/${waPhone}?text=${encodeURIComponent(filled)}`;
         const smsLink   = `sms:${b.phone.replace(/\s/g,'')}${isIOS?'&body=':'?body='}${encodeURIComponent(filled)}`;
-        const od        = getOdAge(b.startDate);
+        const od        = getOdAge(b.startDate, b);
         return `
           <div data-name="${b.name.toLowerCase()}"
                style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2)">
@@ -19440,7 +19536,7 @@ function _renderBroadcastStep1() {
 
   const stage    = window._broadcastStage || '';
   let pool       = stage ? active.filter(b => getAccountStage(b).label === stage) : active;
-  pool = [...pool].sort((a,b) => getOdAge(b.startDate) - getOdAge(a.startDate));
+  pool = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
 
   // Message options for selected stage
   const msgs = (state.messageBank||[]).filter(m => !stage || m.stage === stage).slice(0, 20);
@@ -19474,7 +19570,7 @@ function _renderBroadcastStep2() {
   const stage  = window._broadcastStage || '';
   const active = getActiveBorrowers().filter(b => getStatus(b) !== 'Paid' && b.phone);
   const pool   = stage ? active.filter(b => getAccountStage(b).label === stage) : active;
-  const sorted = [...pool].sort((a,b) => getOdAge(b.startDate) - getOdAge(a.startDate));
+  const sorted = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
   const selMsg = window._broadcastMsgId ? (state.messageBank||[]).find(m => m.id === window._broadcastMsgId) : null;
 
   const numbers = sorted.map(b => {
@@ -19491,7 +19587,7 @@ function _renderBroadcastStep2() {
       ${sorted.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
         <div style="flex:1;font-size:11px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
         <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">${b.phone}</div>
-        <div style="font-size:10px;color:var(--red)">Day ${getOdAge(b.startDate)}</div>
+        <div style="font-size:10px;color:var(--red)">Day ${getOdAge(b.startDate, b)}</div>
       </div>`).join('')}
     </div>
     <textarea id="wa-broadcast-numbers" readonly style="width:100%;height:72px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px;font-family:var(--font-mono);font-size:11px;color:var(--text);resize:none;box-sizing:border-box">${textBlock}</textarea>`;
@@ -19516,7 +19612,7 @@ function copyWaBroadcast() {
 function openOdFeeModal(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
-  const od       = getOdAge(b.startDate);
+  const od       = getOdAge(b.startDate, b);
   const rawFee   = getOdFee(b);
   const cap      = b.principal||0;
   const capped   = rawFee >= cap;
@@ -19760,7 +19856,7 @@ function renderOdExposure() {
 
   const totalFee   = active.reduce((s,b) => s+getOdFee(b), 0);
   const dailyAccrual = active.reduce((s,b) => {
-    const od = getOdAge(b.startDate);
+    const od = getOdAge(b.startDate, b);
     if (od <= 0) return s;
     const rem = Math.max(0,(b.principal||0)-(b.amountPaid||0));
     return s + rem * 0.02; // Day 2+ rate
@@ -20846,28 +20942,32 @@ function showDevOverride() {
   document.getElementById('dev-override-input').value = '';
   document.getElementById('dev-override-input').focus();
 }
-function checkDevOverride() {
+async function checkDevOverride() {
   const code = document.getElementById('dev-override-input')?.value.trim().toUpperCase();
-  // Dev override: hash the entered code and compare — raw key is never stored
-  const _devHash = await (async function(c) {
+  if (!code) { document.getElementById('dev-override-error').textContent = 'Enter the override code'; return; }
+  // Dev override: hash the entered code and compare -- raw key is never stored
+  try {
     const enc = new TextEncoder();
-    const km = await crypto.subtle.importKey('raw', enc.encode(c), {name:'PBKDF2'}, false, ['deriveBits']);
+    const km = await crypto.subtle.importKey('raw', enc.encode(code), {name:'PBKDF2'}, false, ['deriveBits']);
     const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(PIN_SALT),iterations:100000,hash:'SHA-256'}, km, 256);
-    return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  })(code);
-  if (_devHash === DEV_OVERRIDE_HASH) {
-    // Valid — set new PIN mode for this agent
-    if (!_pinTarget) { document.getElementById('dev-override-error').textContent = 'Select an agent first'; return; }
-    document.getElementById('lock-dev-override').style.display = 'none';
-    _pinBuffer = '';
-    _pinMode = 'set';
-    updatePinDots();
-    document.getElementById('lock-pin-error').textContent = 'Enter a new 4-digit PIN';
-    document.getElementById('lock-pin-name').textContent = 'Set new PIN — ' + _pinTarget.name;
-    haptic('medium');
-    toast('Override accepted — set a new PIN', 'success');
-  } else {
-    document.getElementById('dev-override-error').textContent = 'Invalid override code';
+    const _devHash = Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    if (_devHash === DEV_OVERRIDE_HASH) {
+      // Valid -- set new PIN mode for this agent
+      if (!_pinTarget) { document.getElementById('dev-override-error').textContent = 'Select an agent first'; return; }
+      document.getElementById('lock-dev-override').style.display = 'none';
+      _pinBuffer = '';
+      _pinMode = 'set';
+      updatePinDots();
+      document.getElementById('lock-pin-error').textContent = 'Enter a new 4-digit PIN';
+      document.getElementById('lock-pin-name').textContent = 'Set new PIN -- ' + _pinTarget.name;
+      haptic('medium');
+      toast('Override accepted -- set a new PIN', 'success');
+    } else {
+      document.getElementById('dev-override-error').textContent = 'Invalid override code';
+      haptic('medium');
+    }
+  } catch (e) {
+    document.getElementById('dev-override-error').textContent = 'Verification error -- try again';
     haptic('medium');
   }
 }
@@ -22417,7 +22517,7 @@ function showSuggestedMessages(borrowerId) {
   if (!b) return;
 
   const stage  = getAccountStage(b).label;
-  const od     = getOdAge(b.startDate);
+  const od     = getOdAge(b.startDate, b);
   const stageColors = { M0:'#3b82f6', M1:'#22c55e', M2:'#e8a020', M3:'#f97316', M4:'#ef4444', M5:'#7c3aed' };
   const color  = stageColors[stage] || 'var(--gold)';
 
@@ -22440,7 +22540,7 @@ function showSuggestedMessages(borrowerId) {
 
 function _renderSuggestList() {
   const { b, scored, color, stage } = window._mbSuggestCtx;
-  const od = getOdAge(b.startDate);
+  const od = getOdAge(b.startDate, b);
   const firstName = getFirstName(b);
 
   // Context pills
@@ -22558,8 +22658,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.borrowers) {
     state.borrowers.forEach(b => {
       if (!b.isPaid && b.amountPaid > 0 && b.loanDue > 0 && b.amountPaid >= b.loanDue) {
+        if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
         b.isPaid = true;
         delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
+      }
+      // Backfill: existing paid accounts that predate this feature — freeze them now
+      // (uses current live age as best approximation; will not re-freeze once set)
+      if (b.isPaid && b.paidAtOdAge == null) {
+        b.paidAtOdAge = getOdAge(b.startDate, b);
       }
     });
   }
