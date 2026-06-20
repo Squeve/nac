@@ -2887,6 +2887,8 @@ tr.overdue-critical .heat-ring {
       </div>
     </div>
 
+    <div id="dash-m2-strip" style="display:none"></div>
+
     <!-- HIT LIST PANEL -->
     <div id="hit-list-panel" class="hit-list-panel" style="display:none">
       <div class="hit-list-header">
@@ -5494,7 +5496,7 @@ function initState() {
     hitList: [], callLog: {}, rankingHistory: [], undoHistory: [], pendingSyncCount: 0,
     offlineQueue: [], customMessages: [], archivedBorrowers: [],
     ptpHistory: [], templatePerf: {}, scoreHistory: [], messageBank: [],
-    agentProfile: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
+    agentProfile: {}, m2TargetLocks: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
 }
 
 function migrateState(s) {
@@ -5507,6 +5509,16 @@ function migrateState(s) {
   if (!s.callLog) s.callLog = {};
   if (!s.rankingHistory) s.rankingHistory = [];
   if (!s.agentProfile) s.agentProfile = {};
+  if (!s.m2TargetLocks) s.m2TargetLocks = {};
+  else {
+    // Prune locks older than 2 days — keeps state lean, today's/yesterday's locks are all that matter
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 2);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    Object.keys(s.m2TargetLocks).forEach(k => {
+      const dateInKey = k.split('_').pop();
+      if (dateInKey && dateInKey < cutoffStr) delete s.m2TargetLocks[k];
+    });
+  }
   if (!s.undoHistory) s.undoHistory = [];
   if (!s.pendingSyncCount) s.pendingSyncCount = 0;
   if (!s.customMessages) s.customMessages = [];
@@ -6422,6 +6434,63 @@ function ptpAutoFlagMissed() {
 }
 
 // ── Dashboard Hero Card ───────────────────────────────────────
+// ── M2 Daily Target Strip ───────────────────────────────────────
+// 9% of total M2 (Day 6-15) balance owed, locked at first load of the day.
+// Locking prevents the target from shrinking as collections come in.
+// Stored in state.m2TargetLocks (synced via Supabase) so the lock is
+// consistent across every device the agent logs into that day.
+function _m2TargetLockKey() {
+  const today = new Date().toISOString().split('T')[0];
+  const agentId = (_activeAgent && _activeAgent.id) ? _activeAgent.id : 'default';
+  return agentId + '_' + today;
+}
+
+function _getOrLockM2Target(m2Balance) {
+  if (!state.m2TargetLocks) state.m2TargetLocks = {};
+  const key = _m2TargetLockKey();
+  const existing = state.m2TargetLocks[key];
+  if (existing && typeof existing.target === 'number') return existing;
+  // Not locked yet today — lock it now using the current M2 balance, then sync
+  const target = Math.round(m2Balance * 0.09);
+  const locked = { target, base: m2Balance, lockedAt: new Date().toISOString() };
+  state.m2TargetLocks[key] = locked;
+  saveState(); // pushes the lock to Supabase so other devices see the same locked target
+  return locked;
+}
+
+function renderM2TargetStrip() {
+  const el = document.getElementById('dash-m2-strip');
+  if (!el) return;
+  const agentStage = (_activeAgent && _activeAgent.stage) ? _activeAgent.stage : null;
+  if (agentStage !== 'M2') { el.style.display = 'none'; return; }
+
+  // M2 active borrowers (Day 6-15) — already correctly scoped by getActiveBorrowers()
+  const m2Active  = getActiveBorrowers();
+  const m2Balance = m2Active.reduce((s,b) => s + getDueToday(b), 0);
+  const locked    = _getOrLockM2Target(m2Balance);
+
+  const today      = new Date().toISOString().split('T')[0];
+  const logEntry   = (state.dailyLog||[]).find(e => e.date === today);
+  const collected  = logEntry ? (logEntry.collected||0) : 0;
+  const pct        = locked.target > 0 ? Math.min(1, collected / locked.target) : 0;
+  const lockTime   = new Date(locked.lockedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="navigate('loans');haptic('light')">
+      <span style="font-size:16px;flex-shrink:0">🎯</span>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:12px;color:var(--text2)">M2 target today </span>
+        <span style="font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--text)">${fmtC(locked.target)}</span>
+        <span style="font-size:11px;color:var(--text3)"> · 9% of ${fmtC(locked.base)}</span>
+        <span style="font-size:11px;color:${pct>=1?'var(--green)':'var(--text3)'}"> · ${fmtC(collected)} collected (${Math.round(pct*100)}%)</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border-radius:6px;padding:2px 7px;font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap" title="Locked at ${lockTime} — won't shift as you collect today">
+        🔒 locked ${lockTime}
+      </div>
+    </div>`;
+}
+
 function renderDashHero() {
   const el = document.getElementById('dash-hero');
   if (!el) return;
@@ -6872,6 +6941,7 @@ async function renderDashboard() {
   document.getElementById('dash-alerts').innerHTML = alertHtml;
   renderDashActionStrip(active);
   renderDashHero();
+  renderM2TargetStrip();
   renderDashEmptyState(active);
   renderDashActivityFeed();
   var zlb = document.getElementById('zero-log-btn');
