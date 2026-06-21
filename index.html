@@ -3041,6 +3041,7 @@ tr.overdue-critical .heat-ring {
         </span>
         <div class="bl-sort-wrap">
           <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
+            <option value="priorityScore_-1">🎯 Priority ↑ High</option>
             <option value="dueToday_-1">Due Today ↑ High</option>
             <option value="dueToday_1">Due Today ↑ Low</option>
             <option value="odAge_-1">OD Age ↑ High</option>
@@ -5496,7 +5497,7 @@ function initState() {
     hitList: [], callLog: {}, rankingHistory: [], undoHistory: [], pendingSyncCount: 0,
     offlineQueue: [], customMessages: [], archivedBorrowers: [],
     ptpHistory: [], templatePerf: {}, scoreHistory: [], messageBank: [],
-    agentProfile: {}, m2TargetLocks: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
+    agentProfile: {}, m2TargetLocks: {}, m2DayReviews: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
 }
 
 function migrateState(s) {
@@ -5517,6 +5518,15 @@ function migrateState(s) {
     Object.keys(s.m2TargetLocks).forEach(k => {
       const dateInKey = k.split('_').pop();
       if (dateInKey && dateInKey < cutoffStr) delete s.m2TargetLocks[k];
+    });
+  }
+  if (!s.m2DayReviews) s.m2DayReviews = {};
+  else {
+    const cutoff2 = new Date(); cutoff2.setDate(cutoff2.getDate() - 2);
+    const cutoffStr2 = cutoff2.toISOString().split('T')[0];
+    Object.keys(s.m2DayReviews).forEach(k => {
+      const dateInKey = k.split('_').pop();
+      if (dateInKey && dateInKey < cutoffStr2) delete s.m2DayReviews[k];
     });
   }
   if (!s.undoHistory) s.undoHistory = [];
@@ -5542,6 +5552,7 @@ function migrateState(s) {
 function purgeAgedOut() {
   // SAFETY: never purge if no agent is unlocked — defaults could wipe wrong accounts
   if (!_activeAgent || !_sessionUnlocked) return;
+  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
 
   // Age-out threshold depends on the agent's stage
   // Threshold per stage: M0=Day1, M1=Day6, M2=Day16, M3=Day41, M4=Day61, M5=never
@@ -5940,6 +5951,18 @@ async function _pushToSupabase(retries = 3) {
 
 const _odAgeCache = new Map();
 let   _odAgeCacheDay = '';
+// Clears any promise/PTP fields once an account is fully paid — a paid
+// account has nothing left to promise on, so the PTP badge/breach state
+// shouldn't linger and clutter PTP Hub or trigger stale breach flags.
+function _clearPromiseOnPaid(b) {
+  b.promisedToPay = false;
+  b.promiseDate = '';
+  b.promiseNote = '';
+  b.ptpBreached = false;
+  b.ptpOutcome = 'paid';
+  b.ptpConfidence = '';
+}
+
 function getOdAge(startDate, borrower) {
   if (!startDate) return 0;
   // ── FREEZE: paid accounts never age beyond the day they settled ──
@@ -6410,15 +6433,26 @@ function toggleDashAgedOut() { /* aged out moved to Settings */ }
 // ── AUTO-FLAG MISSED PTPs ─────────────────────────────────────
 // Called on dashboard render and app load.
 // Any PTP whose promiseDate has passed without payment gets flagged.
+// Also self-heals the reverse case: a stale breach flag left on a borrower
+// whose promise was since rescheduled to today/future.
 function ptpAutoFlagMissed() {
+  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   const today   = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(function(b) {
     if (!b.promisedToPay || !b.promiseDate) return;
     const promDate = b.promiseDate.split(' ')[0];
-    // Never breach today's or future promises — only strictly past dates
-    if (promDate >= today) return;
+    // Never breach today's or future promises — only strictly past dates.
+    // Self-heal: if breach flag is stale (date now today/future), clear it.
+    if (promDate >= today) {
+      if (b.ptpBreached) {
+        b.ptpBreached = false;
+        if (b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') b.ptpOutcome = 'pending';
+        changed = true;
+      }
+      return;
+    }
     // Already resolved — don't re-flag
     if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
     // Partial payment counts as not fully breached
@@ -6435,39 +6469,71 @@ function ptpAutoFlagMissed() {
 
 // ── Dashboard Hero Card ───────────────────────────────────────
 // ── M2 Daily Target Strip ───────────────────────────────────────
-// 9% of total M2 (Day 6-15) balance owed, locked at first load of the day.
-// Locking prevents the target from shrinking as collections come in.
-// Stored in state.m2TargetLocks (synced via Supabase) so the lock is
-// consistent across every device the agent logs into that day.
+// 9% of total M2 (Day 6-15) balance owed. NEVER auto-locks — the agent must
+// explicitly confirm each day (since Day 6 accounts are added manually every
+// morning, not auto-aged in). This holds even on days with zero new Day 6
+// accounts: confirmation is a deliberate daily action, not a passive default.
+// Stored in state.m2TargetLocks / state.m2DayReviews (synced via Supabase) so
+// both the lock and the confirmation are consistent across devices.
 function _m2TargetLockKey() {
   const today = new Date().toISOString().split('T')[0];
   const agentId = (_activeAgent && _activeAgent.id) ? _activeAgent.id : 'default';
   return agentId + '_' + today;
 }
 
-function _getOrLockM2Target(m2Balance) {
+// Called only by the explicit "Confirm & Lock" button — this is the one and
+// only path that locks today's target. Computes the M2 balance fresh at the
+// moment of confirmation, so it reflects whatever Day 6 accounts were just added.
+function confirmM2DayReview() {
+  if (!state) return;
+  if (!state.m2DayReviews) state.m2DayReviews = {};
   if (!state.m2TargetLocks) state.m2TargetLocks = {};
   const key = _m2TargetLockKey();
-  const existing = state.m2TargetLocks[key];
-  if (existing && typeof existing.target === 'number') return existing;
-  // Not locked yet today — lock it now using the current M2 balance, then sync
+  state.m2DayReviews[key] = new Date().toISOString();
+  const m2Active  = getActiveBorrowers();
+  const m2Balance = m2Active.reduce((s,b) => s + getDueToday(b), 0);
   const target = Math.round(m2Balance * 0.09);
-  const locked = { target, base: m2Balance, lockedAt: new Date().toISOString() };
-  state.m2TargetLocks[key] = locked;
-  saveState(); // pushes the lock to Supabase so other devices see the same locked target
-  return locked;
+  state.m2TargetLocks[key] = { target, base: m2Balance, lockedAt: new Date().toISOString() };
+  saveState(); // pushes both the confirmation and the lock to Supabase
+  renderM2TargetStrip();
+  toast('M2 target locked: ' + fmtC(target), 'success');
+}
+
+function _getM2Lock() {
+  if (!state || !state.m2TargetLocks) return null;
+  const existing = state.m2TargetLocks[_m2TargetLockKey()];
+  return (existing && typeof existing.target === 'number') ? existing : null;
 }
 
 function renderM2TargetStrip() {
   const el = document.getElementById('dash-m2-strip');
   if (!el) return;
+  if (!state || !state.borrowers) { el.style.display = 'none'; return; }
   const agentStage = (_activeAgent && _activeAgent.stage) ? _activeAgent.stage : null;
   if (agentStage !== 'M2') { el.style.display = 'none'; return; }
 
-  // M2 active borrowers (Day 6-15) — already correctly scoped by getActiveBorrowers()
-  const m2Active  = getActiveBorrowers();
-  const m2Balance = m2Active.reduce((s,b) => s + getDueToday(b), 0);
-  const locked    = _getOrLockM2Target(m2Balance);
+  el.style.display = 'block';
+  const locked = _getM2Lock();
+
+  // Not confirmed yet today — show pending state regardless of whether Day 6
+  // accounts exist. This is a deliberate daily gate, not conditional on intake.
+  if (!locked) {
+    const day6Count = state.borrowers.filter(b => getOdAge(b.startDate, b) === 6).length;
+    const day6Note = day6Count > 0
+      ? `${day6Count} new Day 6 account${day6Count>1?'s':''} to review`
+      : `No new Day 6 accounts added yet today`;
+    el.innerHTML = `
+      <div style="background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.35);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:16px;flex-shrink:0">⏳</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:12px;color:var(--text);font-weight:600">Target pending</span>
+          <span style="font-size:11px;color:var(--text3)"> · ${day6Note} · confirm to lock today's 9% target</span>
+        </div>
+        ${day6Count > 0 ? `<button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="showTreadmillPopup();haptic('light')">View</button>` : ''}
+        <button class="btn btn-gold btn-xs" style="flex-shrink:0" onclick="confirmM2DayReview();haptic('medium')">Confirm &amp; Lock</button>
+      </div>`;
+    return;
+  }
 
   const today      = new Date().toISOString().split('T')[0];
   const logEntry   = (state.dailyLog||[]).find(e => e.date === today);
@@ -6475,7 +6541,6 @@ function renderM2TargetStrip() {
   const pct        = locked.target > 0 ? Math.min(1, collected / locked.target) : 0;
   const lockTime   = new Date(locked.lockedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
-  el.style.display = 'block';
   el.innerHTML = `
     <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="navigate('loans');haptic('light')">
       <span style="font-size:16px;flex-shrink:0">🎯</span>
@@ -6980,8 +7045,10 @@ async function renderDashboard() {
       + '</div>';
   }).join('') || '<div class="empty-state"><div>No active borrowers</div></div>';
 
-  // Top due
-  const topDue = [...active].sort((a,b) => getDueToday(b) - getDueToday(a)).slice(0,10);
+  // Top due — ranked by priority score (urgency: OD age + amount + broken promises),
+  // not just raw amount owed, so a small but broken-promise account surfaces above
+  // a large but steadily-paying one.
+  const topDue = [...active].sort((a,b) => calcPriorityScore(b) - calcPriorityScore(a) || getDueToday(b) - getDueToday(a)).slice(0,10);
   document.getElementById('dash-top-due').innerHTML = topDue.map((b,i) => {
     const phone = b.phone.replace(/\s/g,'').replace('+','');
     const ps = calcPriorityScore(b);
@@ -7338,12 +7405,16 @@ function renderLoansTable() {
     const odAge     = getOdAge(b.startDate, b);
     const dueToday  = remaining + odFeeCalc;
     const generous  = Math.max(0, remaining + Math.round(odFeeCalc * (state.discountRate||0.30)));
-    return { id:b.id, name:b.name, phone:b.phone, principal:b.principal, loanDue:b.loanDue,
+    const liveRow = { id:b.id, name:b.name, phone:b.phone, principal:b.principal, loanDue:b.loanDue,
              amountPaid:b.amountPaid, startDate:b.startDate, loanType:b.loanType, isPaid:b.isPaid,
              notes:b.notes, promisedToPay:b.promisedToPay, promiseDate:b.promiseDate, ptpBreached:b.ptpBreached,
              callLog:b.callLog, instalment:b.instalment, payLog:b.payLog, targetPayment:b.targetPayment,
-             hitList:b.hitList, priorityScore:b.priorityScore, tags:b.tags, odFeeSnapshot:b.odFeeSnapshot,
+             hitList:b.hitList, tags:b.tags, odFeeSnapshot:b.odFeeSnapshot,
              status, odAge, remaining, dueToday, generous, odFeeCalc };
+    // priorityScore here is the LIVE computed urgency score (0-10), not the stale stored field —
+    // this is what powers both the priority filter and the priority sort column.
+    liveRow.priorityScore = calcPriorityScore(liveRow);
+    return liveRow;
   });
 
   // Populate OD filter if empty
@@ -7361,7 +7432,7 @@ function renderLoansTable() {
   if (fType) rows = rows.filter(r => r.loanType === fType);
   if (fOd) rows = rows.filter(r => r.odAge === parseInt(fOd));
   if (fPriority) rows = rows.filter(r => {
-    const ps = calcPriorityScore(r);
+    const ps = r.priorityScore;
     if (fPriority === 'high') return ps >= 8;
     if (fPriority === 'mid')  return ps >= 5 && ps < 8;
     if (fPriority === 'low')  return ps < 5;
@@ -8794,6 +8865,8 @@ function openExportModal() {
       var incPd= document.getElementById('exp-inc-paid')?.checked || false;
       var incPr= document.getElementById('exp-inc-promised')?.checked !== false;
       var onlyPr=document.getElementById('exp-inc-promised-only')?.checked || false;
+      var exclFT=document.getElementById('exp-excl-future-today')?.checked || false;
+      var todayStr2=new Date().toISOString().split('T')[0];
       var odMin= parseInt(document.getElementById('exp-od-min')?.value||'0')||0;
       var odMax= parseInt(document.getElementById('exp-od-max')?.value||'99')||99;
       var amtMin=parseFloat(document.getElementById('exp-amt-min')?.value||'0')||0;
@@ -8805,6 +8878,10 @@ function openExportModal() {
         if(s==='Partial'&&!incPa) return false;
         if(s==='Paid'&&!incPd) return false;
         if(b.promisedToPay&&!incPr) return false;
+        if(exclFT && b.promisedToPay && b.promiseDate) {
+          var pd2 = b.promiseDate.split(' ')[0];
+          if (pd2 >= todayStr2) return false;
+        }
         if(od<odMin||od>odMax) return false;
         if(due<amtMin||due>amtMax) return false;
         return true;
@@ -8909,6 +8986,10 @@ function openExportModal() {
     + '<div style="margin-bottom:16px">'
     + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
     + '<input type="checkbox" id="exp-inc-broken" style="accent-color:var(--gold)"> Include broken PTPs <span style="margin-left:auto;font-size:10px;color:var(--text3)">(off by default – excludes breached promises)</span>'
+    + '</label></div>'
+    + '<div style="margin-bottom:16px">'
+    + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
+    + '<input type="checkbox" id="exp-excl-future-today" style="accent-color:var(--gold)" onchange="setTimeout(_expCount,50)"> Exclude future &amp; today&#39;s promises <span style="margin-left:auto;font-size:10px;color:var(--text3)">(keeps only past-due / no promise)</span>'
     + '</label></div>'
     + '<div class="exp-section-label">OD Day range</div>'
     + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:16px">'
@@ -9112,6 +9193,9 @@ function _getExportData() {
   // --- NEW: Include broken PTPs checkbox ---
   const incBrokenCheckbox = document.getElementById('exp-inc-broken');
   const incBroken = incBrokenCheckbox ? incBrokenCheckbox.checked : false;
+  // --- NEW: Exclude not-yet-due & today's promises (combined) ---
+  const exclFutureToday = document.getElementById('exp-excl-future-today')?.checked || false;
+  const _expToday = new Date().toISOString().split('T')[0];
 
   function exportName(b) {
     const parts = b.name.trim().split(/\s+/);
@@ -9161,6 +9245,11 @@ function _getExportData() {
     if (status === 'Partial' && !incPartial) return false;
     if (status === 'Paid'    && !incPaid)    return false;
     if (b.promisedToPay && !incPromised)     return false;
+    // Exclude not-yet-due & today's promises (combined) — keeps past-due/breached and non-promised only
+    if (exclFutureToday && b.promisedToPay && b.promiseDate) {
+      const pDate = b.promiseDate.split(' ')[0];
+      if (pDate >= _expToday) return false;
+    }
     // Exclude broken PTPs unless explicitly included
     if (!incBroken && b.ptpBreached === true) return false;
     return true;
@@ -9183,6 +9272,7 @@ function _getExportData() {
   if (amtMin > 0) parts.push('min' + amtMin);
   if (amtMax < Infinity) parts.push('max' + amtMax);
   if (onlyPromised) parts.push('Promised');
+  if (exclFutureToday) parts.push('PastDueOnly');
   if (sortBy !== 'odAge') parts.push(sortBy.charAt(0).toUpperCase() + sortBy.slice(1));
   var descriptor = parts.length ? '-' + parts.join('-') : '';
 
@@ -10272,6 +10362,7 @@ function recordPayment(id) {
   if (newPaid >= fullSettlement && fullSettlement > 0) {
     if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
     b.isPaid = true;
+    _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
     // Fully paid — clear any snapshot, OD is frozen at 0 via isPaid check
     delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
   } else if (!b.isPaid) {
@@ -10893,7 +10984,16 @@ function openPromiseModal(id, isEdit = false) {
       </div>
     </div>
     <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"></div>
-    <div class="form-group"><label>Promise Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}"></div>
+    <div class="form-group">
+      <label>Promise Time</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" onclick="document.getElementById('promise-time').value='12:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕛 12PM</button>
+        <button type="button" onclick="document.getElementById('promise-time').value='14:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕑 2PM</button>
+        <button type="button" onclick="document.getElementById('promise-time').value='17:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕔 5PM</button>
+        <button type="button" onclick="document.getElementById('promise-time').value='23:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🌙 COD</button>
+      </div>
+      <input type="time" class="form-input" id="promise-time" value="${defaultTime}" onchange="document.querySelectorAll('.ptp-qt-btn').forEach(b2=>{b2.style.background='var(--surface)';b2.style.color='var(--text2)';b2.style.borderColor='var(--border2)'})">
+    </div>
     <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
     <div class="form-group">
       <label style="margin-bottom:6px;display:block">Confidence</label>
@@ -10908,6 +11008,10 @@ function openPromiseModal(id, isEdit = false) {
   `;
   window.ptpHighlightQD = function(btn) {
     document.querySelectorAll('.ptp-qd-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
+    btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
+  };
+  window.ptpHighlightQT = function(btn) {
+    document.querySelectorAll('.ptp-qt-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
     btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
   };
   document.getElementById('modal-footer').innerHTML = `
@@ -10957,9 +11061,12 @@ function savePromise(id, isEdit = false) {
   b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || '';
   b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
   if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
-  if (isEdit && date >= new Date().toISOString().split('T')[0]) {
+  // Clear any stale breach flag whenever the saved date is today or future —
+  // this must NOT depend on isEdit, since Quick Set PTP always calls with
+  // isEdit=false even when the borrower had a prior breached promise.
+  if (date >= new Date().toISOString().split('T')[0]) {
     b.ptpBreached = false;
-    b.ptpOutcome  = b.ptpOutcome === 'broken' ? 'pending' : (b.ptpOutcome || 'pending');
+    b.ptpOutcome  = (b.ptpOutcome === 'broken' || b.ptpOutcome === 'missed') ? 'pending' : (b.ptpOutcome || 'pending');
   }
   haptic('light');
   saveState();
@@ -11008,6 +11115,7 @@ function clearPromise(id) {
 }
 
 function autoExpirePtps() {
+  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   // Use simple ISO string comparison — avoids timezone issues with Date objects
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
@@ -12195,6 +12303,7 @@ function bulkAction(action) {
       b.amountPaid = fullSettlement;
       if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
       b.isPaid = true;
+      _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
       if (!b.payLog) b.payLog = [];
       b.payLog.push({ date: todayStr, time: timeStr, amount: fullSettlement, delta, note: 'Bulk mark paid', isPaid: true });
     });
@@ -17871,6 +17980,7 @@ function setPtpOutcome(id, outcome) {
     const _ptpDelta = full - _ptpPrevPaid; // actual new cash (remaining + OD fee)
     if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
     b.amountPaid = full; b.isPaid = true;
+    _clearPromiseOnPaid(b); // remove the just-honoured promise once fully paid
     if (!b.payLog) b.payLog = [];
     const _ptpDate = new Date().toISOString().split('T')[0];
     b.payLog.push({ date: _ptpDate, amount: full, delta: _ptpDelta, note: 'PTP honoured', isPaid: true });
@@ -19726,6 +19836,7 @@ function openOdFeeModal(id) {
 
 // ── F7: PTP Breach Checker ───────────────────────────────────
 function checkPtpBreaches() {
+  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(b => {
@@ -22730,12 +22841,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!b.isPaid && b.amountPaid > 0 && b.loanDue > 0 && b.amountPaid >= b.loanDue) {
         if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
         b.isPaid = true;
+        _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
         delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
       }
       // Backfill: existing paid accounts that predate this feature — freeze them now
       // (uses current live age as best approximation; will not re-freeze once set)
       if (b.isPaid && b.paidAtOdAge == null) {
         b.paidAtOdAge = getOdAge(b.startDate, b);
+      }
+      // Backfill: existing paid accounts that still carry a lingering promise
+      // from before this fix — clear it so PTP Hub and breach counts stay accurate
+      if (b.isPaid && (b.promisedToPay || b.ptpBreached)) {
+        _clearPromiseOnPaid(b);
       }
     });
   }
@@ -22796,6 +22913,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   setInterval(() => {
     if (document.hidden) return;
     if (!_activeAgent || !_sessionUnlocked) return;
+    if (!state || !state.borrowers) return; // state is briefly null mid-agent-switch — skip this tick
     const countBefore = state.borrowers.length;
     const ptpBefore   = state.borrowers.filter(b=>b.promisedToPay).length;
     purgeAgedOut();
