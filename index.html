@@ -59,7 +59,7 @@
   /* Text — wider hierarchy gap */
   --text:  #edf0f7;
   --text2: #9aa3b8;
-  --text3: #6b7a96;
+  --text3: #7a89a5;
   /* Row state backgrounds */
   --paid-bg:    rgba(34,197,94,0.1);
   --partial-bg: rgba(249,115,22,0.1);
@@ -476,18 +476,18 @@ html[data-theme="light"], html[data-theme="light"] body { color-scheme: light; }
   --border:   #e0e4f0;
   --border2:  #c9cfe2;
   --border-hi: rgba(0,0,0,0.06);
-  --gold:     #c47a0a;
-  --gold2:    #d98f0f;
-  --gold-grad: linear-gradient(135deg, #c47a0a, #d98f0f);
-  --gold-glow: rgba(196,122,10,0.2);
-  --green:    #16a34a;
+  --gold:     #955c08;
+  --gold2:    #9d6209;
+  --gold-grad: linear-gradient(135deg, #955c08, #9d6209);
+  --gold-glow: rgba(149,92,8,0.2);
+  --green:    #136534;
   --red:      #dc2626;
-  --orange:   #ea580c;
+  --orange:   #b04108;
   --blue:     #2563eb;
   --purple:   #7c3aed;
   --text:     #0f1623;
   --text2:    #374151;
-  --text3:    #8b95a8;
+  --text3:    #5f6776;
   --paid-bg:   rgba(22,163,74,0.08);
   --partial-bg:rgba(234,88,12,0.08);
   --unpaid-bg: rgba(220,38,38,0.06);
@@ -1488,6 +1488,15 @@ tbody tr:hover td { background: rgba(255,255,255,0.025) !important; }
 .form-input:focus, .search-input:focus {
   box-shadow: 0 0 0 2px rgba(240,160,48,0.18), inset 0 1px 3px rgba(0,0,0,0.2);
 }
+
+/* Promise to Pay modal — quick-pick pills & compact fields */
+.ptp-pill{padding:9px 4px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font-body);text-align:center;transition:all 0.15s}
+.ptp-pill.active{background:rgba(240,160,48,0.16);border-color:rgba(240,160,48,0.5);color:var(--gold);font-weight:600}
+.ptp-pill-sub{font-size:9px;color:var(--text3);margin-top:1px;display:block}
+.ptp-pill.active .ptp-pill-sub{color:rgba(240,160,48,0.7)}
+.ptp-field{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:9px 12px}
+.ptp-field input{flex:1;background:transparent;border:none;color:var(--text);font-size:13px;font-family:var(--font-body);outline:none;min-width:0}
+.ptp-section-label{font-size:11px;color:var(--text3);letter-spacing:0.04em;margin-bottom:8px;text-transform:uppercase}
 
 /* Status bar meta tag handled via JS */
 
@@ -10986,48 +10995,62 @@ function openPromiseModal(id, isEdit = false) {
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
-      <label style="margin-bottom:6px;display:block">Quick Date</label>
-      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📅 Today</button>
-        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🌅 Tomorrow</button>
-        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📆 End of Week</button>
-        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_weekend)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🛌 Weekend</button>
-        <button type="button" onclick="ptpSetWithinWeek('${_iso(_qd_endweek)}',this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🗓️ Within the Week</button>
+      <div class="ptp-section-label">When</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
+        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)">Today</button>
+        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)">Tomorrow</button>
+        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_weekend)}';ptpHighlightQD(this)">Weekend</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px">
+        <button type="button" class="ptp-pill ptp-qd-btn" onclick="ptpSetWithinWeek('${_iso(_qd_endweek)}',this)">This week</button>
+        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)">End of week</button>
+      </div>
+      <div class="ptp-field">
+        <span style="font-size:14px">📅</span>
+        <input type="date" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}">
       </div>
     </div>
-    <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"></div>
+
     <div class="form-group">
-      <label>Promise Time</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('promise-time').value='12:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕛 12PM</button>
-        <button type="button" onclick="document.getElementById('promise-time').value='14:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕑 2PM</button>
-        <button type="button" onclick="document.getElementById('promise-time').value='17:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕔 5PM</button>
-        <button type="button" onclick="document.getElementById('promise-time').value='23:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🌙 COD</button>
+      <div class="ptp-section-label">Time</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
+        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='11:59';ptpHighlightQT(this)">Morning<span class="ptp-pill-sub">until 12pm</span></button>
+        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='15:59';ptpHighlightQT(this)">Afternoon<span class="ptp-pill-sub">until 4pm</span></button>
+        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='18:59';ptpHighlightQT(this)">Evening<span class="ptp-pill-sub">until 7pm</span></button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" onclick="document.getElementById('promise-time').value='11:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 11:59 AM">🌄 Morning</button>
-        <button type="button" onclick="document.getElementById('promise-time').value='15:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 3:59 PM">☀️ Afternoon</button>
-        <button type="button" onclick="document.getElementById('promise-time').value='18:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 6:59 PM">🌆 Evening</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <button type="button" class="ptp-pill ptp-qt-btn" style="flex:0 0 auto;padding:7px 14px" onclick="document.getElementById('promise-time').value='23:59';ptpHighlightQT(this)">Close of day</button>
+        <span style="font-size:10px;color:var(--text3);flex:1">or set an exact time</span>
       </div>
-      <input type="time" class="form-input" id="promise-time" value="${defaultTime}" onchange="document.querySelectorAll('.ptp-qt-btn').forEach(b2=>{b2.style.background='var(--surface)';b2.style.color='var(--text2)';b2.style.borderColor='var(--border2)'})">
+      <div class="ptp-field">
+        <span style="font-size:14px">🕐</span>
+        <input type="time" id="promise-time" value="${defaultTime}" onchange="document.querySelectorAll('.ptp-qt-btn').forEach(b2=>b2.classList.remove('active'))">
+      </div>
     </div>
-    <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
+
     <div class="form-group">
-      <label style="margin-bottom:6px;display:block">Confidence</label>
-      <div style="display:flex;gap:8px">
-        ${[['hot','🔥 Hot','rgba(239,68,68,0.12)','var(--red)'],['warm','⚡ Warm','rgba(240,160,48,0.12)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.12)','var(--blue)']].map(([val,label,bg,col]) => `
+      <div class="ptp-section-label">Note <span style="text-transform:none;color:var(--text3)">(optional)</span></div>
+      <div class="ptp-field">
+        <input type="text" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="ptp-section-label">Confidence</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        ${[['hot','🔥 Hot','rgba(99,153,34,0.16)','var(--green)'],['warm','⚡ Warm','rgba(240,160,48,0.16)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.16)','var(--blue)']].map(([val,label,bg,col]) => `
           <button type="button" id="conf-${val}" onclick="ptpSetConf('${val}')"
-            style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid ${curConf===val?col:'var(--border2)'};background:${curConf===val?bg:'var(--surface)'};color:${curConf===val?col:'var(--text3)'};font-size:12px;font-weight:${curConf===val?700:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
+            style="padding:9px 4px;border-radius:10px;border:1px solid ${curConf===val?col:'var(--border2)'};background:${curConf===val?bg:'var(--surface)'};color:${curConf===val?col:'var(--text2)'};font-size:12px;font-weight:${curConf===val?600:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
             ${label}
           </button>`).join('')}
       </div>
     </div>
   `;
   window.ptpHighlightQD = function(btn) {
-    document.querySelectorAll('.ptp-qd-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
-    btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
+    document.querySelectorAll('.ptp-qd-btn').forEach(b2 => b2.classList.remove('active'));
+    btn.classList.add('active');
   };
-  // "Within the Week" sets the promise date to end-of-week (Friday) — same field
+  // "This week" sets the promise date to end-of-week (Friday) — same field
   // as End of Week — but also tags the note so it's clear this is a loose
   // "anytime this week" promise rather than a hard Friday deadline.
   window.ptpSetWithinWeek = function(endOfWeekIso, btn) {
@@ -11039,8 +11062,8 @@ function openPromiseModal(id, isEdit = false) {
     if (btn) ptpHighlightQD(btn);
   };
   window.ptpHighlightQT = function(btn) {
-    document.querySelectorAll('.ptp-qt-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
-    btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
+    document.querySelectorAll('.ptp-qt-btn').forEach(b2 => b2.classList.remove('active'));
+    btn.classList.add('active');
   };
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
