@@ -3920,6 +3920,22 @@ tr.overdue-critical .heat-ring {
       <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
     </div>
 
+    <!-- Monthly History -->
+    <p class="settings-section-label">Monthly History</p>
+    <div class="settings-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">📊</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
+          </div>
+        </div>
+        <span id="settings-monthly-chevron" style="font-size:18px;color:var(--text3);transition:transform 0.22s">›</span>
+      </div>
+      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+    </div>
+
     <!-- Data -->
     <p class="settings-section-label">Data &amp; Sync</p>
     <div class="settings-group">
@@ -8985,10 +9001,6 @@ function openExportModal() {
     + '</label></div>'
     + '<div style="margin-bottom:16px">'
     + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
-    + '<input type="checkbox" id="exp-inc-broken" style="accent-color:var(--gold)"> Include broken PTPs <span style="margin-left:auto;font-size:10px;color:var(--text3)">(off by default – excludes breached promises)</span>'
-    + '</label></div>'
-    + '<div style="margin-bottom:16px">'
-    + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
     + '<input type="checkbox" id="exp-excl-future-today" style="accent-color:var(--gold)" onchange="setTimeout(_expCount,50)"> Exclude future &amp; today&#39;s promises <span style="margin-left:auto;font-size:10px;color:var(--text3)">(keeps only past-due / no promise)</span>'
     + '</label></div>'
     + '<div class="exp-section-label">OD Day range</div>'
@@ -9190,10 +9202,7 @@ function _getExportData() {
   const amtMaxRaw    = document.getElementById('exp-amt-max')?.value;
   const amtMax       = amtMaxRaw && amtMaxRaw.trim() !== '' ? parseFloat(amtMaxRaw) : Infinity;
 
-  // --- NEW: Include broken PTPs checkbox ---
-  const incBrokenCheckbox = document.getElementById('exp-inc-broken');
-  const incBroken = incBrokenCheckbox ? incBrokenCheckbox.checked : false;
-  // --- NEW: Exclude not-yet-due & today's promises (combined) ---
+  // Exclude not-yet-due & today's promises (combined) — see fix below
   const exclFutureToday = document.getElementById('exp-excl-future-today')?.checked || false;
   const _expToday = new Date().toISOString().split('T')[0];
 
@@ -9250,8 +9259,6 @@ function _getExportData() {
       const pDate = b.promiseDate.split(' ')[0];
       if (pDate >= _expToday) return false;
     }
-    // Exclude broken PTPs unless explicitly included
-    if (!incBroken && b.ptpBreached === true) return false;
     return true;
   });
 
@@ -10971,6 +10978,9 @@ function openPromiseModal(id, isEdit = false) {
   const _qd_tomorrow = new Date(Date.now() + 86400000);
   const _qd_endweek  = new Date();
   _qd_endweek.setDate(_qd_endweek.getDate() + (((5 - _qd_endweek.getDay()) + 7) % 7) || 7);
+  // Nearest Saturday — if today IS Saturday, that's "nearest" (0 days away)
+  const _qd_weekend  = new Date();
+  _qd_weekend.setDate(_qd_weekend.getDate() + ((6 - _qd_weekend.getDay()) + 7) % 7);
   const _iso = d => d.toISOString().split('T')[0];
 
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
@@ -10981,6 +10991,8 @@ function openPromiseModal(id, isEdit = false) {
         <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📅 Today</button>
         <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🌅 Tomorrow</button>
         <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📆 End of Week</button>
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_weekend)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🛌 Weekend</button>
+        <button type="button" onclick="ptpSetWithinWeek('${_iso(_qd_endweek)}',this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🗓️ Within the Week</button>
       </div>
     </div>
     <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"></div>
@@ -10991,6 +11003,11 @@ function openPromiseModal(id, isEdit = false) {
         <button type="button" onclick="document.getElementById('promise-time').value='14:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕑 2PM</button>
         <button type="button" onclick="document.getElementById('promise-time').value='17:00';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🕔 5PM</button>
         <button type="button" onclick="document.getElementById('promise-time').value='23:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn">🌙 COD</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" onclick="document.getElementById('promise-time').value='11:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 11:59 AM">🌄 Morning</button>
+        <button type="button" onclick="document.getElementById('promise-time').value='15:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 3:59 PM">☀️ Afternoon</button>
+        <button type="button" onclick="document.getElementById('promise-time').value='18:59';ptpHighlightQT(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qt-btn" title="Due by 6:59 PM">🌆 Evening</button>
       </div>
       <input type="time" class="form-input" id="promise-time" value="${defaultTime}" onchange="document.querySelectorAll('.ptp-qt-btn').forEach(b2=>{b2.style.background='var(--surface)';b2.style.color='var(--text2)';b2.style.borderColor='var(--border2)'})">
     </div>
@@ -11009,6 +11026,17 @@ function openPromiseModal(id, isEdit = false) {
   window.ptpHighlightQD = function(btn) {
     document.querySelectorAll('.ptp-qd-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
     btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
+  };
+  // "Within the Week" sets the promise date to end-of-week (Friday) — same field
+  // as End of Week — but also tags the note so it's clear this is a loose
+  // "anytime this week" promise rather than a hard Friday deadline.
+  window.ptpSetWithinWeek = function(endOfWeekIso, btn) {
+    document.getElementById('promise-date').value = endOfWeekIso;
+    const noteEl = document.getElementById('promise-note');
+    if (noteEl && !noteEl.value.includes('Anytime this week')) {
+      noteEl.value = noteEl.value ? (noteEl.value + ' — Anytime this week') : 'Anytime this week';
+    }
+    if (btn) ptpHighlightQD(btn);
   };
   window.ptpHighlightQT = function(btn) {
     document.querySelectorAll('.ptp-qt-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
@@ -11194,6 +11222,68 @@ function toggleSettingsAgedOut() {
   }
   if (chevron) chevron.style.transform = _agedOutExpanded ? 'rotate(90deg)' : '';
   haptic('light');
+}
+
+let _monthlyHistoryExpanded = false;
+function toggleSettingsMonthlyHistory() {
+  _monthlyHistoryExpanded = !_monthlyHistoryExpanded;
+  const listEl  = document.getElementById('settings-monthly-list');
+  const chevron = document.getElementById('settings-monthly-chevron');
+  if (!listEl) return;
+  if (_monthlyHistoryExpanded) {
+    listEl.style.maxHeight = listEl.scrollHeight + 60 + 'px';
+    setTimeout(function() {
+      if (_monthlyHistoryExpanded) { listEl.style.maxHeight = '420px'; listEl.style.overflowY = 'auto'; }
+    }, 320);
+  } else {
+    listEl.style.overflowY = 'hidden';
+    listEl.style.maxHeight = listEl.scrollHeight + 'px';
+    requestAnimationFrame(function() { listEl.style.maxHeight = '0'; });
+  }
+  if (chevron) chevron.style.transform = _monthlyHistoryExpanded ? 'rotate(90deg)' : '';
+  haptic('light');
+}
+
+function _deltaArrow(curr, prev) {
+  if (prev == null || prev === 0) return '';
+  const diff = curr - prev;
+  if (Math.abs(diff) < 0.05) return '<span style="color:var(--text3);font-size:10px"> · flat</span>';
+  const pct = Math.round((diff / Math.abs(prev)) * 100);
+  const up  = diff > 0;
+  return '<span style="color:' + (up?'var(--green)':'var(--red)') + ';font-size:10px"> ' + (up?'▲':'▼') + Math.abs(pct) + '%</span>';
+}
+
+function renderSettingsMonthlyHistory() {
+  const list    = (state.archive || []).slice().sort((a,b) => (b.archivedAt||'').localeCompare(a.archivedAt||''));
+  const countEl = document.getElementById('settings-monthly-count');
+  const listEl  = document.getElementById('settings-monthly-list');
+  if (!listEl) return;
+  if (countEl) countEl.textContent = list.length + ' month' + (list.length !== 1 ? 's' : '') + ' archived';
+  if (!list.length) {
+    listEl.innerHTML = '<div style="padding:16px 0 18px;text-align:center;color:var(--text3);font-size:12px">No monthly history yet.<br><span style="font-size:11px">Appears after your first month rollover.</span></div>';
+  } else {
+    listEl.innerHTML = '<div style="padding-top:4px;padding-bottom:12px">' +
+      list.map(function(m, i) {
+        const prev = list[i+1]; // chronologically previous month (list is newest-first)
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+          + '<div style="font-size:13px;font-weight:700;color:var(--text)">' + escapeHtml(m.month||'—') + (m.autoRolled ? ' <span style="font-size:9px;color:var(--text3);font-weight:400">(auto)</span>' : '') + '</div>'
+          + '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold)">' + fmtC(m.totalCollected||0) + (prev ? _deltaArrow(m.totalCollected||0, prev.totalCollected||0) : '') + '</div>'
+          + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px;color:var(--text3)">'
+          + '<div>Recovery: <b style="color:var(--text2)">' + (m.recoveryRate||0) + '%</b>' + (prev ? _deltaArrow(m.recoveryRate||0, prev.recoveryRate||0) : '') + '</div>'
+          + '<div>PTP honour: <b style="color:var(--text2)">' + (m.ptpHonourRate||0) + '%</b>' + (prev ? _deltaArrow(m.ptpHonourRate||0, prev.ptpHonourRate||0) : '') + '</div>'
+          + '<div>Target hit: <b style="color:var(--text2)">' + (m.targetHitPct||0) + '%</b></div>'
+          + '<div>Borrowers: <b style="color:var(--text2)">' + (m.borrowerCount||0) + '</b></div>'
+          + '<div>Paid: <b style="color:var(--text2)">' + (m.paidCount||0) + '</b></div>'
+          + '<div>Still owed: <b style="color:var(--text2)">' + fmtC(m.totalOwedEnd||0) + '</b></div>'
+          + '</div>'
+          + '</div>';
+      }).join('') + '</div>';
+  }
+  if (_monthlyHistoryExpanded && listEl.style.maxHeight !== '0px') {
+    listEl.style.maxHeight = listEl.scrollHeight + 'px';
+  }
 }
 
 function renderSettingsAgedOut() {
@@ -12464,18 +12554,9 @@ function checkAutoRollover() {
   const today   = now.toISOString().split('T')[0];
   const active  = getActiveBorrowers();
 
-  // Archive current month summary
+  // Archive current month summary — full stat snapshot for month-over-month comparison
   if (!state.archive) state.archive = [];
-  state.archive.push({
-    month:         stateMonthStr,
-    archivedAt:    today,
-    borrowerCount: state.borrowers.length,
-    paidCount:     state.borrowers.filter(b => getStatus(b) === 'Paid').length,
-    activeCount:   active.length,
-    totalCollected: (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0),
-    monthlyTarget:  state.monthlyTarget || 0,
-    autoRolled:     true,
-  });
+  state.archive.push(_buildMonthlySnapshot(stateMonthStr, today, { autoRolled: true }));
 
   // Move remaining active accounts to aged-out log
   if (!state.agedOutLog) state.agedOutLog = [];
@@ -12592,6 +12673,62 @@ function openRolloverModal() {
   }, 0);
 }
 
+// ── Monthly Archive Snapshot ────────────────────────────────────
+// Shared by both doRollover() (manual) and checkAutoRollover() (silent),
+// so the two paths can never drift apart and always capture the same
+// stat set needed to compare one month's performance against another.
+function _buildMonthlySnapshot(monthStr, today, opts) {
+  opts = opts || {};
+  const all          = state.borrowers || [];
+  const active       = getActiveBorrowers();
+  const paid         = all.filter(b => getStatus(b) === 'Paid');
+  const partial      = all.filter(b => getStatus(b) === 'Partial');
+  const unpaid       = all.filter(b => getStatus(b) === 'Unpaid');
+  const totalOwedStart = all.reduce((s,b) => s + (b.loanDue||0), 0); // original balances this month started with
+  const totalCollected = (state.dailyLog||[]).reduce((s,e) => s + (Number(e.collected)||0), 0);
+  const totalOwedEnd    = all.reduce((s,b) => s + getDueToday(b), 0); // still outstanding at rollover time
+  const recoveryRate    = totalOwedStart > 0 ? Math.round((totalCollected / totalOwedStart) * 1000) / 10 : 0;
+  // PTP performance this month
+  const ptpSet       = all.filter(b => b.promisedToPay || b.ptpOutcome);
+  const ptpHonoured   = all.filter(b => b.isPaid && (b.ptpOutcome === 'paid' || b.promisedToPay)).length;
+  const ptpBreached   = all.filter(b => b.ptpBreached === true).length;
+  const ptpHonourRate = ptpSet.length > 0 ? Math.round((ptpHonoured / ptpSet.length) * 1000) / 10 : 0;
+  // OD-stage mix at the moment of rollover, for tracking portfolio aging trends month to month
+  const odBuckets = { 'Day 1-5':0, 'Day 6-15':0, 'Day 16-40':0, 'Day 41-60':0, 'Day 61+':0 };
+  all.forEach(b => {
+    const age = getOdAge(b.startDate, b);
+    if (age <= 5) odBuckets['Day 1-5']++;
+    else if (age <= 15) odBuckets['Day 6-15']++;
+    else if (age <= 40) odBuckets['Day 16-40']++;
+    else if (age <= 60) odBuckets['Day 41-60']++;
+    else odBuckets['Day 61+']++;
+  });
+
+  return Object.assign({
+    month:            monthStr,
+    archivedAt:       today,
+    agentId:          (_activeAgent && _activeAgent.id) || null,
+    agentStage:       (_activeAgent && _activeAgent.stage) || null,
+    borrowerCount:    all.length,
+    paidCount:        paid.length,
+    partialCount:     partial.length,
+    unpaidCount:      unpaid.length,
+    activeCount:      active.length,
+    totalCollected:   totalCollected,
+    totalOwedStart:   totalOwedStart,
+    totalOwedEnd:     totalOwedEnd,
+    recoveryRate:     recoveryRate,      // % of starting balance collected this month
+    monthlyTarget:    state.monthlyTarget || 0,
+    targetHitPct:     state.monthlyTarget > 0 ? Math.round((totalCollected / state.monthlyTarget) * 1000) / 10 : 0,
+    ptpCount:         ptpSet.length,
+    ptpHonoured:      ptpHonoured,
+    ptpBreached:      ptpBreached,
+    ptpHonourRate:    ptpHonourRate,     // % of PTPs that resulted in payment
+    odStageMix:       odBuckets,         // portfolio aging snapshot at month-end
+    activeDaysLogged: (state.dailyLog||[]).filter(e => (e.collected||0) > 0).length,
+  }, opts);
+}
+
 function doRollover() {
   const newTarget = parseFloat(document.getElementById('rollover-target')?.value) || 0;
   const selectedMonth = parseInt(document.getElementById('rollover-month').value);
@@ -12602,17 +12739,9 @@ function doRollover() {
   const today = new Date().toISOString().split('T')[0];
   const monthStr = state.month || new Date().toLocaleDateString('en-GB', {month:'long', year:'numeric'});
   
-  // Archive current state
+  // Archive current state — full stat snapshot for month-over-month comparison
   if (!state.archive) state.archive = [];
-  state.archive.push({
-    month: monthStr,
-    archivedAt: today,
-    borrowerCount: state.borrowers.length,
-    paidCount: state.borrowers.filter(b => getStatus(b)==='Paid').length,
-    activeCount: getActiveBorrowers().length,
-    totalCollected: state.dailyLog.reduce((s,e) => s+(Number(e.collected)||0), 0),
-    monthlyTarget: state.monthlyTarget || 0
-  });
+  state.archive.push(_buildMonthlySnapshot(monthStr, today, { autoRolled: false }));
   
   // Move remaining active to aged out
   const active = getActiveBorrowers();
@@ -16711,6 +16840,26 @@ function setPtpOutcome2(bid, outcome) {
     if (inp) { inp.style.display = 'block'; inp.focus(); }
     return;
   }
+  // Selecting "Paid" here must actually complete the payment — not just tag a
+  // label — otherwise the borrower's real balance/OD/dashboard stay unpaid
+  // while PTP Hub stats silently count them as honoured & collected.
+  if (outcome === 'paid' && !b.isPaid) {
+    const prevPaid = b.amountPaid || 0;
+    const full = getDueToday(b) + prevPaid;
+    const delta = full - prevPaid; // actual new cash (remaining + OD fee)
+    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
+    b.amountPaid = full; b.isPaid = true;
+    _clearPromiseOnPaid(b); // remove the just-honoured promise once fully paid
+    if (!b.payLog) b.payLog = [];
+    const payDate = new Date().toISOString().split('T')[0];
+    b.payLog.push({ date: payDate, amount: full, delta, note: 'PTP honoured (EOD)', isPaid: true });
+    if (delta > 0) {
+      if (!state.dailyLog) state.dailyLog = [];
+      let logEntry = state.dailyLog.find(e => e.date === payDate);
+      if (!logEntry) { logEntry = { date: payDate, collected: 0, notes: '' }; state.dailyLog.push(logEntry); }
+      logEntry.collected = (logEntry.collected || 0) + delta;
+    }
+  }
   b.ptpOutcome = outcome;
   saveState();
   // Update the select to match
@@ -17968,34 +18117,6 @@ function buildPtpReportHtml() {
   }
 
   return html;
-}
-
-function setPtpOutcome(id, outcome) {
-  const b = state.borrowers.find(x => x.id === id);
-  if (!b) return;
-  b.ptpOutcome = outcome;
-  if (outcome === 'paid') {
-    const _ptpPrevPaid = b.amountPaid;
-    const full = getDueToday(b) + b.amountPaid;
-    const _ptpDelta = full - _ptpPrevPaid; // actual new cash (remaining + OD fee)
-    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
-    b.amountPaid = full; b.isPaid = true;
-    _clearPromiseOnPaid(b); // remove the just-honoured promise once fully paid
-    if (!b.payLog) b.payLog = [];
-    const _ptpDate = new Date().toISOString().split('T')[0];
-    b.payLog.push({ date: _ptpDate, amount: full, delta: _ptpDelta, note: 'PTP honoured', isPaid: true });
-    // Write delta to daily log
-    if (_ptpDelta > 0) {
-      if (!state.dailyLog) state.dailyLog = [];
-      let _ptpLog = state.dailyLog.find(e => e.date === _ptpDate);
-      if (!_ptpLog) { _ptpLog = { date: _ptpDate, collected: 0, notes: '' }; state.dailyLog.push(_ptpLog); }
-      _ptpLog.collected = (_ptpLog.collected || 0) + _ptpDelta;
-    }
-  } else if (outcome === 'partial') {
-    openPayModal(id); return;
-  }
-  saveState(); renderPtpHub();
-  toast(b.name.split(' ')[0] + ': ' + outcome, 'success');
 }
 
 function buildPtpHistoryHtml() {
@@ -21564,6 +21685,7 @@ function renderSettingsPage() {
   renderHealthPage();
   renderUndoHistory();
   renderSettingsAgedOut();
+  renderSettingsMonthlyHistory();
   _updateBioSettingsRow();
   // Admin access — long-press 3s on SqueveTrack row
   (function() {
@@ -22177,8 +22299,10 @@ function resetAutoLockTimer() {
 }
 
 function initAutoLock() {
-  // Restore saved setting
-  const saved = parseInt(localStorage.getItem('auto_lock_minutes') || '0');
+  // Restore saved setting — defaults to 1 minute for security if the agent
+  // has never explicitly set this. Once they choose any value (including
+  // "Off"), that choice is saved and always respected from then on.
+  const saved = parseInt(localStorage.getItem('auto_lock_minutes') || '1');
   _autoLockMinutes = saved;
   // Set dropdown value when settings page opens (called from renderSettingsPage)
   const sel = document.getElementById('auto-lock-select');
