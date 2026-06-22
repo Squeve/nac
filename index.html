@@ -11007,7 +11007,29 @@ function openPromiseModal(id, isEdit = false) {
       </div>
       <div class="ptp-field">
         <span style="font-size:14px">📅</span>
-        <input type="date" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}">
+        <input type="date" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"
+          data-start="${b.startDate}"
+          oninput="
+            const start = this.dataset.start;
+            const picked = this.value;
+            const badge = document.getElementById('ptp-age-badge');
+            if (!start || !picked || !badge) return;
+            const startParts = start.split('-');
+            const startD = new Date(+startParts[0], +startParts[1]-1, +startParts[2]);
+            startD.setHours(0,0,0,0);
+            const pickedParts = picked.split('-');
+            const pickedD = new Date(+pickedParts[0], +pickedParts[1]-1, +pickedParts[2]);
+            pickedD.setHours(0,0,0,0);
+            const age = Math.max(0, Math.floor((pickedD - startD) / 86400000) + 1);
+            badge.textContent = 'Day ' + age;
+            badge.style.background = age >= 16 ? 'rgba(239,68,68,0.15)' : age >= 6 ? 'rgba(240,160,48,0.15)' : 'rgba(96,165,250,0.15)';
+            badge.style.color = age >= 16 ? 'var(--red)' : age >= 6 ? 'var(--gold)' : 'var(--blue)';
+          ">
+        <span id="ptp-age-badge" style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;
+          background:${(() => { const age = getOdAge(b.startDate, b); const d = defaultDate; if(!d||!b.startDate) return 'rgba(96,165,250,0.15)'; const sp=b.startDate.split('-'); const dp=d.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); const a=Math.max(0,Math.floor((pickedD-startD)/86400000)+1); return a>=16?'rgba(239,68,68,0.15)':a>=6?'rgba(240,160,48,0.15)':'rgba(96,165,250,0.15)'; })()};
+          color:${(() => { const sp=b.startDate.split('-'); const dp=defaultDate.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); const a=Math.max(0,Math.floor((pickedD-startD)/86400000)+1); return a>=16?'var(--red)':a>=6?'var(--gold)':'var(--blue)'; })()}">
+          Day ${(() => { const sp=b.startDate.split('-'); const dp=defaultDate.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); return Math.max(0,Math.floor((pickedD-startD)/86400000)+1); })()}
+        </span>
       </div>
     </div>
 
@@ -11046,9 +11068,23 @@ function openPromiseModal(id, isEdit = false) {
       </div>
     </div>
   `;
+  window._ptpUpdateAgeBadge = function() {
+    const input = document.getElementById('promise-date');
+    const badge = document.getElementById('ptp-age-badge');
+    if (!input || !badge || !input.dataset.start || !input.value) return;
+    const sp = input.dataset.start.split('-');
+    const dp = input.value.split('-');
+    const startD = new Date(+sp[0], +sp[1]-1, +sp[2]); startD.setHours(0,0,0,0);
+    const pickedD = new Date(+dp[0], +dp[1]-1, +dp[2]); pickedD.setHours(0,0,0,0);
+    const age = Math.max(0, Math.floor((pickedD - startD) / 86400000) + 1);
+    badge.textContent = 'Day ' + age;
+    badge.style.background = age >= 16 ? 'rgba(239,68,68,0.15)' : age >= 6 ? 'rgba(240,160,48,0.15)' : 'rgba(96,165,250,0.15)';
+    badge.style.color = age >= 16 ? 'var(--red)' : age >= 6 ? 'var(--gold)' : 'var(--blue)';
+  };
   window.ptpHighlightQD = function(btn) {
     document.querySelectorAll('.ptp-qd-btn').forEach(b2 => b2.classList.remove('active'));
     btn.classList.add('active');
+    _ptpUpdateAgeBadge();
   };
   // "This week" sets the promise date to end-of-week (Friday) — same field
   // as End of Week — but also tags the note so it's clear this is a loose
@@ -11059,7 +11095,7 @@ function openPromiseModal(id, isEdit = false) {
     if (noteEl && !noteEl.value.includes('Anytime this week')) {
       noteEl.value = noteEl.value ? (noteEl.value + ' — Anytime this week') : 'Anytime this week';
     }
-    if (btn) ptpHighlightQD(btn);
+    if (btn) ptpHighlightQD(btn); // ptpHighlightQD already calls _ptpUpdateAgeBadge
   };
   window.ptpHighlightQT = function(btn) {
     document.querySelectorAll('.ptp-qt-btn').forEach(b2 => b2.classList.remove('active'));
