@@ -17507,7 +17507,7 @@ function buildPtpEodHtml() {
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">EOD Summary · ${todayStr}</div>
         <span style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:${convCol}">${conv}%</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" class="eod-stat-grid">
         <div style="text-align:center;background:rgba(34,197,94,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--green)">${paid_c}</div><div style="font-size:10px;color:var(--text3)">Paid</div></div>
         <div style="text-align:center;background:rgba(232,160,32,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--gold)">${partial_c}</div><div style="font-size:10px;color:var(--text3)">Partial</div></div>
         <div style="text-align:center;background:rgba(239,68,68,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--red)">${broken_c}</div><div style="font-size:10px;color:var(--text3)">Broken</div></div>
@@ -19118,6 +19118,107 @@ textarea { max-width: 100%; box-sizing: border-box; overflow-wrap: break-word; }
 
 /* Prevent body horizontal scroll globally */
 html, body { overflow-x: hidden; max-width: 100vw; }
+
+/* ── COMPREHENSIVE OVERFLOW FIXES ─────────────────────────────
+   Covers: borrower cards, filter bar, PTP Hub, EOD outcomes,
+   M2 strip, KPI grid, promise modal, monthly history, settings.
+   All sizes are intentional — see comments.
+   ─────────────────────────────────────────────────────────── */
+
+/* Borrower card right-side amount column: never a fixed min-width
+   wider than the card allows. 70px is the narrowest it needs to
+   show ₵99,999 in the mono font without wrapping. */
+.bl-amounts { min-width: 70px; max-width: 110px; }
+.bl-due { font-size: clamp(11px, 3.5vw, 14px); }
+
+/* Filter bar: all child items must be able to shrink/wrap */
+.bl-filter-bar { flex-wrap: wrap; }
+.bl-chips { flex-wrap: wrap; row-gap: 6px; }
+.bl-chip-sel { max-width: 100%; box-sizing: border-box; }
+#loan-amount-custom { flex-wrap: wrap; max-width: 100%; }
+#loan-amt-min, #loan-amt-max { min-width: 0; width: 60px; flex: 1 1 60px; box-sizing: border-box; }
+#bl-sort-sel { max-width: 100%; }
+
+/* Dashboard M2 target strip: inner flex must clamp the locked badge */
+#dash-m2-strip > div { flex-wrap: wrap; min-width: 0; }
+#dash-m2-strip > div > div { min-width: 0; overflow: hidden; }
+
+/* Dashboard KPI grid: switch to 1-col on very small screens */
+@media (max-width: 360px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 18px; }
+}
+
+/* PTP Hub morning/EOD rows */
+.ptp-outcome-row { flex-wrap: wrap; gap: 6px; min-width: 0; }
+.ptp-oc-sel { min-width: 0; flex: 1 1 120px; max-width: 100%; box-sizing: border-box; }
+
+/* EOD 4-stat grid: drop to 2×2 on narrow screens */
+@media (max-width: 400px) {
+  .eod-stat-grid,
+  [style*="grid-template-columns:repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* PTP Hub carryover / promise rows: right-side amount must not push row wide */
+[data-detailid] { min-width: 0; overflow: hidden; }
+
+/* Promise modal: date + time fields always contained */
+.ptp-field { min-width: 0; box-sizing: border-box; overflow: hidden; }
+.ptp-field input { min-width: 0; max-width: 100%; }
+#ptp-age-badge { flex-shrink: 0; }
+
+/* Promise quick-date/time pill grids: allow smaller pills on tiny screens */
+@media (max-width: 360px) {
+  .ptp-pill { font-size: 11px; padding: 8px 2px; }
+}
+
+/* Monthly history grid in settings: drop to 2-col on narrow */
+@media (max-width: 420px) {
+  #settings-monthly-list [style*="grid-template-columns:1fr 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Borrower detail modal: stat rows must wrap */
+/* bd-hero is already correctly structured with flex:1/min-width:0 */
+.bd-hero-quick { max-width: 80px; min-width: 0; }
+
+/* Borrower detail 3-col inline stat grid: stays 3-col but shrinks text */
+@media (max-width: 360px) {
+  .modal-body [style*="grid-template-columns:1fr 1fr 1fr"] {
+    gap: 4px !important;
+  }
+  .modal-body [style*="grid-template-columns:1fr 1fr 1fr"] [style*="font-size:13px"] {
+    font-size: 11px !important;
+  }
+}
+
+/* Table wrap: always scroll horizontally, never expand viewport */
+.table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+table { min-width: 480px; }
+
+/* Action strip: hide scrollbar on all browsers but keep scrollability */
+.action-strip { -webkit-overflow-scrolling: touch; }
+.action-strip::-webkit-scrollbar { display: none; }
+
+/* Week forecast strip in PTP Hub */
+[style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
+
+/* Modal: always contained */
+.modal { box-sizing: border-box; overflow: hidden; }
+.modal-body { overflow-x: hidden; word-break: break-word; box-sizing: border-box; }
+
+/* Generic flex containers generated via innerHTML — ensure they can't overflow */
+.card, .settings-group { min-width: 0; overflow: hidden; }
+
+/* Any inline-flex badge that has nowrap text — allow it to shrink on very small screens */
+@media (max-width: 360px) {
+  .promise-badge, .badge-quickwin { font-size: 9px; padding: 1px 4px; }
+}
+
+/* ── END OVERFLOW FIXES ───────────────────────────────────── */
 
 
 
