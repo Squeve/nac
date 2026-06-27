@@ -4596,7 +4596,7 @@ function _renderFocusBody() {
   const todayLog = state.dailyLog.find(e => e.date === todayStr);
   const collected = todayLog?.collected || 0;
   const target = state.monthlyTarget || 0;
-  const critical = active.filter(b => getOdAge(b.startDate, b) >= 13).sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
+  const critical = active.filter(b => getOdAge(b.startDate, b) >= 13).sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate, a));
   const ptps = (state.ptpList || []).filter(p => { const d = p.promiseDate?.split(' ')[0]; return d === todayStr; });
   const promised = active.filter(b => b.promisedToPay);
 
@@ -9125,7 +9125,7 @@ function doExportWANumbers() {
   const { borrowers } = _getExportData();
   if (!borrowers.length) { toast('No accounts match your filters', 'error'); return; }
 
-  const sorted = [...borrowers].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
+  const sorted = [...borrowers].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate, a));
   const lines = sorted.map(b => {
     const raw = b.phone.replace(/\D/g,'');
     return raw.startsWith('0') ? '233' + raw.slice(1) : raw;
@@ -9278,7 +9278,7 @@ function _getExportData() {
       case 'paid':        return (b.amountPaid||0) - (a.amountPaid||0);
       case 'name':        return a.name.localeCompare(b.name);
       case 'promiseDate': return (a.promiseDate||'zzz').localeCompare(b.promiseDate||'zzz');
-      default:            return getOdAge(b.startDate, b) - getOdAge(a.startDate); // most overdue first
+      default:            return getOdAge(b.startDate, b) - getOdAge(a.startDate, a); // most overdue first
     }
   });
 
@@ -9457,7 +9457,7 @@ function doExportPDF(mode) {
     } else { html += '<p style="color:#9ca3af;font-style:italic">No critical accounts.</p>'; }
   } else {
     // ── FULL LIST: every borrower sorted by OD age ──
-    const sorted = [...(activeOnly ? all.filter(b=>getStatus(b)!=='Paid') : all)].sort((a,b) => getOdAge(a.startDate) - getOdAge(b.startDate, b));
+    const sorted = [...(activeOnly ? all.filter(b=>getStatus(b)!=='Paid') : all)].sort((a,b) => getOdAge(a.startDate, a) - getOdAge(b.startDate, b));
     html += '<table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th style="text-align:center">OD Age</th><th>Type</th><th style="text-align:right">Loan Due</th><th style="text-align:right">Paid</th><th style="text-align:right">OD Fee</th><th style="text-align:right">Due Today</th><th>Status</th></tr></thead><tbody>'
       + sorted.map((b,i) => {
           const status = getStatus(b);
@@ -16729,7 +16729,7 @@ function ptpQuickSet() {
     .sort((a,b) => {
       // Unpromised first, then by OD age descending
       if (a.promisedToPay !== b.promisedToPay) return a.promisedToPay ? 1 : -1;
-      return getOdAge(b.startDate, b) - getOdAge(a.startDate);
+      return getOdAge(b.startDate, b) - getOdAge(a.startDate, a);
     });
 
   const renderList = (q) => {
@@ -17216,17 +17216,21 @@ function buildPtpMorningHtml() {
       const phone = b.phone.replace(/\s/g,'').replace('+','');
       const oc = b.ptpOutcome || 'no outcome';
       const ocColor = oc === 'broken' ? 'var(--red)' : oc === 'no_answer' ? 'var(--orange)' : 'var(--text3)';
-      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:8px">
-        <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--red)"></div>
-        <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
-          <div style="font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
-          <div style="font-size:10px;color:${ocColor}">${oc.replace(/_/g,' ')}</div>
+      html += `<div style="padding:8px 10px;background:var(--surface);border-radius:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--red)"></div>
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
+            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name.split(' ')[0])}</div>
+            <div style="font-size:10px;color:${ocColor}">${oc.replace(/_/g,' ')}</div>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div>
         </div>
-        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red)">${fmtC(getDueToday(b))}</div>
-        <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
-        <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
-        <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
-        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
+          <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
+          <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
+          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+        </div>
       </div>`;
     });
     html += `</div></div>`;
@@ -19997,7 +20001,7 @@ function _renderBroadcastStep1() {
 
   const stage    = window._broadcastStage || '';
   let pool       = stage ? active.filter(b => getAccountStage(b).label === stage) : active;
-  pool = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
+  pool = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate, a));
 
   // Message options for selected stage
   const msgs = (state.messageBank||[]).filter(m => !stage || m.stage === stage).slice(0, 20);
@@ -20031,7 +20035,7 @@ function _renderBroadcastStep2() {
   const stage  = window._broadcastStage || '';
   const active = getActiveBorrowers().filter(b => getStatus(b) !== 'Paid' && b.phone);
   const pool   = stage ? active.filter(b => getAccountStage(b).label === stage) : active;
-  const sorted = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate));
+  const sorted = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate, a));
   const selMsg = window._broadcastMsgId ? (state.messageBank||[]).find(m => m.id === window._broadcastMsgId) : null;
 
   const numbers = sorted.map(b => {
