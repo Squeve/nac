@@ -14466,9 +14466,12 @@ Thank you for your assistance.
 
   // ── Level 19: Full OD Fee Waiver Offer ────────────────────
   if (level === 19) {
-    const principalAmt = b.principal || b.loanDue || 0;
-    const odFeeAmt     = getOdFee(b);
-    const remaining    = Math.max(0, principalAmt - (b.amountPaid || 0));
+    // "Principal remaining" here means the non-OD-fee balance still owed
+    // (loanDue - amountPaid) — NOT the raw disbursed principal, since
+    // loanDue may include interest/charges that aren't OD fees but are
+    // still owed. Using b.principal alone understated what's actually due.
+    const remaining    = getRemaining(b);
+    const odFeeAmt      = getOdFee(b);
     return `🤝 *ONE-TIME OFFER: FULL OD FEE WAIVER* 🤝
 
 DATE: ${dateStr}
@@ -14522,7 +14525,7 @@ function openEscalationPanel() {
     { level:4,  label:'💰 L4 – Partial Payment Follow-Up',  color:'#f59e0b', desc:'Acknowledge partial payment, demand remainder.' },
     { level:5,  label:'💔 L5 – Broken Promise (PTP Missed)',color:'#ef4444', desc:'Customer missed a promise to pay.' },
     { level:8,  label:'🎯 L8 – Settlement Offer',           color:'#10b981', desc:'One-time reduced amount to close account.' },
-    { level:19, label:'🤝 L19 – Full OD Fee Waiver',        color:'#22c55e', desc:'Pay principal only — waive all OD fees. Last resort goodwill.' },
+    { level:19, label:'🤝 L19 – Full OD Fee Waiver',        color:'#22c55e', desc:'Pay remaining balance only — waive all OD fees. Last resort goodwill.' },
     // ── Field & third-party ────────────────────────────────────
     { level:6,  label:'🚪 L6 – Field Visit Notification',   color:'#f97316', desc:'Warn before sending a field agent.' },
     { level:14, label:'📵 L14 – Unreachable / Silent Phone', color:'#f97316', desc:'Phone not being answered — triggers offline escalation.' },
