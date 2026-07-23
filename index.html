@@ -59,7 +59,7 @@
   /* Text — wider hierarchy gap */
   --text:  #edf0f7;
   --text2: #9aa3b8;
-  --text3: #7a89a5;
+  --text3: #6b7a96;
   /* Row state backgrounds */
   --paid-bg:    rgba(34,197,94,0.1);
   --partial-bg: rgba(249,115,22,0.1);
@@ -476,18 +476,18 @@ html[data-theme="light"], html[data-theme="light"] body { color-scheme: light; }
   --border:   #e0e4f0;
   --border2:  #c9cfe2;
   --border-hi: rgba(0,0,0,0.06);
-  --gold:     #955c08;
-  --gold2:    #9d6209;
-  --gold-grad: linear-gradient(135deg, #955c08, #9d6209);
-  --gold-glow: rgba(149,92,8,0.2);
-  --green:    #136534;
+  --gold:     #c47a0a;
+  --gold2:    #d98f0f;
+  --gold-grad: linear-gradient(135deg, #c47a0a, #d98f0f);
+  --gold-glow: rgba(196,122,10,0.2);
+  --green:    #16a34a;
   --red:      #dc2626;
-  --orange:   #b04108;
+  --orange:   #ea580c;
   --blue:     #2563eb;
   --purple:   #7c3aed;
   --text:     #0f1623;
   --text2:    #374151;
-  --text3:    #5f6776;
+  --text3:    #8b95a8;
   --paid-bg:   rgba(22,163,74,0.08);
   --partial-bg:rgba(234,88,12,0.08);
   --unpaid-bg: rgba(220,38,38,0.06);
@@ -1488,15 +1488,6 @@ tbody tr:hover td { background: rgba(255,255,255,0.025) !important; }
 .form-input:focus, .search-input:focus {
   box-shadow: 0 0 0 2px rgba(240,160,48,0.18), inset 0 1px 3px rgba(0,0,0,0.2);
 }
-
-/* Promise to Pay modal — quick-pick pills & compact fields */
-.ptp-pill{padding:9px 4px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font-body);text-align:center;transition:all 0.15s}
-.ptp-pill.active{background:rgba(240,160,48,0.16);border-color:rgba(240,160,48,0.5);color:var(--gold);font-weight:600}
-.ptp-pill-sub{font-size:9px;color:var(--text3);margin-top:1px;display:block}
-.ptp-pill.active .ptp-pill-sub{color:rgba(240,160,48,0.7)}
-.ptp-field{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:9px 12px}
-.ptp-field input{flex:1;background:transparent;border:none;color:var(--text);font-size:13px;font-family:var(--font-body);outline:none;min-width:0}
-.ptp-section-label{font-size:11px;color:var(--text3);letter-spacing:0.04em;margin-bottom:8px;text-transform:uppercase}
 
 /* Status bar meta tag handled via JS */
 
@@ -2896,8 +2887,6 @@ tr.overdue-critical .heat-ring {
       </div>
     </div>
 
-    <div id="dash-m2-strip" style="display:none"></div>
-
     <!-- HIT LIST PANEL -->
     <div id="hit-list-panel" class="hit-list-panel" style="display:none">
       <div class="hit-list-header">
@@ -3034,23 +3023,8 @@ tr.overdue-critical .heat-ring {
           <option value="ghost">👻 Ghost</option>
           <option value="part-pay">💰 Part-Payer</option>
         </select>
-        <select class="bl-chip-sel" id="loan-filter-amount" onchange="_onAmountPreset(this.value)" style="min-width:100px">
-          <option value="">₵ Amount</option>
-          <option value="0-500">Under ₵500</option>
-          <option value="500-1000">₵500–1k</option>
-          <option value="1000-2000">₵1k–2k</option>
-          <option value="2000-5000">₵2k–5k</option>
-          <option value="5000-99999">₵5k+</option>
-          <option value="custom">Custom…</option>
-        </select>
-        <span id="loan-amount-custom" style="display:none;align-items:center;gap:4px">
-          <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="renderLoansTable()" style="width:68px" min="0">
-          <span style="font-size:11px;color:var(--text3)">–</span>
-          <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="renderLoansTable()" style="width:68px" min="0">
-        </span>
         <div class="bl-sort-wrap">
           <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
-            <option value="priorityScore_-1">🎯 Priority ↑ High</option>
             <option value="dueToday_-1">Due Today ↑ High</option>
             <option value="dueToday_1">Due Today ↑ Low</option>
             <option value="odAge_-1">OD Age ↑ High</option>
@@ -3927,22 +3901,6 @@ tr.overdue-critical .heat-ring {
         </div>
       </div>
       <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
-    </div>
-
-    <!-- Monthly History -->
-    <p class="settings-section-label">Monthly History</p>
-    <div class="settings-group">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">📊</div>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
-          </div>
-        </div>
-        <span id="settings-monthly-chevron" style="font-size:18px;color:var(--text3);transition:transform 0.22s">›</span>
-      </div>
-      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
     </div>
 
     <!-- Data -->
@@ -5522,7 +5480,7 @@ function initState() {
     hitList: [], callLog: {}, rankingHistory: [], undoHistory: [], pendingSyncCount: 0,
     offlineQueue: [], customMessages: [], archivedBorrowers: [],
     ptpHistory: [], templatePerf: {}, scoreHistory: [], messageBank: [],
-    agentProfile: {}, m2TargetLocks: {}, m2DayReviews: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
+    agentProfile: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
 }
 
 function migrateState(s) {
@@ -5535,25 +5493,6 @@ function migrateState(s) {
   if (!s.callLog) s.callLog = {};
   if (!s.rankingHistory) s.rankingHistory = [];
   if (!s.agentProfile) s.agentProfile = {};
-  if (!s.m2TargetLocks) s.m2TargetLocks = {};
-  else {
-    // Prune locks older than 2 days — keeps state lean, today's/yesterday's locks are all that matter
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 2);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-    Object.keys(s.m2TargetLocks).forEach(k => {
-      const dateInKey = k.split('_').pop();
-      if (dateInKey && dateInKey < cutoffStr) delete s.m2TargetLocks[k];
-    });
-  }
-  if (!s.m2DayReviews) s.m2DayReviews = {};
-  else {
-    const cutoff2 = new Date(); cutoff2.setDate(cutoff2.getDate() - 2);
-    const cutoffStr2 = cutoff2.toISOString().split('T')[0];
-    Object.keys(s.m2DayReviews).forEach(k => {
-      const dateInKey = k.split('_').pop();
-      if (dateInKey && dateInKey < cutoffStr2) delete s.m2DayReviews[k];
-    });
-  }
   if (!s.undoHistory) s.undoHistory = [];
   if (!s.pendingSyncCount) s.pendingSyncCount = 0;
   if (!s.customMessages) s.customMessages = [];
@@ -5577,7 +5516,6 @@ function migrateState(s) {
 function purgeAgedOut() {
   // SAFETY: never purge if no agent is unlocked — defaults could wipe wrong accounts
   if (!_activeAgent || !_sessionUnlocked) return;
-  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
 
   // Age-out threshold depends on the agent's stage
   // Threshold per stage: M0=Day1, M1=Day6, M2=Day16, M3=Day41, M4=Day61, M5=never
@@ -5976,18 +5914,6 @@ async function _pushToSupabase(retries = 3) {
 
 const _odAgeCache = new Map();
 let   _odAgeCacheDay = '';
-// Clears any promise/PTP fields once an account is fully paid — a paid
-// account has nothing left to promise on, so the PTP badge/breach state
-// shouldn't linger and clutter PTP Hub or trigger stale breach flags.
-function _clearPromiseOnPaid(b) {
-  b.promisedToPay = false;
-  b.promiseDate = '';
-  b.promiseNote = '';
-  b.ptpBreached = false;
-  b.ptpOutcome = 'paid';
-  b.ptpConfidence = '';
-}
-
 function getOdAge(startDate, borrower) {
   if (!startDate) return 0;
   // ── FREEZE: paid accounts never age beyond the day they settled ──
@@ -6458,26 +6384,15 @@ function toggleDashAgedOut() { /* aged out moved to Settings */ }
 // ── AUTO-FLAG MISSED PTPs ─────────────────────────────────────
 // Called on dashboard render and app load.
 // Any PTP whose promiseDate has passed without payment gets flagged.
-// Also self-heals the reverse case: a stale breach flag left on a borrower
-// whose promise was since rescheduled to today/future.
 function ptpAutoFlagMissed() {
-  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   const today   = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(function(b) {
     if (!b.promisedToPay || !b.promiseDate) return;
     const promDate = b.promiseDate.split(' ')[0];
-    // Never breach today's or future promises — only strictly past dates.
-    // Self-heal: if breach flag is stale (date now today/future), clear it.
-    if (promDate >= today) {
-      if (b.ptpBreached) {
-        b.ptpBreached = false;
-        if (b.ptpOutcome === 'missed' || b.ptpOutcome === 'broken') b.ptpOutcome = 'pending';
-        changed = true;
-      }
-      return;
-    }
+    // Never breach today's or future promises — only strictly past dates
+    if (promDate >= today) return;
     // Already resolved — don't re-flag
     if (b.ptpOutcome === 'paid' || b.ptpOutcome === 'missed' || b.isPaid) return;
     // Partial payment counts as not fully breached
@@ -6493,94 +6408,6 @@ function ptpAutoFlagMissed() {
 }
 
 // ── Dashboard Hero Card ───────────────────────────────────────
-// ── M2 Daily Target Strip ───────────────────────────────────────
-// 9% of total M2 (Day 6-15) balance owed. NEVER auto-locks — the agent must
-// explicitly confirm each day (since Day 6 accounts are added manually every
-// morning, not auto-aged in). This holds even on days with zero new Day 6
-// accounts: confirmation is a deliberate daily action, not a passive default.
-// Stored in state.m2TargetLocks / state.m2DayReviews (synced via Supabase) so
-// both the lock and the confirmation are consistent across devices.
-function _m2TargetLockKey() {
-  const today = new Date().toISOString().split('T')[0];
-  const agentId = (_activeAgent && _activeAgent.id) ? _activeAgent.id : 'default';
-  return agentId + '_' + today;
-}
-
-// Called only by the explicit "Confirm & Lock" button — this is the one and
-// only path that locks today's target. Computes the M2 balance fresh at the
-// moment of confirmation, so it reflects whatever Day 6 accounts were just added.
-function confirmM2DayReview() {
-  if (!state) return;
-  if (!state.m2DayReviews) state.m2DayReviews = {};
-  if (!state.m2TargetLocks) state.m2TargetLocks = {};
-  const key = _m2TargetLockKey();
-  state.m2DayReviews[key] = new Date().toISOString();
-  const m2Active  = getActiveBorrowers();
-  const m2Balance = m2Active.reduce((s,b) => s + getDueToday(b), 0);
-  const target = Math.round(m2Balance * 0.09);
-  state.m2TargetLocks[key] = { target, base: m2Balance, lockedAt: new Date().toISOString() };
-  saveState(); // pushes both the confirmation and the lock to Supabase
-  renderM2TargetStrip();
-  toast('M2 target locked: ' + fmtC(target), 'success');
-}
-
-function _getM2Lock() {
-  if (!state || !state.m2TargetLocks) return null;
-  const existing = state.m2TargetLocks[_m2TargetLockKey()];
-  return (existing && typeof existing.target === 'number') ? existing : null;
-}
-
-function renderM2TargetStrip() {
-  const el = document.getElementById('dash-m2-strip');
-  if (!el) return;
-  if (!state || !state.borrowers) { el.style.display = 'none'; return; }
-  const agentStage = (_activeAgent && _activeAgent.stage) ? _activeAgent.stage : null;
-  if (agentStage !== 'M2') { el.style.display = 'none'; return; }
-
-  el.style.display = 'block';
-  const locked = _getM2Lock();
-
-  // Not confirmed yet today — show pending state regardless of whether Day 6
-  // accounts exist. This is a deliberate daily gate, not conditional on intake.
-  if (!locked) {
-    const day6Count = state.borrowers.filter(b => getOdAge(b.startDate, b) === 6).length;
-    const day6Note = day6Count > 0
-      ? `${day6Count} new Day 6 account${day6Count>1?'s':''} to review`
-      : `No new Day 6 accounts added yet today`;
-    el.innerHTML = `
-      <div style="background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.35);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <span style="font-size:16px;flex-shrink:0">⏳</span>
-        <div style="flex:1;min-width:0">
-          <span style="font-size:12px;color:var(--text);font-weight:600">Target pending</span>
-          <span style="font-size:11px;color:var(--text3)"> · ${day6Note} · confirm to lock today's 9% target</span>
-        </div>
-        ${day6Count > 0 ? `<button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="showTreadmillPopup();haptic('light')">View</button>` : ''}
-        <button class="btn btn-gold btn-xs" style="flex-shrink:0" onclick="confirmM2DayReview();haptic('medium')">Confirm &amp; Lock</button>
-      </div>`;
-    return;
-  }
-
-  const today      = new Date().toISOString().split('T')[0];
-  const logEntry   = (state.dailyLog||[]).find(e => e.date === today);
-  const collected  = logEntry ? (logEntry.collected||0) : 0;
-  const pct        = locked.target > 0 ? Math.min(1, collected / locked.target) : 0;
-  const lockTime   = new Date(locked.lockedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-
-  el.innerHTML = `
-    <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="navigate('loans');haptic('light')">
-      <span style="font-size:16px;flex-shrink:0">🎯</span>
-      <div style="flex:1;min-width:0">
-        <span style="font-size:12px;color:var(--text2)">M2 target today </span>
-        <span style="font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--text)">${fmtC(locked.target)}</span>
-        <span style="font-size:11px;color:var(--text3)"> · 9% of ${fmtC(locked.base)}</span>
-        <span style="font-size:11px;color:${pct>=1?'var(--green)':'var(--text3)'}"> · ${fmtC(collected)} collected (${Math.round(pct*100)}%)</span>
-      </div>
-      <div style="background:rgba(255,255,255,0.06);border-radius:6px;padding:2px 7px;font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap" title="Locked at ${lockTime} — won't shift as you collect today">
-        🔒 locked ${lockTime}
-      </div>
-    </div>`;
-}
-
 function renderDashHero() {
   const el = document.getElementById('dash-hero');
   if (!el) return;
@@ -7031,7 +6858,6 @@ async function renderDashboard() {
   document.getElementById('dash-alerts').innerHTML = alertHtml;
   renderDashActionStrip(active);
   renderDashHero();
-  renderM2TargetStrip();
   renderDashEmptyState(active);
   renderDashActivityFeed();
   var zlb = document.getElementById('zero-log-btn');
@@ -7070,10 +6896,8 @@ async function renderDashboard() {
       + '</div>';
   }).join('') || '<div class="empty-state"><div>No active borrowers</div></div>';
 
-  // Top due — ranked by priority score (urgency: OD age + amount + broken promises),
-  // not just raw amount owed, so a small but broken-promise account surfaces above
-  // a large but steadily-paying one.
-  const topDue = [...active].sort((a,b) => calcPriorityScore(b) - calcPriorityScore(a) || getDueToday(b) - getDueToday(a)).slice(0,10);
+  // Top due
+  const topDue = [...active].sort((a,b) => getDueToday(b) - getDueToday(a)).slice(0,10);
   document.getElementById('dash-top-due').innerHTML = topDue.map((b,i) => {
     const phone = b.phone.replace(/\s/g,'').replace('+','');
     const ps = calcPriorityScore(b);
@@ -7371,21 +7195,6 @@ var _loanFilterBadge    = '';
 
 let _lastLoanSearch = '', _lastFilterStatus = '', _lastFilterType = '', _lastFilterOd = '', _lastFilterPriority = '', _lastFilterBadge = '';
   
-function _onAmountPreset(val) {
-  const customEl = document.getElementById('loan-amount-custom');
-  if (val === 'custom') {
-    if (customEl) { customEl.style.display = 'flex'; }
-    // clear min/max so user types fresh
-    const minEl = document.getElementById('loan-amt-min');
-    const maxEl = document.getElementById('loan-amt-max');
-    if (minEl) minEl.value = '';
-    if (maxEl) maxEl.value = '';
-  } else {
-    if (customEl) customEl.style.display = 'none';
-  }
-  renderLoansTable();
-}
-
 function renderLoansTable() {
   const searchEl   = document.getElementById('loan-search');
   const statusEl2  = document.getElementById('loan-filter-status');
@@ -7402,18 +7211,6 @@ function renderLoansTable() {
   const fPriority = priorityEl?.value || '';
   const fBadge    = badgeEl?.value    || '';
   const fTag      = document.getElementById('loan-filter-tag')?.value || '';
-  // Amount range filter
-  const fAmountPreset = document.getElementById('loan-filter-amount')?.value || '';
-  let fAmtMin = null, fAmtMax = null;
-  if (fAmountPreset && fAmountPreset !== 'custom') {
-    const [_amin, _amax] = fAmountPreset.split('-').map(Number);
-    fAmtMin = _amin; fAmtMax = _amax;
-  } else if (fAmountPreset === 'custom') {
-    const _minVal = parseFloat(document.getElementById('loan-amt-min')?.value);
-    const _maxVal = parseFloat(document.getElementById('loan-amt-max')?.value);
-    if (!isNaN(_minVal)) fAmtMin = _minVal;
-    if (!isNaN(_maxVal)) fAmtMax = _maxVal;
-  }
 
   // Filter paid first (cheapest check) before doing expensive computations
   let source = fStatus === 'Paid'
@@ -7430,16 +7227,12 @@ function renderLoansTable() {
     const odAge     = getOdAge(b.startDate, b);
     const dueToday  = remaining + odFeeCalc;
     const generous  = Math.max(0, remaining + Math.round(odFeeCalc * (state.discountRate||0.30)));
-    const liveRow = { id:b.id, name:b.name, phone:b.phone, principal:b.principal, loanDue:b.loanDue,
+    return { id:b.id, name:b.name, phone:b.phone, principal:b.principal, loanDue:b.loanDue,
              amountPaid:b.amountPaid, startDate:b.startDate, loanType:b.loanType, isPaid:b.isPaid,
              notes:b.notes, promisedToPay:b.promisedToPay, promiseDate:b.promiseDate, ptpBreached:b.ptpBreached,
              callLog:b.callLog, instalment:b.instalment, payLog:b.payLog, targetPayment:b.targetPayment,
-             hitList:b.hitList, tags:b.tags, odFeeSnapshot:b.odFeeSnapshot,
+             hitList:b.hitList, priorityScore:b.priorityScore, tags:b.tags, odFeeSnapshot:b.odFeeSnapshot,
              status, odAge, remaining, dueToday, generous, odFeeCalc };
-    // priorityScore here is the LIVE computed urgency score (0-10), not the stale stored field —
-    // this is what powers both the priority filter and the priority sort column.
-    liveRow.priorityScore = calcPriorityScore(liveRow);
-    return liveRow;
   });
 
   // Populate OD filter if empty
@@ -7457,7 +7250,7 @@ function renderLoansTable() {
   if (fType) rows = rows.filter(r => r.loanType === fType);
   if (fOd) rows = rows.filter(r => r.odAge === parseInt(fOd));
   if (fPriority) rows = rows.filter(r => {
-    const ps = r.priorityScore;
+    const ps = calcPriorityScore(r);
     if (fPriority === 'high') return ps >= 8;
     if (fPriority === 'mid')  return ps >= 5 && ps < 8;
     if (fPriority === 'low')  return ps < 5;
@@ -7475,9 +7268,6 @@ function renderLoansTable() {
     if (fBadge === 'fraud')     return (r.callLog||[]).some(c => c.outcome === 'Fraud');
     return true;
   });
-  // Amount range filter — filters on dueToday (total balance owed)
-  if (fAmtMin !== null) rows = rows.filter(r => r.dueToday >= fAmtMin);
-  if (fAmtMax !== null) rows = rows.filter(r => r.dueToday < fAmtMax);
 
   rows.sort((a,b) => {
     let av = a[loanSortCol], bv = b[loanSortCol];
@@ -8781,9 +8571,7 @@ function importLogFromPayments() {
   let todayPay = 0;
   (state.borrowers||[]).forEach(b => {
     (b.payLog||[]).forEach(p => {
-      // Use delta (new cash received), not amount (cumulative total)
-      // Skip negative deltas — corrections should not subtract from daily log
-      if ((p.date||'').split('T')[0] === todayStr && (Number(p.delta)||0) > 0) todayPay += Number(p.delta)||0;
+      if ((p.date||'').split('T')[0] === todayStr) todayPay += Number(p.amount)||0;
     });
   });
   if (todayPay === 0) { toast('No payment records found for today', 'info'); return; }
@@ -8890,8 +8678,6 @@ function openExportModal() {
       var incPd= document.getElementById('exp-inc-paid')?.checked || false;
       var incPr= document.getElementById('exp-inc-promised')?.checked !== false;
       var onlyPr=document.getElementById('exp-inc-promised-only')?.checked || false;
-      var exclFT=document.getElementById('exp-excl-future-today')?.checked || false;
-      var todayStr2=new Date().toISOString().split('T')[0];
       var odMin= parseInt(document.getElementById('exp-od-min')?.value||'0')||0;
       var odMax= parseInt(document.getElementById('exp-od-max')?.value||'99')||99;
       var amtMin=parseFloat(document.getElementById('exp-amt-min')?.value||'0')||0;
@@ -8903,10 +8689,6 @@ function openExportModal() {
         if(s==='Partial'&&!incPa) return false;
         if(s==='Paid'&&!incPd) return false;
         if(b.promisedToPay&&!incPr) return false;
-        if(exclFT && b.promisedToPay && b.promiseDate) {
-          var pd2 = b.promiseDate.split(' ')[0];
-          if (pd2 >= todayStr2) return false;
-        }
         if(od<odMin||od>odMax) return false;
         if(due<amtMin||due>amtMax) return false;
         return true;
@@ -9010,7 +8792,7 @@ function openExportModal() {
     + '</label></div>'
     + '<div style="margin-bottom:16px">'
     + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
-    + '<input type="checkbox" id="exp-excl-future-today" style="accent-color:var(--gold)" onchange="setTimeout(_expCount,50)"> Exclude future &amp; today&#39;s promises <span style="margin-left:auto;font-size:10px;color:var(--text3)">(keeps only past-due / no promise)</span>'
+    + '<input type="checkbox" id="exp-inc-broken" style="accent-color:var(--gold)"> Include broken PTPs <span style="margin-left:auto;font-size:10px;color:var(--text3)">(off by default – excludes breached promises)</span>'
     + '</label></div>'
     + '<div class="exp-section-label">OD Day range</div>'
     + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:16px">'
@@ -9211,9 +8993,9 @@ function _getExportData() {
   const amtMaxRaw    = document.getElementById('exp-amt-max')?.value;
   const amtMax       = amtMaxRaw && amtMaxRaw.trim() !== '' ? parseFloat(amtMaxRaw) : Infinity;
 
-  // Exclude not-yet-due & today's promises (combined) — see fix below
-  const exclFutureToday = document.getElementById('exp-excl-future-today')?.checked || false;
-  const _expToday = new Date().toISOString().split('T')[0];
+  // --- NEW: Include broken PTPs checkbox ---
+  const incBrokenCheckbox = document.getElementById('exp-inc-broken');
+  const incBroken = incBrokenCheckbox ? incBrokenCheckbox.checked : false;
 
   function exportName(b) {
     const parts = b.name.trim().split(/\s+/);
@@ -9263,11 +9045,8 @@ function _getExportData() {
     if (status === 'Partial' && !incPartial) return false;
     if (status === 'Paid'    && !incPaid)    return false;
     if (b.promisedToPay && !incPromised)     return false;
-    // Exclude not-yet-due & today's promises (combined) — keeps past-due/breached and non-promised only
-    if (exclFutureToday && b.promisedToPay && b.promiseDate) {
-      const pDate = b.promiseDate.split(' ')[0];
-      if (pDate >= _expToday) return false;
-    }
+    // Exclude broken PTPs unless explicitly included
+    if (!incBroken && b.ptpBreached === true) return false;
     return true;
   });
 
@@ -9288,7 +9067,6 @@ function _getExportData() {
   if (amtMin > 0) parts.push('min' + amtMin);
   if (amtMax < Infinity) parts.push('max' + amtMax);
   if (onlyPromised) parts.push('Promised');
-  if (exclFutureToday) parts.push('PastDueOnly');
   if (sortBy !== 'odAge') parts.push(sortBy.charAt(0).toUpperCase() + sortBy.slice(1));
   var descriptor = parts.length ? '-' + parts.join('-') : '';
 
@@ -10378,7 +10156,6 @@ function recordPayment(id) {
   if (newPaid >= fullSettlement && fullSettlement > 0) {
     if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
     b.isPaid = true;
-    _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
     // Fully paid — clear any snapshot, OD is frozen at 0 via isPaid check
     delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
   } else if (!b.isPaid) {
@@ -10392,24 +10169,8 @@ function recordPayment(id) {
     }
   }
   if (!b.payLog) b.payLog = [];
-  const payDelta = newPaid - prevPaid;
   if (newPaid !== prevPaid) {
-    const payDate = new Date().toISOString().split('T')[0];
-    b.payLog.push({ date: payDate, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: payDelta, note: notes, isPaid: b.isPaid });
-    // ── Write delta directly to daily log (accurate: only new cash, not cumulative total) ──
-    if (payDelta > 0) {
-      if (!state.dailyLog) state.dailyLog = [];
-      let logEntry = state.dailyLog.find(e => e.date === payDate);
-      if (!logEntry) { logEntry = { date: payDate, collected: 0, notes: '' }; state.dailyLog.push(logEntry); }
-      logEntry.collected = (logEntry.collected || 0) + payDelta;
-    }
-    // If payment was reduced (correction), subtract the over-count from today's log
-    if (payDelta < 0) {
-      if (!state.dailyLog) state.dailyLog = [];
-      const payDate2 = new Date().toISOString().split('T')[0];
-      let logEntry = state.dailyLog.find(e => e.date === payDate2);
-      if (logEntry) logEntry.collected = Math.max(0, (logEntry.collected || 0) + payDelta); // payDelta is negative
-    }
+    b.payLog.push({ date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: newPaid - prevPaid, note: notes, isPaid: b.isPaid });
   }
   purgeAgedOut(); saveState(); setTimeout(() => { state._blockRemotePullUntil = 0; }, 3000); _odFeeCache.clear(); closeModal();
   updateTemplatePerfFromPayment(id);
@@ -10987,119 +10748,35 @@ function openPromiseModal(id, isEdit = false) {
   const _qd_tomorrow = new Date(Date.now() + 86400000);
   const _qd_endweek  = new Date();
   _qd_endweek.setDate(_qd_endweek.getDate() + (((5 - _qd_endweek.getDay()) + 7) % 7) || 7);
-  // Nearest Saturday — if today IS Saturday, that's "nearest" (0 days away)
-  const _qd_weekend  = new Date();
-  _qd_weekend.setDate(_qd_weekend.getDate() + ((6 - _qd_weekend.getDay()) + 7) % 7);
   const _iso = d => d.toISOString().split('T')[0];
 
   document.getElementById('modal-title').textContent = isEdit ? '✏️ Edit Promise to Pay' : '🤝 New Promise to Pay';
   document.getElementById('modal-body').innerHTML = `
     <div class="form-group">
-      <div class="ptp-section-label">When</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
-        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)">Today</button>
-        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)">Tomorrow</button>
-        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_weekend)}';ptpHighlightQD(this)">Weekend</button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px">
-        <button type="button" class="ptp-pill ptp-qd-btn" onclick="ptpSetWithinWeek('${_iso(_qd_endweek)}',this)">This week</button>
-        <button type="button" class="ptp-pill ptp-qd-btn" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)">End of week</button>
-      </div>
-      <div class="ptp-field">
-        <span style="font-size:14px">📅</span>
-        <input type="date" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"
-          data-start="${b.startDate}"
-          oninput="
-            const start = this.dataset.start;
-            const picked = this.value;
-            const badge = document.getElementById('ptp-age-badge');
-            if (!start || !picked || !badge) return;
-            const startParts = start.split('-');
-            const startD = new Date(+startParts[0], +startParts[1]-1, +startParts[2]);
-            startD.setHours(0,0,0,0);
-            const pickedParts = picked.split('-');
-            const pickedD = new Date(+pickedParts[0], +pickedParts[1]-1, +pickedParts[2]);
-            pickedD.setHours(0,0,0,0);
-            const age = Math.max(0, Math.floor((pickedD - startD) / 86400000) + 1);
-            badge.textContent = 'Day ' + age;
-            badge.style.background = age >= 16 ? 'rgba(239,68,68,0.15)' : age >= 6 ? 'rgba(240,160,48,0.15)' : 'rgba(96,165,250,0.15)';
-            badge.style.color = age >= 16 ? 'var(--red)' : age >= 6 ? 'var(--gold)' : 'var(--blue)';
-          ">
-        <span id="ptp-age-badge" style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;
-          background:${(() => { const age = getOdAge(b.startDate, b); const d = defaultDate; if(!d||!b.startDate) return 'rgba(96,165,250,0.15)'; const sp=b.startDate.split('-'); const dp=d.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); const a=Math.max(0,Math.floor((pickedD-startD)/86400000)+1); return a>=16?'rgba(239,68,68,0.15)':a>=6?'rgba(240,160,48,0.15)':'rgba(96,165,250,0.15)'; })()};
-          color:${(() => { const sp=b.startDate.split('-'); const dp=defaultDate.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); const a=Math.max(0,Math.floor((pickedD-startD)/86400000)+1); return a>=16?'var(--red)':a>=6?'var(--gold)':'var(--blue)'; })()}">
-          Day ${(() => { const sp=b.startDate.split('-'); const dp=defaultDate.split('-'); const startD=new Date(+sp[0],+sp[1]-1,+sp[2]); const pickedD=new Date(+dp[0],+dp[1]-1,+dp[2]); return Math.max(0,Math.floor((pickedD-startD)/86400000)+1); })()}
-        </span>
+      <label style="margin-bottom:6px;display:block">Quick Date</label>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_today)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📅 Today</button>
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_tomorrow)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">🌅 Tomorrow</button>
+        <button type="button" onclick="document.getElementById('promise-date').value='${_iso(_qd_endweek)}';ptpHighlightQD(this)" style="padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body)" class="ptp-qd-btn">📆 End of Week</button>
       </div>
     </div>
-
+    <div class="form-group"><label>Promise Date</label><input type="date" class="form-input" id="promise-date" value="${defaultDate}" min="${_iso(_qd_today)}"></div>
+    <div class="form-group"><label>Promise Time</label><input type="time" class="form-input" id="promise-time" value="${defaultTime}"></div>
+    <div class="form-group"><label>Note</label><input type="text" class="form-input" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}"></div>
     <div class="form-group">
-      <div class="ptp-section-label">Time</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
-        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='11:59';ptpHighlightQT(this)">Morning<span class="ptp-pill-sub">until 12pm</span></button>
-        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='15:59';ptpHighlightQT(this)">Afternoon<span class="ptp-pill-sub">until 4pm</span></button>
-        <button type="button" class="ptp-pill ptp-qt-btn" onclick="document.getElementById('promise-time').value='18:59';ptpHighlightQT(this)">Evening<span class="ptp-pill-sub">until 7pm</span></button>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <button type="button" class="ptp-pill ptp-qt-btn" style="flex:0 0 auto;padding:7px 14px" onclick="document.getElementById('promise-time').value='23:59';ptpHighlightQT(this)">Close of day</button>
-        <span style="font-size:10px;color:var(--text3);flex:1">or set an exact time</span>
-      </div>
-      <div class="ptp-field">
-        <span style="font-size:14px">🕐</span>
-        <input type="time" id="promise-time" value="${defaultTime}" onchange="document.querySelectorAll('.ptp-qt-btn').forEach(b2=>b2.classList.remove('active'))">
-      </div>
-    </div>
-
-    <div class="form-group">
-      <div class="ptp-section-label">Note <span style="text-transform:none;color:var(--text3)">(optional)</span></div>
-      <div class="ptp-field">
-        <input type="text" id="promise-note" placeholder="e.g. Will pay after work" value="${defaultNote.replace(/"/g, '&quot;')}">
-      </div>
-    </div>
-
-    <div class="form-group">
-      <div class="ptp-section-label">Confidence</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-        ${[['hot','🔥 Hot','rgba(99,153,34,0.16)','var(--green)'],['warm','⚡ Warm','rgba(240,160,48,0.16)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.16)','var(--blue)']].map(([val,label,bg,col]) => `
+      <label style="margin-bottom:6px;display:block">Confidence</label>
+      <div style="display:flex;gap:8px">
+        ${[['hot','🔥 Hot','rgba(239,68,68,0.12)','var(--red)'],['warm','⚡ Warm','rgba(240,160,48,0.12)','var(--gold)'],['cold','❄️ Cold','rgba(96,165,250,0.12)','var(--blue)']].map(([val,label,bg,col]) => `
           <button type="button" id="conf-${val}" onclick="ptpSetConf('${val}')"
-            style="padding:9px 4px;border-radius:10px;border:1px solid ${curConf===val?col:'var(--border2)'};background:${curConf===val?bg:'var(--surface)'};color:${curConf===val?col:'var(--text2)'};font-size:12px;font-weight:${curConf===val?600:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
+            style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid ${curConf===val?col:'var(--border2)'};background:${curConf===val?bg:'var(--surface)'};color:${curConf===val?col:'var(--text3)'};font-size:12px;font-weight:${curConf===val?700:500};cursor:pointer;font-family:var(--font-body);transition:all 0.15s">
             ${label}
           </button>`).join('')}
       </div>
     </div>
   `;
-  window._ptpUpdateAgeBadge = function() {
-    const input = document.getElementById('promise-date');
-    const badge = document.getElementById('ptp-age-badge');
-    if (!input || !badge || !input.dataset.start || !input.value) return;
-    const sp = input.dataset.start.split('-');
-    const dp = input.value.split('-');
-    const startD = new Date(+sp[0], +sp[1]-1, +sp[2]); startD.setHours(0,0,0,0);
-    const pickedD = new Date(+dp[0], +dp[1]-1, +dp[2]); pickedD.setHours(0,0,0,0);
-    const age = Math.max(0, Math.floor((pickedD - startD) / 86400000) + 1);
-    badge.textContent = 'Day ' + age;
-    badge.style.background = age >= 16 ? 'rgba(239,68,68,0.15)' : age >= 6 ? 'rgba(240,160,48,0.15)' : 'rgba(96,165,250,0.15)';
-    badge.style.color = age >= 16 ? 'var(--red)' : age >= 6 ? 'var(--gold)' : 'var(--blue)';
-  };
   window.ptpHighlightQD = function(btn) {
-    document.querySelectorAll('.ptp-qd-btn').forEach(b2 => b2.classList.remove('active'));
-    btn.classList.add('active');
-    _ptpUpdateAgeBadge();
-  };
-  // "This week" sets the promise date to end-of-week (Friday) — same field
-  // as End of Week — but also tags the note so it's clear this is a loose
-  // "anytime this week" promise rather than a hard Friday deadline.
-  window.ptpSetWithinWeek = function(endOfWeekIso, btn) {
-    document.getElementById('promise-date').value = endOfWeekIso;
-    const noteEl = document.getElementById('promise-note');
-    if (noteEl && !noteEl.value.includes('Anytime this week')) {
-      noteEl.value = noteEl.value ? (noteEl.value + ' — Anytime this week') : 'Anytime this week';
-    }
-    if (btn) ptpHighlightQD(btn); // ptpHighlightQD already calls _ptpUpdateAgeBadge
-  };
-  window.ptpHighlightQT = function(btn) {
-    document.querySelectorAll('.ptp-qt-btn').forEach(b2 => b2.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.ptp-qd-btn').forEach(b2 => { b2.style.background='var(--surface)'; b2.style.color='var(--text2)'; b2.style.borderColor='var(--border2)'; });
+    btn.style.background='rgba(240,160,48,0.14)'; btn.style.color='var(--gold)'; btn.style.borderColor='rgba(240,160,48,0.5)';
   };
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -11148,12 +10825,9 @@ function savePromise(id, isEdit = false) {
   b.ptpConfidence = window._ptpConfSelected || b.ptpConfidence || '';
   b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString(); // set only once
   if (!isEdit && !b.ptpOutcome) b.ptpOutcome = 'pending';
-  // Clear any stale breach flag whenever the saved date is today or future —
-  // this must NOT depend on isEdit, since Quick Set PTP always calls with
-  // isEdit=false even when the borrower had a prior breached promise.
-  if (date >= new Date().toISOString().split('T')[0]) {
+  if (isEdit && date >= new Date().toISOString().split('T')[0]) {
     b.ptpBreached = false;
-    b.ptpOutcome  = (b.ptpOutcome === 'broken' || b.ptpOutcome === 'missed') ? 'pending' : (b.ptpOutcome || 'pending');
+    b.ptpOutcome  = b.ptpOutcome === 'broken' ? 'pending' : (b.ptpOutcome || 'pending');
   }
   haptic('light');
   saveState();
@@ -11202,7 +10876,6 @@ function clearPromise(id) {
 }
 
 function autoExpirePtps() {
-  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   // Use simple ISO string comparison — avoids timezone issues with Date objects
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
@@ -11281,68 +10954,6 @@ function toggleSettingsAgedOut() {
   }
   if (chevron) chevron.style.transform = _agedOutExpanded ? 'rotate(90deg)' : '';
   haptic('light');
-}
-
-let _monthlyHistoryExpanded = false;
-function toggleSettingsMonthlyHistory() {
-  _monthlyHistoryExpanded = !_monthlyHistoryExpanded;
-  const listEl  = document.getElementById('settings-monthly-list');
-  const chevron = document.getElementById('settings-monthly-chevron');
-  if (!listEl) return;
-  if (_monthlyHistoryExpanded) {
-    listEl.style.maxHeight = listEl.scrollHeight + 60 + 'px';
-    setTimeout(function() {
-      if (_monthlyHistoryExpanded) { listEl.style.maxHeight = '420px'; listEl.style.overflowY = 'auto'; }
-    }, 320);
-  } else {
-    listEl.style.overflowY = 'hidden';
-    listEl.style.maxHeight = listEl.scrollHeight + 'px';
-    requestAnimationFrame(function() { listEl.style.maxHeight = '0'; });
-  }
-  if (chevron) chevron.style.transform = _monthlyHistoryExpanded ? 'rotate(90deg)' : '';
-  haptic('light');
-}
-
-function _deltaArrow(curr, prev) {
-  if (prev == null || prev === 0) return '';
-  const diff = curr - prev;
-  if (Math.abs(diff) < 0.05) return '<span style="color:var(--text3);font-size:10px"> · flat</span>';
-  const pct = Math.round((diff / Math.abs(prev)) * 100);
-  const up  = diff > 0;
-  return '<span style="color:' + (up?'var(--green)':'var(--red)') + ';font-size:10px"> ' + (up?'▲':'▼') + Math.abs(pct) + '%</span>';
-}
-
-function renderSettingsMonthlyHistory() {
-  const list    = (state.archive || []).slice().sort((a,b) => (b.archivedAt||'').localeCompare(a.archivedAt||''));
-  const countEl = document.getElementById('settings-monthly-count');
-  const listEl  = document.getElementById('settings-monthly-list');
-  if (!listEl) return;
-  if (countEl) countEl.textContent = list.length + ' month' + (list.length !== 1 ? 's' : '') + ' archived';
-  if (!list.length) {
-    listEl.innerHTML = '<div style="padding:16px 0 18px;text-align:center;color:var(--text3);font-size:12px">No monthly history yet.<br><span style="font-size:11px">Appears after your first month rollover.</span></div>';
-  } else {
-    listEl.innerHTML = '<div style="padding-top:4px;padding-bottom:12px">' +
-      list.map(function(m, i) {
-        const prev = list[i+1]; // chronologically previous month (list is newest-first)
-        return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
-          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-          + '<div style="font-size:13px;font-weight:700;color:var(--text)">' + escapeHtml(m.month||'—') + (m.autoRolled ? ' <span style="font-size:9px;color:var(--text3);font-weight:400">(auto)</span>' : '') + '</div>'
-          + '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--gold)">' + fmtC(m.totalCollected||0) + (prev ? _deltaArrow(m.totalCollected||0, prev.totalCollected||0) : '') + '</div>'
-          + '</div>'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:10px;color:var(--text3)">'
-          + '<div>Recovery: <b style="color:var(--text2)">' + (m.recoveryRate||0) + '%</b>' + (prev ? _deltaArrow(m.recoveryRate||0, prev.recoveryRate||0) : '') + '</div>'
-          + '<div>PTP honour: <b style="color:var(--text2)">' + (m.ptpHonourRate||0) + '%</b>' + (prev ? _deltaArrow(m.ptpHonourRate||0, prev.ptpHonourRate||0) : '') + '</div>'
-          + '<div>Target hit: <b style="color:var(--text2)">' + (m.targetHitPct||0) + '%</b></div>'
-          + '<div>Borrowers: <b style="color:var(--text2)">' + (m.borrowerCount||0) + '</b></div>'
-          + '<div>Paid: <b style="color:var(--text2)">' + (m.paidCount||0) + '</b></div>'
-          + '<div>Still owed: <b style="color:var(--text2)">' + fmtC(m.totalOwedEnd||0) + '</b></div>'
-          + '</div>'
-          + '</div>';
-      }).join('') + '</div>';
-  }
-  if (_monthlyHistoryExpanded && listEl.style.maxHeight !== '0px') {
-    listEl.style.maxHeight = listEl.scrollHeight + 'px';
-  }
 }
 
 function renderSettingsAgedOut() {
@@ -12452,7 +12063,6 @@ function bulkAction(action) {
       b.amountPaid = fullSettlement;
       if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
       b.isPaid = true;
-      _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
       if (!b.payLog) b.payLog = [];
       b.payLog.push({ date: todayStr, time: timeStr, amount: fullSettlement, delta, note: 'Bulk mark paid', isPaid: true });
     });
@@ -12613,9 +12223,18 @@ function checkAutoRollover() {
   const today   = now.toISOString().split('T')[0];
   const active  = getActiveBorrowers();
 
-  // Archive current month summary — full stat snapshot for month-over-month comparison
+  // Archive current month summary
   if (!state.archive) state.archive = [];
-  state.archive.push(_buildMonthlySnapshot(stateMonthStr, today, { autoRolled: true }));
+  state.archive.push({
+    month:         stateMonthStr,
+    archivedAt:    today,
+    borrowerCount: state.borrowers.length,
+    paidCount:     state.borrowers.filter(b => getStatus(b) === 'Paid').length,
+    activeCount:   active.length,
+    totalCollected: (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0),
+    monthlyTarget:  state.monthlyTarget || 0,
+    autoRolled:     true,
+  });
 
   // Move remaining active accounts to aged-out log
   if (!state.agedOutLog) state.agedOutLog = [];
@@ -12732,62 +12351,6 @@ function openRolloverModal() {
   }, 0);
 }
 
-// ── Monthly Archive Snapshot ────────────────────────────────────
-// Shared by both doRollover() (manual) and checkAutoRollover() (silent),
-// so the two paths can never drift apart and always capture the same
-// stat set needed to compare one month's performance against another.
-function _buildMonthlySnapshot(monthStr, today, opts) {
-  opts = opts || {};
-  const all          = state.borrowers || [];
-  const active       = getActiveBorrowers();
-  const paid         = all.filter(b => getStatus(b) === 'Paid');
-  const partial      = all.filter(b => getStatus(b) === 'Partial');
-  const unpaid       = all.filter(b => getStatus(b) === 'Unpaid');
-  const totalOwedStart = all.reduce((s,b) => s + (b.loanDue||0), 0); // original balances this month started with
-  const totalCollected = (state.dailyLog||[]).reduce((s,e) => s + (Number(e.collected)||0), 0);
-  const totalOwedEnd    = all.reduce((s,b) => s + getDueToday(b), 0); // still outstanding at rollover time
-  const recoveryRate    = totalOwedStart > 0 ? Math.round((totalCollected / totalOwedStart) * 1000) / 10 : 0;
-  // PTP performance this month
-  const ptpSet       = all.filter(b => b.promisedToPay || b.ptpOutcome);
-  const ptpHonoured   = all.filter(b => b.isPaid && (b.ptpOutcome === 'paid' || b.promisedToPay)).length;
-  const ptpBreached   = all.filter(b => b.ptpBreached === true).length;
-  const ptpHonourRate = ptpSet.length > 0 ? Math.round((ptpHonoured / ptpSet.length) * 1000) / 10 : 0;
-  // OD-stage mix at the moment of rollover, for tracking portfolio aging trends month to month
-  const odBuckets = { 'Day 1-5':0, 'Day 6-15':0, 'Day 16-40':0, 'Day 41-60':0, 'Day 61+':0 };
-  all.forEach(b => {
-    const age = getOdAge(b.startDate, b);
-    if (age <= 5) odBuckets['Day 1-5']++;
-    else if (age <= 15) odBuckets['Day 6-15']++;
-    else if (age <= 40) odBuckets['Day 16-40']++;
-    else if (age <= 60) odBuckets['Day 41-60']++;
-    else odBuckets['Day 61+']++;
-  });
-
-  return Object.assign({
-    month:            monthStr,
-    archivedAt:       today,
-    agentId:          (_activeAgent && _activeAgent.id) || null,
-    agentStage:       (_activeAgent && _activeAgent.stage) || null,
-    borrowerCount:    all.length,
-    paidCount:        paid.length,
-    partialCount:     partial.length,
-    unpaidCount:      unpaid.length,
-    activeCount:      active.length,
-    totalCollected:   totalCollected,
-    totalOwedStart:   totalOwedStart,
-    totalOwedEnd:     totalOwedEnd,
-    recoveryRate:     recoveryRate,      // % of starting balance collected this month
-    monthlyTarget:    state.monthlyTarget || 0,
-    targetHitPct:     state.monthlyTarget > 0 ? Math.round((totalCollected / state.monthlyTarget) * 1000) / 10 : 0,
-    ptpCount:         ptpSet.length,
-    ptpHonoured:      ptpHonoured,
-    ptpBreached:      ptpBreached,
-    ptpHonourRate:    ptpHonourRate,     // % of PTPs that resulted in payment
-    odStageMix:       odBuckets,         // portfolio aging snapshot at month-end
-    activeDaysLogged: (state.dailyLog||[]).filter(e => (e.collected||0) > 0).length,
-  }, opts);
-}
-
 function doRollover() {
   const newTarget = parseFloat(document.getElementById('rollover-target')?.value) || 0;
   const selectedMonth = parseInt(document.getElementById('rollover-month').value);
@@ -12798,9 +12361,17 @@ function doRollover() {
   const today = new Date().toISOString().split('T')[0];
   const monthStr = state.month || new Date().toLocaleDateString('en-GB', {month:'long', year:'numeric'});
   
-  // Archive current state — full stat snapshot for month-over-month comparison
+  // Archive current state
   if (!state.archive) state.archive = [];
-  state.archive.push(_buildMonthlySnapshot(monthStr, today, { autoRolled: false }));
+  state.archive.push({
+    month: monthStr,
+    archivedAt: today,
+    borrowerCount: state.borrowers.length,
+    paidCount: state.borrowers.filter(b => getStatus(b)==='Paid').length,
+    activeCount: getActiveBorrowers().length,
+    totalCollected: state.dailyLog.reduce((s,e) => s+(Number(e.collected)||0), 0),
+    monthlyTarget: state.monthlyTarget || 0
+  });
   
   // Move remaining active to aged out
   const active = getActiveBorrowers();
@@ -14466,12 +14037,9 @@ Thank you for your assistance.
 
   // ── Level 19: Full OD Fee Waiver Offer ────────────────────
   if (level === 19) {
-    // "Principal remaining" here means the non-OD-fee balance still owed
-    // (loanDue - amountPaid) — NOT the raw disbursed principal, since
-    // loanDue may include interest/charges that aren't OD fees but are
-    // still owed. Using b.principal alone understated what's actually due.
-    const remaining    = getRemaining(b);
-    const odFeeAmt      = getOdFee(b);
+    const principalAmt = b.principal || b.loanDue || 0;
+    const odFeeAmt     = getOdFee(b);
+    const remaining    = Math.max(0, principalAmt - (b.amountPaid || 0));
     return `🤝 *ONE-TIME OFFER: FULL OD FEE WAIVER* 🤝
 
 DATE: ${dateStr}
@@ -14501,50 +14069,6 @@ After this deadline, the full balance of *${balance}* (including all fees and le
 *Ref: ${caseRef}*`;
   }
 
-  // ── Level 21: Day 1 OD Only Waiver ────────────────────────
-  // Borrower pays: loan balance still owed (loanDue − amountPaid) + 4% of
-  // original principal (Day 1 rate only). Every accumulated OD fee after
-  // Day 1 is waived. More generous than standard but less than full waiver.
-  if (level === 21) {
-    const remaining   = getRemaining(b);                       // loanDue − amountPaid
-    const day1Fee     = Math.round((b.principal || 0) * 0.04); // 4% of principal = Day 1 only
-    const settleAmt   = remaining + day1Fee;
-    const fullOdFee   = getOdFee(b);
-    const waivedAmt   = Math.max(0, fullOdFee - day1Fee);      // everything beyond Day 1
-    return `🟡 *SPECIAL SETTLEMENT OFFER: DAY 1 OD ONLY* 🟡
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN BALANCE: *${fmtC(remaining)}*
-DAY 1 OD FEE (4%): *${fmtC(day1Fee)}*
-*SETTLEMENT AMOUNT: ${fmtC(settleAmt)}*
-ACCRUED OD WAIVED: *${fmtC(waivedAmt)}*
-
-*${salute},*
-
-We acknowledge your account is overdue and that OD charges have been accumulating.
-
-As a one-time goodwill concession, we are offering you the following settlement:
-
-Pay your outstanding loan balance of *${fmtC(remaining)}* plus a reduced OD charge of only *${fmtC(day1Fee)}* (the Day 1 rate of 4%).
-
-All additional OD fees of *${fmtC(waivedAmt)}* accumulated after Day 1 will be *fully waived*.
-
-✅ Total you pay: *${fmtC(settleAmt)}*
-✅ Amount waived: *${fmtC(waivedAmt)}*
-✅ Account closed — no further charges
-
-*⚠️ This offer is valid until ${deadline} TODAY only and will not be renewed.*
-
-After this deadline, the full outstanding balance of *${balance}* will be pursued without concession.
-
-📌 Pay *${fmtC(settleAmt)}* via *${payNum}* and send your payment receipt to confirm the settlement.
-
-*LoanBase Recovery Management*
-*Ref: ${caseRef}*`;
-  }
-
   return '';
 }
 
@@ -14569,8 +14093,7 @@ function openEscalationPanel() {
     { level:4,  label:'💰 L4 – Partial Payment Follow-Up',  color:'#f59e0b', desc:'Acknowledge partial payment, demand remainder.' },
     { level:5,  label:'💔 L5 – Broken Promise (PTP Missed)',color:'#ef4444', desc:'Customer missed a promise to pay.' },
     { level:8,  label:'🎯 L8 – Settlement Offer',           color:'#10b981', desc:'One-time reduced amount to close account.' },
-    { level:19, label:'🤝 L19 – Full OD Fee Waiver',        color:'#22c55e', desc:'Pay remaining balance only — waive all OD fees. Last resort goodwill.' },
-    { level:21, label:'🟡 L21 – Day 1 OD Only Waiver',      color:'#f0a030', desc:'Pay loan balance + 4% (Day 1 fee only) — all accumulated OD after Day 1 waived.' },
+    { level:19, label:'🤝 L19 – Full OD Fee Waiver',        color:'#22c55e', desc:'Pay principal only — waive all OD fees. Last resort goodwill.' },
     // ── Field & third-party ────────────────────────────────────
     { level:6,  label:'🚪 L6 – Field Visit Notification',   color:'#f97316', desc:'Warn before sending a field agent.' },
     { level:14, label:'📵 L14 – Unreachable / Silent Phone', color:'#f97316', desc:'Phone not being answered — triggers offline escalation.' },
@@ -16947,26 +16470,6 @@ function setPtpOutcome2(bid, outcome) {
     if (inp) { inp.style.display = 'block'; inp.focus(); }
     return;
   }
-  // Selecting "Paid" here must actually complete the payment — not just tag a
-  // label — otherwise the borrower's real balance/OD/dashboard stay unpaid
-  // while PTP Hub stats silently count them as honoured & collected.
-  if (outcome === 'paid' && !b.isPaid) {
-    const prevPaid = b.amountPaid || 0;
-    const full = getDueToday(b) + prevPaid;
-    const delta = full - prevPaid; // actual new cash (remaining + OD fee)
-    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
-    b.amountPaid = full; b.isPaid = true;
-    _clearPromiseOnPaid(b); // remove the just-honoured promise once fully paid
-    if (!b.payLog) b.payLog = [];
-    const payDate = new Date().toISOString().split('T')[0];
-    b.payLog.push({ date: payDate, amount: full, delta, note: 'PTP honoured (EOD)', isPaid: true });
-    if (delta > 0) {
-      if (!state.dailyLog) state.dailyLog = [];
-      let logEntry = state.dailyLog.find(e => e.date === payDate);
-      if (!logEntry) { logEntry = { date: payDate, collected: 0, notes: '' }; state.dailyLog.push(logEntry); }
-      logEntry.collected = (logEntry.collected || 0) + delta;
-    }
-  }
   b.ptpOutcome = outcome;
   saveState();
   // Update the select to match
@@ -17157,12 +16660,7 @@ function buildPtpMorningHtml() {
   const rate      = ptps.length > 0 ? Math.round(honoured.length / ptps.length * 100) : 0;
   const rateCol   = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)';
   const totalExp  = ptps.reduce((s,b) => s + getDueToday(b), 0);
-  // Only count cash received TODAY from PTP borrowers (delta, not cumulative amountPaid)
-  const _ptpTodayStr = today;
-  const totalColl = ptps.reduce((s, b) => {
-    const todayDeltas = (b.payLog||[]).filter(p => (p.date||'').startsWith(_ptpTodayStr) && (Number(p.delta)||0) > 0);
-    return s + todayDeltas.reduce((a, p) => a + (Number(p.delta)||0), 0);
-  }, 0);
+  const totalColl = ptps.filter(b => b.amountPaid > 0).reduce((s,b) => s + b.amountPaid, 0);
   const upcoming  = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.split(' ')[0] > today)
                       .sort((a,b) => a.promiseDate.localeCompare(b.promiseDate));
   const tomorrowPtps = upcoming.filter(b => b.promiseDate.startsWith(tomorrow));
@@ -17264,21 +16762,17 @@ function buildPtpMorningHtml() {
       const phone = b.phone.replace(/\s/g,'').replace('+','');
       const oc = b.ptpOutcome || 'no outcome';
       const ocColor = oc === 'broken' ? 'var(--red)' : oc === 'no_answer' ? 'var(--orange)' : 'var(--text3)';
-      html += `<div style="padding:8px 10px;background:var(--surface);border-radius:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--red)"></div>
-          <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
-            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name.split(' ')[0])}</div>
-            <div style="font-size:10px;color:${ocColor}">${oc.replace(/_/g,' ')}</div>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red);flex-shrink:0">${fmtC(getDueToday(b))}</div>
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:8px">
+        <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--red)"></div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
+          <div style="font-size:12px;font-weight:600">${escapeHtml(b.name.split(' ')[0])}</div>
+          <div style="font-size:10px;color:${ocColor}">${oc.replace(/_/g,' ')}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
-          <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
-          <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
-          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
-        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--red)">${fmtC(getDueToday(b))}</div>
+        <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
+        <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
+        <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
+        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
       </div>`;
     });
     html += `</div></div>`;
@@ -17559,7 +17053,7 @@ function buildPtpEodHtml() {
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">EOD Summary · ${todayStr}</div>
         <span style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:${convCol}">${conv}%</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" class="eod-stat-grid">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
         <div style="text-align:center;background:rgba(34,197,94,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--green)">${paid_c}</div><div style="font-size:10px;color:var(--text3)">Paid</div></div>
         <div style="text-align:center;background:rgba(232,160,32,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--gold)">${partial_c}</div><div style="font-size:10px;color:var(--text3)">Partial</div></div>
         <div style="text-align:center;background:rgba(239,68,68,0.08);border-radius:8px;padding:8px"><div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--red)">${broken_c}</div><div style="font-size:10px;color:var(--text3)">Broken</div></div>
@@ -18230,6 +17724,24 @@ function buildPtpReportHtml() {
   return html;
 }
 
+function setPtpOutcome(id, outcome) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  b.ptpOutcome = outcome;
+  if (outcome === 'paid') {
+    const _prevPaid = b.amountPaid;
+    const full = getDueToday(b) + b.amountPaid;
+    if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
+    b.amountPaid = full; b.isPaid = true;
+    if (!b.payLog) b.payLog = [];
+    b.payLog.push({ date: new Date().toISOString().split('T')[0], amount: full, delta: full - _prevPaid, note: 'PTP honoured', isPaid: true });
+  } else if (outcome === 'partial') {
+    openPayModal(id); return;
+  }
+  saveState(); renderPtpHub();
+  toast(b.name.split(' ')[0] + ': ' + outcome, 'success');
+}
+
 function buildPtpHistoryHtml() {
   const snaps = state.ptpSnapshots || [];
   if (!snaps.length) return `<div style="padding:40px 0;text-align:center;color:var(--text3);font-size:12px">
@@ -18812,16 +18324,7 @@ function quickPay(id, pct) {
   }
   b.isPaid = b.isPaid || (newPaid >= fullSettlement && fullSettlement > 0);
   if (!b.payLog) b.payLog = [];
-  const _qpDelta = newPaid - _qpPrevPaid;
-  const _qpDate  = new Date().toISOString().split('T')[0];
-  b.payLog.push({ date: _qpDate, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: _qpDelta, note: 'Quick pay', isPaid: b.isPaid });
-  // Write delta to daily log immediately
-  if (_qpDelta > 0) {
-    if (!state.dailyLog) state.dailyLog = [];
-    let _qpLog = state.dailyLog.find(e => e.date === _qpDate);
-    if (!_qpLog) { _qpLog = { date: _qpDate, collected: 0, notes: '' }; state.dailyLog.push(_qpLog); }
-    _qpLog.collected = (_qpLog.collected || 0) + _qpDelta;
-  }
+  b.payLog.push({ date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: newPaid, delta: newPaid - _qpPrevPaid, note: 'Quick pay', isPaid: b.isPaid });
   haptic(b.isPaid ? 'fullpay' : 'pay');
   const st = getStatus(b);
   toast((b.isPaid ? '✅ ' : '💰 ') + b.name.split(' ')[0] + (b.isPaid ? ' fully paid! 🎉' : ' payment recorded'), 'success');
@@ -19170,107 +18673,6 @@ textarea { max-width: 100%; box-sizing: border-box; overflow-wrap: break-word; }
 
 /* Prevent body horizontal scroll globally */
 html, body { overflow-x: hidden; max-width: 100vw; }
-
-/* ── COMPREHENSIVE OVERFLOW FIXES ─────────────────────────────
-   Covers: borrower cards, filter bar, PTP Hub, EOD outcomes,
-   M2 strip, KPI grid, promise modal, monthly history, settings.
-   All sizes are intentional — see comments.
-   ─────────────────────────────────────────────────────────── */
-
-/* Borrower card right-side amount column: never a fixed min-width
-   wider than the card allows. 70px is the narrowest it needs to
-   show ₵99,999 in the mono font without wrapping. */
-.bl-amounts { min-width: 70px; max-width: 110px; }
-.bl-due { font-size: clamp(11px, 3.5vw, 14px); }
-
-/* Filter bar: all child items must be able to shrink/wrap */
-.bl-filter-bar { flex-wrap: wrap; }
-.bl-chips { flex-wrap: wrap; row-gap: 6px; }
-.bl-chip-sel { max-width: 100%; box-sizing: border-box; }
-#loan-amount-custom { flex-wrap: wrap; max-width: 100%; }
-#loan-amt-min, #loan-amt-max { min-width: 0; width: 60px; flex: 1 1 60px; box-sizing: border-box; }
-#bl-sort-sel { max-width: 100%; }
-
-/* Dashboard M2 target strip: inner flex must clamp the locked badge */
-#dash-m2-strip > div { flex-wrap: wrap; min-width: 0; }
-#dash-m2-strip > div > div { min-width: 0; overflow: hidden; }
-
-/* Dashboard KPI grid: switch to 1-col on very small screens */
-@media (max-width: 360px) {
-  .kpi-grid { grid-template-columns: 1fr; }
-  .kpi-value { font-size: 18px; }
-}
-
-/* PTP Hub morning/EOD rows */
-.ptp-outcome-row { flex-wrap: wrap; gap: 6px; min-width: 0; }
-.ptp-oc-sel { min-width: 0; flex: 1 1 120px; max-width: 100%; box-sizing: border-box; }
-
-/* EOD 4-stat grid: drop to 2×2 on narrow screens */
-@media (max-width: 400px) {
-  .eod-stat-grid,
-  [style*="grid-template-columns:repeat(4,1fr)"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-/* PTP Hub carryover / promise rows: right-side amount must not push row wide */
-[data-detailid] { min-width: 0; overflow: hidden; }
-
-/* Promise modal: date + time fields always contained */
-.ptp-field { min-width: 0; box-sizing: border-box; overflow: hidden; }
-.ptp-field input { min-width: 0; max-width: 100%; }
-#ptp-age-badge { flex-shrink: 0; }
-
-/* Promise quick-date/time pill grids: allow smaller pills on tiny screens */
-@media (max-width: 360px) {
-  .ptp-pill { font-size: 11px; padding: 8px 2px; }
-}
-
-/* Monthly history grid in settings: drop to 2-col on narrow */
-@media (max-width: 420px) {
-  #settings-monthly-list [style*="grid-template-columns:1fr 1fr 1fr"] {
-    grid-template-columns: 1fr 1fr !important;
-  }
-}
-
-/* Borrower detail modal: stat rows must wrap */
-/* bd-hero is already correctly structured with flex:1/min-width:0 */
-.bd-hero-quick { max-width: 80px; min-width: 0; }
-
-/* Borrower detail 3-col inline stat grid: stays 3-col but shrinks text */
-@media (max-width: 360px) {
-  .modal-body [style*="grid-template-columns:1fr 1fr 1fr"] {
-    gap: 4px !important;
-  }
-  .modal-body [style*="grid-template-columns:1fr 1fr 1fr"] [style*="font-size:13px"] {
-    font-size: 11px !important;
-  }
-}
-
-/* Table wrap: always scroll horizontally, never expand viewport */
-.table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
-table { min-width: 480px; }
-
-/* Action strip: hide scrollbar on all browsers but keep scrollability */
-.action-strip { -webkit-overflow-scrolling: touch; }
-.action-strip::-webkit-scrollbar { display: none; }
-
-/* Week forecast strip in PTP Hub */
-[style*="overflow-x:auto"] { -webkit-overflow-scrolling: touch; }
-
-/* Modal: always contained */
-.modal { box-sizing: border-box; overflow: hidden; }
-.modal-body { overflow-x: hidden; word-break: break-word; box-sizing: border-box; }
-
-/* Generic flex containers generated via innerHTML — ensure they can't overflow */
-.card, .settings-group { min-width: 0; overflow: hidden; }
-
-/* Any inline-flex badge that has nowrap text — allow it to shrink on very small screens */
-@media (max-width: 360px) {
-  .promise-badge, .badge-quickwin { font-size: 9px; padding: 1px 4px; }
-}
-
-/* ── END OVERFLOW FIXES ───────────────────────────────────── */
 
 
 
@@ -20169,7 +19571,6 @@ function openOdFeeModal(id) {
 
 // ── F7: PTP Breach Checker ───────────────────────────────────
 function checkPtpBreaches() {
-  if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(b => {
@@ -21456,32 +20857,28 @@ function showDevOverride() {
   document.getElementById('dev-override-input').value = '';
   document.getElementById('dev-override-input').focus();
 }
-async function checkDevOverride() {
+function checkDevOverride() {
   const code = document.getElementById('dev-override-input')?.value.trim().toUpperCase();
-  if (!code) { document.getElementById('dev-override-error').textContent = 'Enter the override code'; return; }
-  // Dev override: hash the entered code and compare -- raw key is never stored
-  try {
+  // Dev override: hash the entered code and compare — raw key is never stored
+  const _devHash = await (async function(c) {
     const enc = new TextEncoder();
-    const km = await crypto.subtle.importKey('raw', enc.encode(code), {name:'PBKDF2'}, false, ['deriveBits']);
+    const km = await crypto.subtle.importKey('raw', enc.encode(c), {name:'PBKDF2'}, false, ['deriveBits']);
     const bits = await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(PIN_SALT),iterations:100000,hash:'SHA-256'}, km, 256);
-    const _devHash = Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
-    if (_devHash === DEV_OVERRIDE_HASH) {
-      // Valid -- set new PIN mode for this agent
-      if (!_pinTarget) { document.getElementById('dev-override-error').textContent = 'Select an agent first'; return; }
-      document.getElementById('lock-dev-override').style.display = 'none';
-      _pinBuffer = '';
-      _pinMode = 'set';
-      updatePinDots();
-      document.getElementById('lock-pin-error').textContent = 'Enter a new 4-digit PIN';
-      document.getElementById('lock-pin-name').textContent = 'Set new PIN -- ' + _pinTarget.name;
-      haptic('medium');
-      toast('Override accepted -- set a new PIN', 'success');
-    } else {
-      document.getElementById('dev-override-error').textContent = 'Invalid override code';
-      haptic('medium');
-    }
-  } catch (e) {
-    document.getElementById('dev-override-error').textContent = 'Verification error -- try again';
+    return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  })(code);
+  if (_devHash === DEV_OVERRIDE_HASH) {
+    // Valid — set new PIN mode for this agent
+    if (!_pinTarget) { document.getElementById('dev-override-error').textContent = 'Select an agent first'; return; }
+    document.getElementById('lock-dev-override').style.display = 'none';
+    _pinBuffer = '';
+    _pinMode = 'set';
+    updatePinDots();
+    document.getElementById('lock-pin-error').textContent = 'Enter a new 4-digit PIN';
+    document.getElementById('lock-pin-name').textContent = 'Set new PIN — ' + _pinTarget.name;
+    haptic('medium');
+    toast('Override accepted — set a new PIN', 'success');
+  } else {
+    document.getElementById('dev-override-error').textContent = 'Invalid override code';
     haptic('medium');
   }
 }
@@ -21897,7 +21294,6 @@ function renderSettingsPage() {
   renderHealthPage();
   renderUndoHistory();
   renderSettingsAgedOut();
-  renderSettingsMonthlyHistory();
   _updateBioSettingsRow();
   // Admin access — long-press 3s on SqueveTrack row
   (function() {
@@ -22511,10 +21907,8 @@ function resetAutoLockTimer() {
 }
 
 function initAutoLock() {
-  // Restore saved setting — defaults to 1 minute for security if the agent
-  // has never explicitly set this. Once they choose any value (including
-  // "Off"), that choice is saved and always respected from then on.
-  const saved = parseInt(localStorage.getItem('auto_lock_minutes') || '1');
+  // Restore saved setting
+  const saved = parseInt(localStorage.getItem('auto_lock_minutes') || '0');
   _autoLockMinutes = saved;
   // Set dropdown value when settings page opens (called from renderSettingsPage)
   const sel = document.getElementById('auto-lock-select');
@@ -23177,18 +22571,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!b.isPaid && b.amountPaid > 0 && b.loanDue > 0 && b.amountPaid >= b.loanDue) {
         if (b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age at payment day
         b.isPaid = true;
-        _clearPromiseOnPaid(b); // remove any lingering promise once fully paid
         delete b.odFeeSnapshot; delete b.odFeeSnapshotDate; delete b.odFeeSnapshotNote;
       }
-      // Backfill: existing paid accounts that predate this feature — freeze them now
-      // (uses current live age as best approximation; will not re-freeze once set)
+      // Backfill: existing paid accounts that don't have paidAtOdAge yet —
+      // freeze them now at their current computed age (best approximation)
       if (b.isPaid && b.paidAtOdAge == null) {
         b.paidAtOdAge = getOdAge(b.startDate, b);
-      }
-      // Backfill: existing paid accounts that still carry a lingering promise
-      // from before this fix — clear it so PTP Hub and breach counts stay accurate
-      if (b.isPaid && (b.promisedToPay || b.ptpBreached)) {
-        _clearPromiseOnPaid(b);
       }
     });
   }
@@ -23249,7 +22637,6 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   setInterval(() => {
     if (document.hidden) return;
     if (!_activeAgent || !_sessionUnlocked) return;
-    if (!state || !state.borrowers) return; // state is briefly null mid-agent-switch — skip this tick
     const countBefore = state.borrowers.length;
     const ptpBefore   = state.borrowers.filter(b=>b.promisedToPay).length;
     purgeAgedOut();
