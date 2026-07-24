@@ -5565,6 +5565,7 @@ function migrateState(s) {
   (s.borrowers||[]).forEach(b => {
     if (b.promisedToPay === undefined) b.promisedToPay = false;
     if (b.isPaid === undefined) b.isPaid = (b.amountPaid > 0 && b.amountPaid >= b.loanDue); // sticky: only set if truly undefined
+    if (b.isPaid && b.paidAtOdAge == null) b.paidAtOdAge = getOdAge(b.startDate, b); // freeze age — otherwise paid accounts keep aging live
     if (!b.payLog) b.payLog = [];
     if (!b.callLog) b.callLog = [];
     if (b.ptpBreached === undefined) b.ptpBreached = false;
@@ -9300,7 +9301,9 @@ function doExportXLSX() {
   const { checkedCols, colDefs, borrowers, descriptor } = _getExportData();
   if (!checkedCols.length) return toast('Select at least one column', 'error');
   if (!window.XLSX) return toast('SheetJS library not loaded — try refreshing', 'error');
-  const month = new Date().toLocaleDateString('en-GB',{month:'short',year:'numeric'}).replace(' ','');
+  const _now = new Date();
+  const month = _now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
+    + '-' + _now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
 
   // Build worksheet data array
   const header = checkedCols.map(c => colDefs[c].label);
@@ -11938,7 +11941,9 @@ function doSmsExportXLSX() {
   const ws2 = XLSX.utils.aoa_to_sheet(summary);
   ws2['!cols'] = [{wch:20},{wch:12},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
-  const month = new Date().toLocaleDateString('en-GB',{month:'short',year:'numeric'}).replace(' ','-');
+  const _smsNow = new Date();
+  const month = _smsNow.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
+    + '-' + _smsNow.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
   XLSX.writeFile(wb, 'SMS-Blast-'+month+'.xlsx');
   closeModal(); toast('📊 Excel exported — ' + reviewContacts.length + ' contacts', 'success');
 }
@@ -13935,6 +13940,11 @@ function _escalAgentPhone() {
   return localStorage.getItem('sq_agent_phone') || '+233 123 456 789';
 }
 
+function _escalPayGuide(b) {
+  const serial = b.loanType === 'LoanBase Pro' ? '2' : '1';
+  return 'Dial *' + _escalPhone() + '* > Enter loan number > Select ' + serial + ' (' + b.loanType + ') > Enter amount > Confirm payment.';
+}
+
 function _escalVisitDate() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -13948,7 +13958,6 @@ function buildEscalationMsg(b, level) {
   const fullName  = b.name.toUpperCase();
   const balance   = fmtC(getDueToday(b));
   const deadline  = _escalDeadline();
-  const payNum    = _escalPhone();
   const odDays    = getOdAge(b.startDate, b);
   const loanType = b.loanType;
 
@@ -13959,7 +13968,7 @@ function buildEscalationMsg(b, level) {
 
 We hope this message finds you well.
 
-We noticed your current loan payment is delayed, and because you have a *perfect repayment record* with us, we are reaching out with concern — not pressure. Your commitment to paying on time has always been appreciated.
+We noticed your current ${b.loanType} payment is delayed, and because you have a *perfect repayment record* with us, we are reaching out with concern — not pressure. Your commitment to paying on time has always been appreciated.
 
 Are you currently facing a temporary challenge that is preventing you from completing the payment?
 
@@ -13969,7 +13978,9 @@ We want to help you maintain your good standing. Due to your history, we can imm
 
 2. *Flexible Instalment Plan:* We can set up a manageable plan to split the outstanding balance over a period that suits your current situation.
 
-Please call or reply to us today so we can find the best solution and activate your waiver or instalment plan immediately. Your success is our priority.
+Please call or reply to us today so we can find the best solution and activate your waiver or instalment plan immediately. If you'd rather pay now: ${_escalPayGuide(b)}
+
+Your success is our priority.
 
 Sincerely,
 *LoanBase Management Team*`;
@@ -13982,6 +13993,7 @@ Sincerely,
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 OUTSTANDING BALANCE: *${balance}*
 
 *${salute},*
@@ -13997,86 +14009,11 @@ Your account has been escalated to our *Enforcement Division*. Failure to respon
 💡 *TO PREVENT ESCALATION:*
 Make your payment of *${balance}* today before *${deadline}*.
 
-📌 Dial *${payNum}* or use the LoanBase App to settle immediately.
+📌 ${_escalPayGuide(b)} Or use the LoanBase App to settle immediately.
 
 Your prompt action is required.
 
 *LoanBase Recovery Management*`;
-  }
-
-  if (level === 2) {
-    // ── LEVEL 2: Final Pre-Litigation Notice (like the sample) ──
-    return `⚠️ *FINAL PRE-LITIGATION & FIELD ENFORCEMENT NOTICE* ⚠️
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-OUTSTANDING BALANCE: *${balance}*
-
-*${salute},*
-
-This is a formal and final notice regarding your persistent default. We have noted your repetitive refusal to answer official recovery calls. These actions have now been officially documented as *"Willful Financial Evasion."*
-
-Since you have failed to utilize the grace period provided, LoanBase Management has authorized the following *MANDATORY ENFORCEMENT ACTIONS* beginning today:
-
-📍 *1. FIELD RECOVERY DISPATCH:* A recovery team has been assigned to your registered residential address. Since you are "too busy" for phone calls, our agents will conduct a face-to-face recovery.
-
-🚫 *2. CREDIT BUREAU BLACKLISTING:* Your Ghana Card (ID) is being uploaded to the National Credit Bureau. This will result in a permanent ban from all financial services, bank loans, and MoMo credit platforms across Ghana.
-
-📢 *3. THIRD-PARTY DISCLOSURE:* We are legally authorized to contact your listed references, family members, and guarantors to verify your location. Your debt will no longer be a private matter.
-
-⚖️ *4. JUDICIAL ATTACHMENT:* Under the Borrowers and Lenders Act 2008 (Act 773), we will proceed with the attachment of assets and a mandatory lien on all linked bank and MoMo accounts to recover the *full ${balance} plus accumulated recovery fees.*
-
----
-💡 *REQUIRED IMMEDIATE ACTION:*
-To halt this process, you must make an *IMMEDIATE PAYMENT TODAY by ${deadline}.*
-
-📌 *PAYMENT METHOD:*
-Dial *${payNum}* or use the LoanBase App to confirm payment.
----
-
-This is your final opportunity to protect your reputation and avoid a public scene. The clock is running.
-
-Sincerely,
-*LoanBase Recovery Management*`;
-  }
-
-  if (level === 3) {
-    // ── LEVEL 3: Litigation Commenced Notice ────────────────────
-    return `🔴 *NOTICE OF LITIGATION COMMENCEMENT* 🔴
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-COURT FILE: PENDING — *${fullName}*
-JUDGMENT AMOUNT: *${balance} + LEGAL FEES*
-
-*${salute},*
-
-BE ADVISED: LoanBase has formally instructed our legal counsel to commence civil litigation proceedings against you for the recovery of *${balance}* arising from your ${b.loanType} account, ${odDays} days in default.
-
-The following actions are NOW IN PROGRESS:
-
-⚖️ *COURT FILING:* A civil suit has been filed at the District Court. You will receive a formal court summons at your registered address within 5-7 working days.
-
-🏦 *ACCOUNT FREEZING:* We have formally notified your financial institutions of this proceeding. Applicable account restrictions are being applied under Act 773.
-
-📋 *CREDIT BUREAU:* Your default has been permanently registered with the Ghana Credit Bureau. This record will remain for *5 years* and will affect all future credit applications, employment background checks, and MoMo services.
-
-👥 *GUARANTOR NOTIFICATION:* Your guarantors and listed references are being formally notified of this litigation as required by law.
-
-🚗 *ASSET INVENTORY:* A court-authorized agent will conduct an inventory of attachable assets at your registered address.
-
----
-⚠️ *THIS IS YOUR ABSOLUTE FINAL OPPORTUNITY:*
-
-Full payment of *${balance}* must be received by *${deadline} TODAY* to halt all proceedings.
-
-After this deadline, additional legal fees, court costs, and enforcement charges will be added to the judgment amount. Settlement will *not* be possible below the full judgment amount.
-
-📌 Dial *${payNum}* or contact us immediately.
-
-*LoanBase Legal Recovery Division*
-*Ref: ${caseRef}*`;
   }
 
   // ========== NEW LEVELS 4–13 ==========
@@ -14089,6 +14026,7 @@ After this deadline, additional legal fees, court costs, and enforcement charges
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 OUTSTANDING BALANCE: *${balance}*
 
  ${salute},
@@ -14099,7 +14037,7 @@ However, a balance of *${balance}* remains unpaid and is now *${odDays} days* ov
 
 To avoid escalation to formal recovery, you must settle the full outstanding balance by *${deadline}*.
 
-📌 Dial *${payNum}* to complete your payment immediately.
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
@@ -14112,6 +14050,7 @@ To avoid escalation to formal recovery, you must settle the full outstanding bal
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 PROMISED DATE: ${promiseDate}
 AMOUNT DUE: *${balance}*
 
@@ -14127,7 +14066,7 @@ You have *24 hours* to make the payment. Failure to do so will result in:
 • Credit bureau reporting
 • Legal notice of default
 
-📌 Pay now via *${payNum}*.
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
@@ -14141,6 +14080,7 @@ You have *24 hours* to make the payment. Failure to do so will result in:
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 ADDRESS: (as registered)
 
  ${salute},
@@ -14151,7 +14091,7 @@ A *field recovery agent* has been scheduled to visit your registered address on 
 
 To avoid an in‑person visit, please call us immediately at *${agentPhone}* or make a payment of *${balance}* before *${visitDate}*.
 
-📌 Dial *${payNum}* for instant payment.
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
@@ -14164,6 +14104,7 @@ To avoid an in‑person visit, please call us immediately at *${agentPhone}* or 
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 TOTAL OUTSTANDING: *${balance}* (including fees)
 
  ${salute},
@@ -14179,7 +14120,7 @@ If full payment is not received by *${deadline}*, the following will occur WITHO
 
 You can still avoid legal action by paying *${balance}* immediately.
 
-📌 Dial *${payNum}* or contact us on *${agentPhone}*.
+📌 ${_escalPayGuide(b)} Or contact us on *${agentPhone}*.
 
 *LoanBase Legal Recovery Unit*`;
   }
@@ -14193,6 +14134,7 @@ if (level === 8) {
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 ORIGINAL BALANCE: *${balance}*
 OFFERED SETTLEMENT: *${fmtC(discounted)}*
 
@@ -14206,7 +14148,7 @@ Upon payment of ${fmtC(discounted)}, your account will be marked *PAID IN FULL* 
 
 After ${deadline}, the full balance of ${balance} plus accrued fees will be pursued.
 
-📌 Pay now via *${payNum}*.
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
 }
@@ -14221,6 +14163,7 @@ After ${deadline}, the full balance of ${balance} plus accrued fees will be purs
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 PLAN: *${instalmentAmount}* every *${instalmentFreq}* starting *${instalmentStart}*
 
  ${salute},
@@ -14233,7 +14176,7 @@ Thank you for committing to the following repayment plan for your overdue ${loan
 
 Please ensure each payment is made on or before the due date. Missing two consecutive instalments will void this agreement and reactivate full recovery actions.
 
-📌 Dial *${payNum}* and select “Instalment Payment”.
+📌 ${_escalPayGuide(b)} Then select "Instalment Payment".
 
 *LoanBase Recovery Management*`;
   }
@@ -14247,6 +14190,7 @@ Please ensure each payment is made on or before the due date. Missing two consec
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 MISSED INSTALMENT: *${instalmentAmount}* due on *${instalmentStart}*
 
  ${salute},
@@ -14257,54 +14201,32 @@ Under the terms of your instalment agreement, this constitutes a breach. You hav
 
 If payment is not received by *${deadline}*, your instalment plan will be cancelled and the full outstanding balance of *${balance}* will become due immediately, with escalation proceedings restarted.
 
-📌 Pay the missed amount now via *${payNum}*.
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
 
-  // Level 11: Asset Attachment Warning (secured loans)
-  if (level === 11) {
-    const assetDesc = b.assetDescription || 'the collateral listed in your agreement';
-    const visitDate = _escalVisitDate();
-    return `🚨 *ASSET ATTACHMENT WARNING* 🚨
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-SECURED ASSET: *${assetDesc}*
-
- ${salute},
-
-Your ${loanType} loan is secured against *${assetDesc}*. You are now *${odDays} days* in default with an outstanding balance of *${balance}*.
-
-We have obtained a *court order* for the attachment and repossession of the above‑mentioned asset.
-
-A recovery team will arrive at your registered address on *${visitDate}* to take possession of the asset unless you pay the full outstanding amount *before that date*.
-
-📌 To stop repossession, pay *${balance}* immediately via *${payNum}*.
-
-*LoanBase Legal & Recovery Unit*`;
-  }
-
-  // Level 12: Guarantor Notification
+  // Level 12: Guarantor / Emergency Contact Notification (merged — same audience, same purpose)
   if (level === 12) {
-    const guarantorName = b.guarantorName || 'the guarantor on file';
+    const contactName = b.guarantorName || b.emergencyContact || 'listed contact';
+    const isGuarantor  = !!b.guarantorName;
     const agentPhone = _escalAgentPhone();
-    return `📢 *GUARANTOR NOTIFICATION OF DEFAULT* 📢
+    return `📢 *${isGuarantor ? 'GUARANTOR' : 'EMERGENCY CONTACT'} NOTIFICATION OF DEFAULT* 📢
 
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 BORROWER: *${fullName}*
-GUARANTOR: *${guarantorName}*
+LOAN TYPE: *${loanType}*
+${isGuarantor ? 'GUARANTOR' : 'CONTACT'}: *${contactName}*
 AMOUNT DUE: *${balance}*
 
- ${guarantorName},
+Dear *${contactName}*,
 
-This is to inform you that ${b.name} has defaulted on their ${loanType} loan with an outstanding balance of *${balance}*, now *${odDays} days* overdue.
+This is to inform you that ${b.name} has defaulted on their ${loanType} loan with an outstanding balance of *${balance}*, now *${odDays} days* overdue. All direct contact attempts have been unsuccessful.
 
-As the guarantor, you are legally liable for this debt. Please contact ${b.name} immediately to arrange payment.
+${isGuarantor ? `As the guarantor, you are legally liable for this debt. Please contact ${b.name} immediately to arrange payment.` : `Please ask ${b.name} to contact us immediately, or reach out to help arrange payment.`}
 
-If the loan is not brought current within *7 days*, we will pursue recovery against you directly, including legal action and credit bureau reporting in your name.
+If this matter is not resolved within *7 days*, we will pursue recovery${isGuarantor ? ' against you directly, including legal action and credit bureau reporting in your name' : ' and all listed contacts will be involved'}.
 
 📌 Contact us at *${agentPhone}* to discuss settlement.
 
@@ -14318,6 +14240,7 @@ If the loan is not brought current within *7 days*, we will pursue recovery agai
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 AMOUNT PAID: *${balance}*
 
  ${salute},
@@ -14338,6 +14261,7 @@ Thank you for resolving this matter.
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 OUTSTANDING BALANCE: *${balance}*
 
 *${salute},*
@@ -14352,7 +14276,7 @@ We are now proceeding with *offline escalation*, which includes:
 • Contact with your listed references and emergency contacts
 • Formal filing with the Credit Bureau
 
-You may still prevent all of the above by calling *${_escalAgentPhone()}* or paying *${balance}* via *${payNum}* before *${deadline}*.
+You may still prevent all of the above by calling *${_escalAgentPhone()}* or paying *${balance}* before *${deadline}*: ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
@@ -14365,6 +14289,7 @@ You may still prevent all of the above by calling *${_escalAgentPhone()}* or pay
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 OUTSTANDING BALANCE: *${balance}*
 
 *${salute},*
@@ -14377,7 +14302,7 @@ LoanBase is authorised to contact *${workplace}* if payment is not received by *
 
 This action is not our preference. Pay *${balance}* now to prevent workplace contact.
 
-📌 Dial *${payNum}* or call *${_escalAgentPhone()}* immediately.
+📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* immediately.
 
 *LoanBase Recovery Management*`;
   }
@@ -14389,6 +14314,7 @@ This action is not our preference. Pay *${balance}* now to prevent workplace con
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 OUTSTANDING BALANCE: *${balance}*
 
 *${salute},*
@@ -14404,64 +14330,10 @@ This is formal notice that your Ghana Card identification and loan default detai
 
 A reversal is possible — but ONLY upon full payment of *${balance}*.
 
-📌 Pay now via *${payNum}* and send your confirmation to initiate the reversal.
+📌 ${_escalPayGuide(b)} Then send your confirmation to initiate the reversal.
 
 *LoanBase Recovery Management*
 *Ref: ${caseRef}*`;
-  }
-
-  // ── Level 17: Debt Write-Off Warning ──────────────────────
-  if (level === 17) {
-    return `⚠️ *FINAL ACCOUNT REVIEW – WRITE-OFF WARNING* ⚠️
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-OUTSTANDING BALANCE: *${balance}*
-
-*${salute},*
-
-Your account has been referred to our *Final Account Review Committee*. After *${odDays} days* of non-payment, your file is being evaluated for *debt write-off and external litigation handover*.
-
-A write-off does *NOT* cancel your debt. It means:
-
-• Your file transfers permanently to a licensed recovery agency
-• Legal proceedings under Act 773 will be initiated immediately
-• All recovery costs are added to your balance
-• Your credit record will carry the notation *"Written-Off"* — the most severe flag possible
-
-*This is your absolute final opportunity* to resolve this directly with LoanBase.
-
-Full payment of *${balance}* by *${deadline}* will withdraw your file from write-off review.
-
-📌 Pay immediately via *${payNum}*.
-
-*LoanBase Final Recovery Unit*`;
-  }
-
-  // ── Level 18: Emergency Contact Notification ──────────────
-  if (level === 18) {
-    const emergencyName = b.guarantorName || b.emergencyContact || 'listed emergency contact';
-    return `📢 *EMERGENCY CONTACT NOTIFICATION* 📢
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-BORROWER: *${fullName}*
-OUTSTANDING BALANCE: *${balance}*
-
-Dear *${emergencyName}*,
-
-You are listed as the emergency contact / guarantor for *${b.name}* in connection with their ${loanType} loan with LoanBase.
-
-*${b.name}*'s account is *${odDays} days* overdue with an outstanding balance of *${balance}*. All direct contact attempts have been unsuccessful.
-
-Please ask *${b.name}* to contact us immediately on *${_escalAgentPhone()}* or to make payment via *${payNum}*.
-
-If this matter is not resolved within *48 hours*, formal legal proceedings will commence and all listed contacts will be involved.
-
-Thank you for your assistance.
-
-*LoanBase Recovery Management*`;
   }
 
   // ── Level 19: Full OD Fee Waiver Offer ────────────────────
@@ -14477,6 +14349,7 @@ Thank you for your assistance.
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 PRINCIPAL REMAINING: *${fmtC(remaining)}*
 OD FEES WAIVED: *${fmtC(odFeeAmt)}*
 *YOU ONLY PAY: ${fmtC(remaining)}*
@@ -14495,7 +14368,7 @@ Pay only the outstanding principal of *${fmtC(remaining)}* and we will waive *AL
 
 After this deadline, the full balance of *${balance}* (including all fees and legal costs) will be pursued with no further concessions.
 
-📌 Pay *${fmtC(remaining)}* via *${payNum}* and send your receipt to confirm the waiver.
+📌 ${_escalPayGuide(b)} Then send your receipt to confirm the waiver.
 
 *LoanBase Recovery Management*
 *Ref: ${caseRef}*`;
@@ -14516,6 +14389,7 @@ After this deadline, the full balance of *${balance}* (including all fees and le
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
 LOAN BALANCE: *${fmtC(remaining)}*
 DAY 1 OD FEE (4%): *${fmtC(day1Fee)}*
 *SETTLEMENT AMOUNT: ${fmtC(settleAmt)}*
@@ -14539,7 +14413,7 @@ All additional OD fees of *${fmtC(waivedAmt)}* accumulated after Day 1 will be *
 
 After this deadline, the full outstanding balance of *${balance}* will be pursued without concession.
 
-📌 Pay *${fmtC(settleAmt)}* via *${payNum}* and send your payment receipt to confirm the settlement.
+📌 ${_escalPayGuide(b)} Then send your payment receipt to confirm the settlement.
 
 *LoanBase Recovery Management*
 *Ref: ${caseRef}*`;
@@ -14562,8 +14436,6 @@ function openEscalationPanel() {
     { level:20, label:'💛 L20 – Sympathetic (Good History)',  color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
     // ── Standard warnings ─────────────────────────────────────
     { level:1,  label:'⚠️ L1 – Formal Warning',            color:'#f97316', desc:'First escalation. Credit bureau threat, 24 hr deadline.' },
-    { level:2,  label:'⚖️ L2 – Pre-Litigation',            color:'#dc2626', desc:'Final notice. Field dispatch, third-party disclosure.' },
-    { level:3,  label:'🔴 L3 – Litigation Commenced',       color:'#7c3aed', desc:'Court filing confirmed, account freeze, asset inventory.' },
     { level:7,  label:'⚖️ L7 – Final Demand (Pre-Legal)',   color:'#dc2626', desc:'Last notice before handing over to lawyers.' },
     // ── Payment & promise related ──────────────────────────────
     { level:4,  label:'💰 L4 – Partial Payment Follow-Up',  color:'#f59e0b', desc:'Acknowledge partial payment, demand remainder.' },
@@ -14575,12 +14447,9 @@ function openEscalationPanel() {
     { level:6,  label:'🚪 L6 – Field Visit Notification',   color:'#f97316', desc:'Warn before sending a field agent.' },
     { level:14, label:'📵 L14 – Unreachable / Silent Phone', color:'#f97316', desc:'Phone not being answered — triggers offline escalation.' },
     { level:15, label:'💼 L15 – Workplace Contact Warning',  color:'#ef4444', desc:'Warn of employer contact if payment not received today.' },
-    { level:18, label:'📢 L18 – Emergency Contact Notice',   color:'#8b5cf6', desc:'Notify guarantor / emergency contact of default.' },
-    { level:12, label:'👥 L12 – Guarantor Notification',    color:'#8b5cf6', desc:'Inform guarantor of default.' },
+    { level:12, label:'👥 L12 – Guarantor / Emergency Contact', color:'#8b5cf6', desc:'Notify guarantor or emergency contact of default.' },
     // ── Credit & legal consequences ────────────────────────────
-    { level:11, label:'🚗 L11 – Asset Attachment Warning',  color:'#ef4444', desc:'For secured loans – repossession threat.' },
     { level:16, label:'🚫 L16 – Credit Bureau Filed',        color:'#dc2626', desc:'Confirm submission to Ghana Credit Bureau.' },
-    { level:17, label:'⚠️ L17 – Write-Off Warning',          color:'#7c3aed', desc:'Final account review — external handover if unpaid.' },
     // ── Instalment plans ──────────────────────────────────────
     { level:9,  label:'📅 L9 – Instalment Confirmation',    color:'#3b82f6', desc:'Confirm a structured repayment plan.' },
     { level:10, label:'⚠️ L10 – Instalment Breach',          color:'#f97316', desc:'Missed payment on an instalment plan.' },
@@ -14653,8 +14522,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e',20:'#10b981'};
-  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver',20:'Sympathetic (Good History)'};
+  const levelColors = {1:'#f97316',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',19:'#22c55e',20:'#10b981',21:'#f0a030'};
+  const levelLabels = {1:'Formal Warning',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',12:'Guarantor / Emergency Contact',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',19:'OD Fee Waiver',20:'Sympathetic (Good History)',21:'Day 1 OD Only Waiver'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '⚖️ ' + levelLabels[level];
@@ -14707,8 +14576,8 @@ function escalRenderModal() {
   const ph    = b.phone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#f97316',2:'#dc2626',3:'#7c3aed',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',11:'#ef4444',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',17:'#7c3aed',18:'#8b5cf6',19:'#22c55e',20:'#10b981'};
-  const levelLabels = {1:'Formal Warning',2:'Pre-Litigation',3:'Litigation Notice',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',11:'Asset Warning',12:'Guarantor Notice',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',17:'Write-Off Warning',18:'Emergency Contact',19:'OD Fee Waiver',20:'Sympathetic (Good History)'};
+  const levelColors = {1:'#f97316',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',19:'#22c55e',20:'#10b981',21:'#f0a030'};
+  const levelLabels = {1:'Formal Warning',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',12:'Guarantor / Emergency Contact',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',19:'OD Fee Waiver',20:'Sympathetic (Good History)',21:'Day 1 OD Only Waiver'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = '⚖️ Escalation — ' + (idx+1) + ' of ' + tot;
@@ -18951,7 +18820,7 @@ async function replayAction(action) {
       case 'log': {
         const existing = state.dailyLog.find(e => e.date === action.date);
         if (existing) {
-          existing.collected = (existing.collected || 0) + action.amount;
+          existing.collected = action.amount; // set, not add — addLogEntry already saved this locally when offline
           existing.notes = action.notes || existing.notes;
         } else {
           state.dailyLog.push({ date: action.date, collected: action.amount, notes: action.notes });
