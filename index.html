@@ -3234,6 +3234,8 @@ tr.overdue-critical .heat-ring {
         </div>
         <input type="number" class="bl-chip-sel" id="dispatch-min-amount" placeholder="₵ Min" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
         <input type="number" class="bl-chip-sel" id="dispatch-max-amount" placeholder="₵ Max" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-min" placeholder="Day Min" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-max" placeholder="Day Max" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
       </div>
       <!-- Discount -->
       <div style="display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;min-width:0">
@@ -6565,6 +6567,7 @@ function renderM2TargetStrip() {
   const logEntry   = (state.dailyLog||[]).find(e => e.date === today);
   const collected  = logEntry ? (logEntry.collected||0) : 0;
   const pct        = locked.target > 0 ? Math.min(1, collected / locked.target) : 0;
+  const remaining  = Math.max(0, locked.target - collected);
   const lockTime   = new Date(locked.lockedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
   el.innerHTML = `
@@ -6575,6 +6578,7 @@ function renderM2TargetStrip() {
         <span style="font-family:var(--font-mono);font-size:12px;font-weight:800;color:var(--text)">${fmtC(locked.target)}</span>
         <span style="font-size:11px;color:var(--text3)"> · 9% of ${fmtC(locked.base)}</span>
         <span style="font-size:11px;color:${pct>=1?'var(--green)':'var(--text3)'}"> · ${fmtC(collected)} collected (${Math.round(pct*100)}%)</span>
+        <span style="font-size:11px;color:${pct>=1?'var(--green)':'var(--gold)'};font-weight:700"> · ${pct>=1?'🎯 Target hit!':fmtC(remaining)+' to go'}</span>
       </div>
       <div style="background:rgba(255,255,255,0.06);border-radius:6px;padding:2px 7px;font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap" title="Locked at ${lockTime} — won't shift as you collect today">
         🔒 locked ${lockTime}
@@ -8152,6 +8156,13 @@ function renderDispatch() {
     if (!minV && !maxV) return true;
     const due = getDueToday(b);
     return due >= (minV ? parseFloat(minV) : 0) && due <= (maxV ? parseFloat(maxV) : Infinity);
+  })
+  .filter(b => {
+    const odMinV = document.getElementById('dispatch-od-min')?.value;
+    const odMaxV = document.getElementById('dispatch-od-max')?.value;
+    if (!odMinV && !odMaxV) return true;
+    const od = getOdAge(b.startDate, b);
+    return od >= (odMinV ? parseInt(odMinV) : 0) && od <= (odMaxV ? parseInt(odMaxV) : Infinity);
   })
   .map(b => ({...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     generous: getGenerous(b), dueToday: getDueToday(b) }))
