@@ -73,6 +73,7 @@
   --radius-sm: 6px;
   --sidebar-w: 224px;
   --border-hi: rgba(255,255,255,0.07);
+  --section-gap: 16px;
 }
 
 /* SWIPE ACTIONS ON TABLE ROWS */
@@ -1065,8 +1066,8 @@ select.form-input option { background: var(--surface2); }
 .urgency-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .urgency-row:last-child { border-bottom: none; }
 .urgency-day { font-family: var(--font-mono); font-size: 12px; color: var(--text2); width: 55px; }
-.urgency-bar-wrap { flex: 1; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
-.urgency-bar { height: 100%; border-radius: 4px; }
+.urgency-bar-wrap { flex: 1; background: var(--surface2); border-radius: 6px; height: 12px; overflow: hidden; }
+.urgency-bar { height: 100%; border-radius: 6px; }
 .urgency-amount { font-family: var(--font-mono); font-size: 12px; color: var(--text); text-align: right; width: 80px; }
 .urgency-count { font-size: 11px; color: var(--text3); width: 40px; text-align: center; }
 
@@ -1152,8 +1153,8 @@ select.form-input option { background: var(--surface2); }
 .summary-label { color: var(--text2); }
 .summary-value { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
 
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
-.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: var(--section-gap); }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: var(--section-gap); }
 .txt-right { text-align: right; }
 .sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .text-gold { color: var(--gold); }
@@ -1169,7 +1170,7 @@ select.form-input option { background: var(--surface2); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 20px;
-  margin-bottom: 20px;
+  margin-bottom: var(--section-gap);
 }
 .target-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .target-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
@@ -2911,12 +2912,12 @@ tr.overdue-critical .heat-ring {
     </div>
 
     <!-- Ranking Gap Alert -->
-    <div id="ranking-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;font-size:13px;animation:fadeUp 0.3s ease both"></div>
+    <div id="ranking-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:var(--section-gap);align-items:center;gap:10px;font-size:13px;animation:fadeUp 0.3s ease both"></div>
 
     <div class="kpi-grid" id="kpi-grid"></div>
 
     <!-- HERO CARD -->
-    <div id="dash-hero" style="margin-bottom:16px"></div>
+    <div id="dash-hero" style="margin-bottom:var(--section-gap)"></div>
 
     <div id="dash-action-strip" class="action-strip"></div>
 
@@ -2928,13 +2929,13 @@ tr.overdue-critical .heat-ring {
     <div id="dash-empty-state" style="display:none"></div>
 
     <!-- Activity feed -->
-    <div id="dash-activity" style="margin-bottom:14px"></div>
+    <div id="dash-activity" style="margin-bottom:var(--section-gap)"></div>
 
     <!-- Treadmill Alert -->
-    <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:12px 18px;margin-bottom:14px"></div>
+    <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:12px 18px;margin-bottom:var(--section-gap)"></div>
 
     <!-- Priority 1: Action lists — most important for daily workflow -->
-    <div class="two-col">
+    <div class="two-col" style="grid-template-columns:1.5fr 1fr">
       <div class="card">
         <div class="card-header"><span class="card-title">🏆 Top Overdue — Act Now</span><span style="font-size:10px;color:var(--text3)">tap any row</span></div>
         <div class="card-body" id="dash-top-due"></div>
@@ -6551,7 +6552,7 @@ function renderM2TargetStrip() {
       ? `${day6Count} new Day 6 account${day6Count>1?'s':''} to review`
       : `No new Day 6 accounts added yet today`;
     el.innerHTML = `
-      <div style="background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.35);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="background:rgba(240,160,48,0.08);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:var(--section-gap)">
         <span style="font-size:16px;flex-shrink:0">⏳</span>
         <div style="flex:1;min-width:0">
           <span style="font-size:12px;color:var(--text);font-weight:600">Target pending</span>
@@ -6571,7 +6572,7 @@ function renderM2TargetStrip() {
   const lockTime   = new Date(locked.lockedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
   el.innerHTML = `
-    <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer" onclick="navigate('loans');haptic('light')">
+    <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;margin-bottom:var(--section-gap);cursor:pointer" onclick="navigate('loans');haptic('light')">
       <span style="font-size:16px;flex-shrink:0">🎯</span>
       <div style="flex:1;min-width:0">
         <span style="font-size:12px;color:var(--text2)">M2 target today </span>
@@ -6611,6 +6612,13 @@ function renderDashHero() {
   const active = getActiveBorrowers();
   const todayDue = active.reduce((s,b) => s + getDueToday(b), 0);
 
+  // Yesterday comparison (was a separate duplicate strip lower on the page)
+  const ystStr   = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const ystEntry = (state.dailyLog||[]).find(e => e.date === ystStr);
+  const ystAmt   = ystEntry ? (Number(ystEntry.collected)||0) : 0;
+  const ystArrow = collected > ystAmt ? '<span style="color:var(--green)">▲</span>' :
+                   collected < ystAmt ? '<span style="color:var(--red)">▼</span>' : '—';
+
   el.innerHTML = `
     <div id="dash-hero-card">
       <div class="hero-ring-wrap">
@@ -6628,7 +6636,10 @@ function renderDashHero() {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Today's Collection</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--text);line-height:1">${fmtC(collected)}</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--text);line-height:1">${fmtC(collected)}</div>
+          <div style="font-size:10px;color:var(--text3)">${ystArrow} ${fmtC(ystAmt)} yesterday</div>
+        </div>
         ${target > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">of ${fmtC(target)} daily target</div>` : '<div style="font-size:10px;color:var(--text3);margin-top:3px">No target set — <span style="color:var(--gold);cursor:pointer" onclick="navigate(\'log\')">set one →</span></div>'}
         <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
           ${ptpToday > 0 ? `<span style="font-size:10px;color:var(--purple);font-weight:600;background:rgba(167,139,250,0.12);padding:2px 7px;border-radius:8px;border:1px solid rgba(167,139,250,0.2)">🤝 ${ptpToday} PTP today</span>` : ''}
@@ -6786,10 +6797,10 @@ function renderDashActionStrip(activeList) {
   const partialPaid = active.filter(b => getStatus(b) === 'Partial').length;
 
   const pills = [];
-  if (ptpDue > 0)      pills.push(`<button class="action-pill gold" onclick="showBorrowersPopup('','','','','');haptic('light')" title="PTP promised for today"><span class="pill-count">${ptpDue}</span>🤝 PTP Due Today</button>`);
-  if (ptpBreached > 0) pills.push(`<button class="action-pill urgent" onclick="showBorrowersPopup('','','','','');haptic('light')" title="Broken promises"><span class="pill-count">${ptpBreached}</span>🔴 PTP Breached</button>`);
+  if (ptpDue > 0)      pills.push(`<button class="action-pill gold" onclick="showBorrowersPopup('','','','','','due');haptic('light')" title="PTP promised for today"><span class="pill-count">${ptpDue}</span>🤝 PTP Due Today</button>`);
+  if (ptpBreached > 0) pills.push(`<button class="action-pill urgent" onclick="showBorrowersPopup('','','','','','breached');haptic('light')" title="Broken promises"><span class="pill-count">${ptpBreached}</span>🔴 PTP Breached</button>`);
   if (critical > 0)    pills.push(`<button class="action-pill urgent" onclick="showBorrowersPopup('Unpaid','',13,'','');haptic('light')" title="Day 13+ — critical stage"><span class="pill-count">${critical}</span>🚨 Critical</button>`);
-  if (quickWins > 0)   pills.push(`<button class="action-pill green"  onclick="showBorrowersPopup('Partial','','','','');haptic('light')" title="75%+ paid — close to done"><span class="pill-count">${quickWins}</span>⚡ Quick Wins</button>`);
+  if (quickWins > 0)   pills.push(`<button class="action-pill green"  onclick="showBorrowersPopup('','','','','','',0.75);haptic('light')" title="75%+ paid — close to done"><span class="pill-count">${quickWins}</span>⚡ Quick Wins</button>`);
   if (partialPaid > 0) pills.push(`<button class="action-pill blue"   onclick="showBorrowersPopup('Partial','','','','');haptic('light')" title="Partial payers"><span class="pill-count">${partialPaid}</span>💰 Partial</button>`);
 
   el.innerHTML = pills.length ? pills.join('') : '';
@@ -6944,22 +6955,6 @@ async function renderDashboard() {
     + '<span style="margin-left:auto">' + _pacingText(logTotal, monthTarget, state.dailyLog) + '</span>'
     + '</div>'
     + forecastHtml
-    + (function() {
-        // Today's collection strip
-        var todayStr = new Date().toISOString().split('T')[0];
-        var ystStr   = new Date(Date.now()-86400000).toISOString().split('T')[0];
-        var todayEntry = state.dailyLog.find(function(e) { return e.date === todayStr; });
-        var ystEntry   = state.dailyLog.find(function(e) { return e.date === ystStr; });
-        var todayAmt   = todayEntry ? (Number(todayEntry.collected)||0) : 0;
-        var ystAmt     = ystEntry   ? (Number(ystEntry.collected)||0)   : 0;
-        var arrow = todayAmt > ystAmt ? '<span style="color:var(--green)">▲</span>' :
-                    todayAmt < ystAmt ? '<span style="color:var(--red)">▼</span>' : '—';
-        return '<div style="display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid var(--border)">'
-          + '<div style="font-size:11px;color:var(--text3);flex:1">📆 Today\'s Collection</div>'
-          + '<div style="font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--gold)">' + fmtC(todayAmt) + '</div>'
-          + '<div style="font-size:10px;color:var(--text3)">' + arrow + ' ' + fmtC(ystAmt) + ' yesterday</div>'
-          + '</div>';
-      })()
     + '</div>';
 
   // Animate progress bar after paint
@@ -6973,11 +6968,12 @@ async function renderDashboard() {
   document.getElementById('dash-days-label').textContent = loggedDays + ' days logged (' + activeDays + ' with collections)';
 
   // ── Alert widgets ────────────────────────────────────────
-  const agingTomorrow = active.filter(b => getOdAge(b.startDate, b) === 15); // hits 16 = aged out tomorrow
+  const _stageMaxDay = getAgentDayRange()[1];
+  const agingTomorrow = active.filter(b => getOdAge(b.startDate, b) === _stageMaxDay); // hits max+1 = aged out tomorrow, for whatever stage this agent is in
   const criticalToday = active.filter(b => getOdAge(b.startDate, b) >= 13);
   let alertHtml = '';
   if (agingTomorrow.length) {
-    alertHtml += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin-bottom:14px;animation:fadeUp 0.3s ease both">'
+    alertHtml += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin-bottom:var(--section-gap);animation:fadeUp 0.3s ease both">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
       + '<div><div style="font-weight:700;color:var(--red);font-size:13px">⚠️ ' + agingTomorrow.length + ' account' + (agingTomorrow.length>1?'s':'') + ' aging out tomorrow</div>'
       + '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + (function(){var _s=(_activeAgent&&_activeAgent.stage)||'M2';var _b={M0:1,M1:6,M2:16,M3:41,M4:61};var _d=_b[_s]||16;return 'These accounts hit Day '+_d+' tomorrow and will be removed from '+_s+'. Last chance to collect today.';})() + '</div></div>'
@@ -6989,7 +6985,7 @@ async function renderDashboard() {
       + '</div></div>';
   }
   if (criticalToday.length > 0 && agingTomorrow.length < criticalToday.length) {
-    alertHtml += '<div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.22);border-left:4px solid var(--orange);border-radius:8px;padding:12px 18px;margin-bottom:14px;animation:fadeUp 0.35s ease both">'
+    alertHtml += '<div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.22);border-left:4px solid var(--orange);border-radius:8px;padding:12px 18px;margin-bottom:var(--section-gap);animation:fadeUp 0.35s ease both">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
       + '<div><div style="font-weight:700;color:var(--orange);font-size:13px">🔴 ' + criticalToday.length + ' critical account' + (criticalToday.length>1?'s':'') + ' (Day 13+)</div>'
       + '<div style="font-size:11px;color:var(--text3);margin-top:2px">These accounts are approaching the cut-off. Urgent action required.</div></div>'
@@ -7001,8 +6997,8 @@ async function renderDashboard() {
   if (!todayLog2 || !(todayLog2.collected > 0)) {
     const daysLeft2 = (() => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth()+1,0).getDate()-n.getDate(); })();
     const needed2 = state.monthlyTarget > 0 ? Math.ceil(Math.max(0,state.monthlyTarget-logTotal)/Math.max(1,daysLeft2)) : 0;
-    const zeroHtml = '<div style="background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-left:4px solid var(--blue);border-radius:8px;padding:12px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;animation:fadeIn 0.3s ease both">'
-      + '<div><div style="font-weight:700;color:var(--blue);font-size:13px">📋 No collection logged today</div>'
+    const zeroHtml = '<div style="background:rgba(96,165,250,0.06);border-radius:8px;padding:10px 16px;margin-bottom:var(--section-gap);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;animation:fadeIn 0.3s ease both">'
+      + '<div><div style="font-weight:600;color:var(--text2);font-size:13px">📋 No collection logged today</div>'
       + '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+(needed2>0?'Need '+fmtC(needed2)+'/day to hit monthly target · '+daysLeft2+' days left':'Log today\'s collection in Daily Log')+'</div></div>'
       + '<button class="btn btn-ghost btn-sm" style="border-color:var(--blue);color:var(--blue)" id="zero-log-btn">Log Now</button>'
       + '</div>';
@@ -13951,6 +13947,12 @@ function _escalAgentPhone() {
   return localStorage.getItem('sq_agent_phone') || '+233 123 456 789';
 }
 
+function _ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
 function _escalPayGuide(b) {
   const serial = b.loanType === 'LoanBase Pro' ? '2' : '1';
   return 'Dial *' + _escalPhone() + '* > Enter loan number > Select ' + serial + ' (' + b.loanType + ') > Enter amount > Confirm payment.';
@@ -13972,9 +13974,10 @@ function buildEscalationMsg(b, level) {
   const odDays    = getOdAge(b.startDate, b);
   const loanType = b.loanType;
 
-  if (level === 20) {
-    // ── LEVEL 20: Sympathetic — Good Repayment History ──────────
-    const firstName = b.name.trim().split(/\s+/)[0];
+  // ══════════════ TIER 0 — Proactive / no pressure ══════════════
+
+  // Level 1: Sympathetic — Good Repayment History
+  if (level === 1) {
     return `Dear *${b.name}*,
 
 We hope this message finds you well.
@@ -13997,8 +14000,151 @@ Sincerely,
 *LoanBase Management Team*`;
   }
 
-  if (level === 1) {
-    // ── LEVEL 1: Formal Warning Notice ──────────────────────────
+  // Level 2: PTP Due Tomorrow — Reminder
+  if (level === 2) {
+    const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'tomorrow';
+    return `🔔 *REMINDER: PAYMENT DUE TOMORROW* 🔔
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+PROMISED DATE: *${promiseDate}*
+AMOUNT DUE: *${balance}*
+
+Hi *${b.name.split(' ')[0]}*,
+
+Just a friendly reminder — you promised to pay *${balance}* on your ${loanType} loan on *${promiseDate}*.
+
+We look forward to receiving your payment as agreed. If anything has changed, please reach out to us before then so we can adjust the plan together.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 3: Gentle Early Reminder (Day 1–3)
+  if (level === 3) {
+    return `💬 *FRIENDLY PAYMENT REMINDER* 💬
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+AMOUNT DUE: *${balance}*
+
+Hi *${b.name.split(' ')[0]}*,
+
+We noticed your ${loanType} payment of *${balance}* is now *${odDays} day${odDays===1?'':'s'}* past due. This happens sometimes — no penalty has been applied yet.
+
+Please settle this as soon as you can to keep your account in good standing.
+
+📌 ${_escalPayGuide(b)}
+
+Thank you,
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 4: M2 Stage Entry Notice (Day 6)
+  if (level === 4) {
+    return `📋 *ACCOUNT STATUS UPDATE* 📋
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+AMOUNT DUE: *${balance}*
+
+ ${salute},
+
+Your ${loanType} account is now *${odDays} days* overdue and has moved into our *enhanced recovery review* stage.
+
+This means your file is now reviewed daily until the balance is cleared. No further action is required from you beyond making payment as soon as possible to avoid additional recovery steps.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // ══════════════ TIER 1 — Standard engagement ══════════════
+
+  // Level 5: Partial Payment Follow-Up
+  if (level === 5) {
+    const paidAmount = fmtC(b.amountPaid || 0);
+    return `⚠️ *PARTIAL PAYMENT ACKNOWLEDGMENT* ⚠️
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+OUTSTANDING BALANCE: *${balance}*
+
+ ${salute},
+
+We acknowledge your recent payment of *${paidAmount}* on your ${loanType} account. Thank you.
+
+However, a balance of *${balance}* remains unpaid and is now *${odDays} days* overdue. Daily penalty fees continue to accrue on the remaining amount.
+
+To avoid escalation to formal recovery, you must settle the full outstanding balance by *${deadline}*.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 6: Instalment Arrangement Confirmation
+  if (level === 6) {
+    const instalmentAmount = b.instalment?.amount ? fmtC(b.instalment.amount) : 'your agreed amount';
+    const instalmentFreq = b.instalment?.freq || 'weekly';
+    const instalmentStart = b.instalment?.start || 'the agreed start date';
+    return `📅 *INSTALMENT AGREEMENT CONFIRMATION* 📅
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+PLAN: *${instalmentAmount}* every *${instalmentFreq}* starting *${instalmentStart}*
+
+ ${salute},
+
+Thank you for committing to the following repayment plan for your overdue ${loanType} loan:
+
+• Amount per instalment: *${instalmentAmount}*
+• Frequency: *${instalmentFreq}*
+• First payment due: *${instalmentStart}*
+
+Please ensure each payment is made on or before the due date. Missing two consecutive instalments will void this agreement and reactivate full recovery actions.
+
+📌 ${_escalPayGuide(b)} Then select "Instalment Payment".
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 7: Wrong / Unreachable Number Notice (sent via SMS — WhatsApp already failed)
+  if (level === 7) {
+    return `📵 *UNABLE TO REACH YOU – PLEASE CONFIRM YOUR CONTACT* 📵
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+AMOUNT DUE: *${balance}*
+
+Hi *${b.name.split(' ')[0]}*,
+
+We've been unable to reach you on WhatsApp regarding your overdue ${loanType} loan of *${balance}*.
+
+If this number is no longer active or correct, please reply to this SMS or call *${_escalAgentPhone()}* with your correct contact details so we can keep you updated.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // ══════════════ TIER 2 — Formal warnings / broken commitments ══════════════
+
+  // Level 8: Formal Warning Notice
+  if (level === 8) {
     return `⚠️ *FORMAL RECOVERY WARNING NOTICE* ⚠️
 
 DATE: ${dateStr}
@@ -14027,34 +14173,8 @@ Your prompt action is required.
 *LoanBase Recovery Management*`;
   }
 
-  // ========== NEW LEVELS 4–13 ==========
-
-  // Level 4: Partial Payment Follow-Up
-  if (level === 4) {
-    const paidAmount = fmtC(b.amountPaid || 0);
-    return `⚠️ *PARTIAL PAYMENT ACKNOWLEDGMENT* ⚠️
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
-
- ${salute},
-
-We acknowledge your recent payment of *${paidAmount}* on your ${loanType} account. Thank you.
-
-However, a balance of *${balance}* remains unpaid and is now *${odDays} days* overdue. Daily penalty fees continue to accrue on the remaining amount.
-
-To avoid escalation to formal recovery, you must settle the full outstanding balance by *${deadline}*.
-
-📌 ${_escalPayGuide(b)}
-
-*LoanBase Recovery Management*`;
-  }
-
-  // Level 5: Broken Promise Notice (PTP Missed)
-  if (level === 5) {
+  // Level 9: Broken Promise Notice (PTP Missed — first occurrence)
+  if (level === 9) {
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
     return `🔴 *PROMISE TO PAY – BREACH NOTICE* 🔴
 
@@ -14082,118 +14202,35 @@ You have *24 hours* to make the payment. Failure to do so will result in:
 *LoanBase Recovery Management*`;
   }
 
-  // Level 6: Field Visit Notification
-  if (level === 6) {
-    const agentPhone = _escalAgentPhone();
-    const visitDate = _escalVisitDate();
-    return `🚪 *FIELD RECOVERY NOTIFICATION* 🚪
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-ADDRESS: (as registered)
-
- ${salute},
-
-Despite multiple call attempts, we have been unable to reach you regarding your overdue ${loanType} loan of *${balance}* (Day ${odDays}).
-
-A *field recovery agent* has been scheduled to visit your registered address on *${visitDate}* between *9:00 AM – 5:00 PM*.
-
-To avoid an in‑person visit, please call us immediately at *${agentPhone}* or make a payment of *${balance}* before *${visitDate}*.
-
-📌 ${_escalPayGuide(b)}
-
-*LoanBase Recovery Management*`;
-  }
-
-  // Level 7: Final Demand Before Legal Handover
-  if (level === 7) {
-    const agentPhone = _escalAgentPhone();
-    return `⚖️ *FINAL DEMAND BEFORE LEGAL HANDOVER* ⚖️
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-TOTAL OUTSTANDING: *${balance}* (including fees)
-
- ${salute},
-
-This is your *FINAL NOTICE* before your file is handed over to our external solicitors for legal action.
-
-If full payment is not received by *${deadline}*, the following will occur WITHOUT further notice:
-
-• Your name will be filed at the *District Court*
-• A *judgment* will be sought against you
-• *Garnishee proceedings* will be initiated on your bank and mobile money accounts
-• All legal costs will be added to your debt
-
-You can still avoid legal action by paying *${balance}* immediately.
-
-📌 ${_escalPayGuide(b)} Or contact us on *${agentPhone}*.
-
-*LoanBase Legal Recovery Unit*`;
-  }
-
-  // Level 8: Settlement Offer (Discounted)
-if (level === 8) {
-  const discountRate = (typeof state !== 'undefined' && state.discountRate) ? state.discountRate : 0.30;
-  const discounted = Math.round(getRemaining(b) + (_getOdFeeCached(b) * discountRate));
-  return `🎯 *DISCOUNTED SETTLEMENT OFFER – FINAL* 🎯
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-ORIGINAL BALANCE: *${balance}*
-OFFERED SETTLEMENT: *${fmtC(discounted)}*
-
- ${salute},
-
-As a gesture of goodwill, LoanBase is offering you a *one‑time discounted settlement* of *${fmtC(discounted)}* to fully close your ${loanType} account.
-
-This offer is valid only until *${deadline}* and will be revoked immediately afterward.
-
-Upon payment of ${fmtC(discounted)}, your account will be marked *PAID IN FULL* with a positive credit reference.
-
-After ${deadline}, the full balance of ${balance} plus accrued fees will be pursued.
-
-📌 ${_escalPayGuide(b)}
-
-*LoanBase Recovery Management*`;
-}
-
-  // Level 9: Instalment Arrangement Confirmation
-  if (level === 9) {
-    const instalmentAmount = b.instalment?.amount ? fmtC(b.instalment.amount) : 'your agreed amount';
-    const instalmentFreq = b.instalment?.freq || 'weekly';
-    const instalmentStart = b.instalment?.start || 'the agreed start date';
-    return `📅 *INSTALMENT AGREEMENT CONFIRMATION* 📅
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-PLAN: *${instalmentAmount}* every *${instalmentFreq}* starting *${instalmentStart}*
-
- ${salute},
-
-Thank you for committing to the following repayment plan for your overdue ${loanType} loan:
-
-• Amount per instalment: *${instalmentAmount}*
-• Frequency: *${instalmentFreq}*
-• First payment due: *${instalmentStart}*
-
-Please ensure each payment is made on or before the due date. Missing two consecutive instalments will void this agreement and reactivate full recovery actions.
-
-📌 ${_escalPayGuide(b)} Then select "Instalment Payment".
-
-*LoanBase Recovery Management*`;
-  }
-
-  // Level 10: Instalment Breach Notice
+  // Level 10: Repeat Broken Promise Notice (Chronic — 2nd+ occurrence)
   if (level === 10) {
+    const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
+    const breakCount = (b.promiseHistory || []).length + 1;
+    const ord = _ordinal(breakCount);
+    return `🔴🔴 *REPEATED BROKEN PROMISE NOTICE* 🔴🔴
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+BROKEN PROMISES ON FILE: *${breakCount}*
+AMOUNT DUE: *${balance}*
+
+*${salute},*
+
+This is now the *${ord}* time you have failed to honour a promise to pay on this account. Your most recent promised date of *${promiseDate}* has passed without payment.
+
+Repeated broken promises are recorded permanently on your file and significantly reduce our willingness to offer flexible arrangements going forward.
+
+We will no longer accept verbal promises alone. Full payment of *${balance}* is required *immediately*, or your account will proceed to field recovery and third-party notification without further warning.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 11: Instalment Breach Notice
+  if (level === 11) {
     const instalmentAmount = b.instalment?.amount ? fmtC(b.instalment.amount) : 'your agreed amount';
     const instalmentStart = b.instalment?.start || 'the agreed start date';
     return `⚠️ *INSTALMENT PLAN BREACH NOTICE* ⚠️
@@ -14217,138 +14254,38 @@ If payment is not received by *${deadline}*, your instalment plan will be cancel
 *LoanBase Recovery Management*`;
   }
 
-  // Level 12: Guarantor / Emergency Contact Notification (merged — same audience, same purpose)
+  // ══════════════ TIER 3 — Goodwill / settlement offers ══════════════
+
+  // Level 12: Settlement Offer (Discounted)
   if (level === 12) {
-    const contactName = b.guarantorName || b.emergencyContact || 'listed contact';
-    const isGuarantor  = !!b.guarantorName;
-    const agentPhone = _escalAgentPhone();
-    return `📢 *${isGuarantor ? 'GUARANTOR' : 'EMERGENCY CONTACT'} NOTIFICATION OF DEFAULT* 📢
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-BORROWER: *${fullName}*
-LOAN TYPE: *${loanType}*
-${isGuarantor ? 'GUARANTOR' : 'CONTACT'}: *${contactName}*
-AMOUNT DUE: *${balance}*
-
-Dear *${contactName}*,
-
-This is to inform you that ${b.name} has defaulted on their ${loanType} loan with an outstanding balance of *${balance}*, now *${odDays} days* overdue. All direct contact attempts have been unsuccessful.
-
-${isGuarantor ? `As the guarantor, you are legally liable for this debt. Please contact ${b.name} immediately to arrange payment.` : `Please ask ${b.name} to contact us immediately, or reach out to help arrange payment.`}
-
-If this matter is not resolved within *7 days*, we will pursue recovery${isGuarantor ? ' against you directly, including legal action and credit bureau reporting in your name' : ' and all listed contacts will be involved'}.
-
-📌 Contact us at *${agentPhone}* to discuss settlement.
-
-*LoanBase Recovery Management*`;
-  }
-
-  // Level 13: Payment Received – Acknowledgment & Release
-  if (level === 13) {
-    return `✅ *FULL PAYMENT CONFIRMATION & RELEASE* ✅
+    const discountRate = (typeof state !== 'undefined' && state.discountRate) ? state.discountRate : 0.30;
+    const discounted = Math.round(getRemaining(b) + (_getOdFeeCached(b) * discountRate));
+    return `🎯 *DISCOUNTED SETTLEMENT OFFER – FINAL* 🎯
 
 DATE: ${dateStr}
 CASE REF: ${caseRef}
 DEBTOR: *${fullName}*
 LOAN TYPE: *${loanType}*
-AMOUNT PAID: *${balance}*
+ORIGINAL BALANCE: *${balance}*
+OFFERED SETTLEMENT: *${fmtC(discounted)}*
 
  ${salute},
 
-We hereby confirm receipt of *${balance}* as full and final settlement of your ${loanType} loan account.
+As a gesture of goodwill, LoanBase is offering you a *one‑time discounted settlement* of *${fmtC(discounted)}* to fully close your ${loanType} account.
 
-All escalation actions have been *cancelled*. Your credit reference will be updated to reflect “Paid in Full”.
+This offer is valid only until *${deadline}* and will be revoked immediately afterward.
 
-Thank you for resolving this matter.
+Upon payment of ${fmtC(discounted)}, your account will be marked *PAID IN FULL* with a positive credit reference.
 
-*LoanBase Recovery Management*`;
-  }
+After ${deadline}, the full balance of ${balance} plus accrued fees will be pursued.
 
-  // ── Level 14: Unreachable / Silent Phone ──────────────────
-  if (level === 14) {
-    return `📵 *NOTICE: ACCOUNT UNREACHABLE – ESCALATION TRIGGERED* 📵
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
-
-*${salute},*
-
-Multiple contact attempts to your registered number have gone unanswered. Your phone appears to be switched off, redirected, or you are actively avoiding contact.
-
-Under the Borrowers and Lenders Act 2008 (Act 773), deliberate evasion of a creditor constitutes *willful default* and is admissible as evidence in court proceedings.
-
-We are now proceeding with *offline escalation*, which includes:
-
-• Field agent dispatch to your registered address on *${_escalVisitDate()}*
-• Contact with your listed references and emergency contacts
-• Formal filing with the Credit Bureau
-
-You may still prevent all of the above by calling *${_escalAgentPhone()}* or paying *${balance}* before *${deadline}*: ${_escalPayGuide(b)}
+📌 ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
 
-  // ── Level 15: Employer / Workplace Contact Warning ────────
-  if (level === 15) {
-    const workplace = b.workplace || 'your place of employment as listed in your loan file';
-    return `💼 *WORKPLACE NOTIFICATION WARNING* 💼
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
-
-*${salute},*
-
-Your ${loanType} loan account is now *${odDays} days* overdue with a balance of *${balance}*.
-
-Under Ghanaian credit recovery law, a creditor may contact a borrower's employer to verify employment status and facilitate debt recovery where direct contact has failed.
-
-LoanBase is authorised to contact *${workplace}* if payment is not received by *${deadline}* today.
-
-This action is not our preference. Pay *${balance}* now to prevent workplace contact.
-
-📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* immediately.
-
-*LoanBase Recovery Management*`;
-  }
-
-  // ── Level 16: Credit Bureau Filed Confirmation ────────────
-  if (level === 16) {
-    return `🚫 *CREDIT BUREAU SUBMISSION NOTICE* 🚫
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
-
-*${salute},*
-
-This is formal notice that your Ghana Card identification and loan default details have been submitted to the *Ghana Credit Bureau* (XDS Data / CRB Africa) as of *${dateStr}*.
-
-*What this means for you:*
-
-❌ You will be flagged on all credit checks by banks and mobile lenders
-❌ Future loan and credit applications will be declined
-❌ Mobile money credit lines (Qwikloan, MTN Xcredit) may be suspended
-❌ This record remains for *up to 5 years*
-
-A reversal is possible — but ONLY upon full payment of *${balance}*.
-
-📌 ${_escalPayGuide(b)} Then send your confirmation to initiate the reversal.
-
-*LoanBase Recovery Management*
-*Ref: ${caseRef}*`;
-  }
-
-  // ── Level 19: Full OD Fee Waiver Offer ────────────────────
-  if (level === 19) {
+  // Level 13: Full OD Fee Waiver Offer
+  if (level === 13) {
     // "Principal remaining" here means the non-OD-fee balance still owed
     // (loanDue - amountPaid) — NOT the raw disbursed principal, since
     // loanDue may include interest/charges that aren't OD fees but are
@@ -14385,11 +14322,11 @@ After this deadline, the full balance of *${balance}* (including all fees and le
 *Ref: ${caseRef}*`;
   }
 
-  // ── Level 21: Day 1 OD Only Waiver ────────────────────────
+  // Level 14: Day 1 OD Only Waiver
   // Borrower pays: loan balance still owed (loanDue − amountPaid) + 4% of
   // original principal (Day 1 rate only). Every accumulated OD fee after
   // Day 1 is waived. More generous than standard but less than full waiver.
-  if (level === 21) {
+  if (level === 14) {
     const remaining   = getRemaining(b);                       // loanDue − amountPaid
     const day1Fee     = Math.round((b.principal || 0) * 0.04); // 4% of principal = Day 1 only
     const settleAmt   = remaining + day1Fee;
@@ -14430,6 +14367,196 @@ After this deadline, the full outstanding balance of *${balance}* will be pursue
 *Ref: ${caseRef}*`;
   }
 
+  // ══════════════ TIER 4 — Serious escalation / third-party involvement ══════════════
+
+  // Level 15: Unreachable / Silent Phone
+  if (level === 15) {
+    return `📵 *NOTICE: ACCOUNT UNREACHABLE – ESCALATION TRIGGERED* 📵
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+OUTSTANDING BALANCE: *${balance}*
+
+*${salute},*
+
+Multiple contact attempts to your registered number have gone unanswered. Your phone appears to be switched off, redirected, or you are actively avoiding contact.
+
+Under the Borrowers and Lenders Act 2008 (Act 773), deliberate evasion of a creditor constitutes *willful default* and is admissible as evidence in court proceedings.
+
+We are now proceeding with *offline escalation*, which includes:
+
+• Field agent dispatch to your registered address on *${_escalVisitDate()}*
+• Contact with your listed references and emergency contacts
+• Formal filing with the Credit Bureau
+
+You may still prevent all of the above by calling *${_escalAgentPhone()}* or paying *${balance}* before *${deadline}*: ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 16: Field Visit Notification
+  if (level === 16) {
+    const agentPhone = _escalAgentPhone();
+    const visitDate = _escalVisitDate();
+    return `🚪 *FIELD RECOVERY NOTIFICATION* 🚪
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+ADDRESS: (as registered)
+
+ ${salute},
+
+Despite multiple call attempts, we have been unable to reach you regarding your overdue ${loanType} loan of *${balance}* (Day ${odDays}).
+
+A *field recovery agent* has been scheduled to visit your registered address on *${visitDate}* between *9:00 AM – 5:00 PM*.
+
+To avoid an in‑person visit, please call us immediately at *${agentPhone}* or make a payment of *${balance}* before *${visitDate}*.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 17: Guarantor / Emergency Contact Notification
+  if (level === 17) {
+    const contactName = b.guarantorName || b.emergencyContact || 'listed contact';
+    const isGuarantor  = !!b.guarantorName;
+    const agentPhone = _escalAgentPhone();
+    return `📢 *${isGuarantor ? 'GUARANTOR' : 'EMERGENCY CONTACT'} NOTIFICATION OF DEFAULT* 📢
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+BORROWER: *${fullName}*
+LOAN TYPE: *${loanType}*
+${isGuarantor ? 'GUARANTOR' : 'CONTACT'}: *${contactName}*
+AMOUNT DUE: *${balance}*
+
+Dear *${contactName}*,
+
+This is to inform you that ${b.name} has defaulted on their ${loanType} loan with an outstanding balance of *${balance}*, now *${odDays} days* overdue. All direct contact attempts have been unsuccessful.
+
+${isGuarantor ? `As the guarantor, you are legally liable for this debt. Please contact ${b.name} immediately to arrange payment.` : `Please ask ${b.name} to contact us immediately, or reach out to help arrange payment.`}
+
+If this matter is not resolved within *7 days*, we will pursue recovery${isGuarantor ? ' against you directly, including legal action and credit bureau reporting in your name' : ' and all listed contacts will be involved'}.
+
+📌 Contact us at *${agentPhone}* to discuss settlement.
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 18: Employer / Workplace Contact Warning
+  if (level === 18) {
+    const workplace = b.workplace || 'your place of employment as listed in your loan file';
+    return `💼 *WORKPLACE NOTIFICATION WARNING* 💼
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+OUTSTANDING BALANCE: *${balance}*
+
+*${salute},*
+
+Your ${loanType} loan account is now *${odDays} days* overdue with a balance of *${balance}*.
+
+Under Ghanaian credit recovery law, a creditor may contact a borrower's employer to verify employment status and facilitate debt recovery where direct contact has failed.
+
+LoanBase is authorised to contact *${workplace}* if payment is not received by *${deadline}* today.
+
+This action is not our preference. Pay *${balance}* now to prevent workplace contact.
+
+📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* immediately.
+
+*LoanBase Recovery Management*`;
+  }
+
+  // ══════════════ TIER 5 — Final / legal ══════════════
+
+  // Level 19: Credit Bureau Filed Confirmation
+  if (level === 19) {
+    return `🚫 *CREDIT BUREAU SUBMISSION NOTICE* 🚫
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+OUTSTANDING BALANCE: *${balance}*
+
+*${salute},*
+
+This is formal notice that your Ghana Card identification and loan default details have been submitted to the *Ghana Credit Bureau* (XDS Data / CRB Africa) as of *${dateStr}*.
+
+*What this means for you:*
+
+❌ You will be flagged on all credit checks by banks and mobile lenders
+❌ Future loan and credit applications will be declined
+❌ Mobile money credit lines (Qwikloan, MTN Xcredit) may be suspended
+❌ This record remains for *up to 5 years*
+
+A reversal is possible — but ONLY upon full payment of *${balance}*.
+
+📌 ${_escalPayGuide(b)} Then send your confirmation to initiate the reversal.
+
+*LoanBase Recovery Management*
+*Ref: ${caseRef}*`;
+  }
+
+  // Level 20: Final Demand Before Legal Handover
+  if (level === 20) {
+    const agentPhone = _escalAgentPhone();
+    return `⚖️ *FINAL DEMAND BEFORE LEGAL HANDOVER* ⚖️
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+TOTAL OUTSTANDING: *${balance}* (including fees)
+
+ ${salute},
+
+This is your *FINAL NOTICE* before your file is handed over to our external solicitors for legal action.
+
+If full payment is not received by *${deadline}*, the following will occur WITHOUT further notice:
+
+• Your name will be filed at the *District Court*
+• A *judgment* will be sought against you
+• *Garnishee proceedings* will be initiated on your bank and mobile money accounts
+• All legal costs will be added to your debt
+
+You can still avoid legal action by paying *${balance}* immediately.
+
+📌 ${_escalPayGuide(b)} Or contact us on *${agentPhone}*.
+
+*LoanBase Legal Recovery Unit*`;
+  }
+
+  // ══════════════ TIER 6 — Closure ══════════════
+
+  // Level 21: Payment Received – Acknowledgment & Release
+  if (level === 21) {
+    return `✅ *FULL PAYMENT CONFIRMATION & RELEASE* ✅
+
+DATE: ${dateStr}
+CASE REF: ${caseRef}
+DEBTOR: *${fullName}*
+LOAN TYPE: *${loanType}*
+AMOUNT PAID: *${balance}*
+
+ ${salute},
+
+We hereby confirm receipt of *${balance}* as full and final settlement of your ${loanType} loan account.
+
+All escalation actions have been *cancelled*. Your credit reference will be updated to reflect “Paid in Full”.
+
+Thank you for resolving this matter.
+
+*LoanBase Recovery Management*`;
+  }
+
   return '';
 }
 
@@ -14443,29 +14570,34 @@ function openEscalationPanel() {
   document.getElementById('modal-title').textContent = '⚖️ Escalation Notices';
   
   const escalationOptions = [
-    // ── Sympathetic ───────────────────────────────────────────
-    { level:20, label:'💛 L20 – Sympathetic (Good History)',  color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
-    // ── Standard warnings ─────────────────────────────────────
-    { level:1,  label:'⚠️ L1 – Formal Warning',            color:'#f97316', desc:'First escalation. Credit bureau threat, 24 hr deadline.' },
-    { level:7,  label:'⚖️ L7 – Final Demand (Pre-Legal)',   color:'#dc2626', desc:'Last notice before handing over to lawyers.' },
-    // ── Payment & promise related ──────────────────────────────
-    { level:4,  label:'💰 L4 – Partial Payment Follow-Up',  color:'#f59e0b', desc:'Acknowledge partial payment, demand remainder.' },
-    { level:5,  label:'💔 L5 – Broken Promise (PTP Missed)',color:'#ef4444', desc:'Customer missed a promise to pay.' },
-    { level:8,  label:'🎯 L8 – Settlement Offer',           color:'#10b981', desc:'One-time reduced amount to close account.' },
-    { level:19, label:'🤝 L19 – Full OD Fee Waiver',        color:'#22c55e', desc:'Pay remaining balance only — waive all OD fees. Last resort goodwill.' },
-    { level:21, label:'🟡 L21 – Day 1 OD Only Waiver',      color:'#f0a030', desc:'Pay loan balance + 4% (Day 1 fee only) — all accumulated OD after Day 1 waived.' },
-    // ── Field & third-party ────────────────────────────────────
-    { level:6,  label:'🚪 L6 – Field Visit Notification',   color:'#f97316', desc:'Warn before sending a field agent.' },
-    { level:14, label:'📵 L14 – Unreachable / Silent Phone', color:'#f97316', desc:'Phone not being answered — triggers offline escalation.' },
-    { level:15, label:'💼 L15 – Workplace Contact Warning',  color:'#ef4444', desc:'Warn of employer contact if payment not received today.' },
-    { level:12, label:'👥 L12 – Guarantor / Emergency Contact', color:'#8b5cf6', desc:'Notify guarantor or emergency contact of default.' },
-    // ── Credit & legal consequences ────────────────────────────
-    { level:16, label:'🚫 L16 – Credit Bureau Filed',        color:'#dc2626', desc:'Confirm submission to Ghana Credit Bureau.' },
-    // ── Instalment plans ──────────────────────────────────────
-    { level:9,  label:'📅 L9 – Instalment Confirmation',    color:'#3b82f6', desc:'Confirm a structured repayment plan.' },
-    { level:10, label:'⚠️ L10 – Instalment Breach',          color:'#f97316', desc:'Missed payment on an instalment plan.' },
-    // ── Closure ───────────────────────────────────────────────
-    { level:13, label:'✅ L13 – Payment Acknowledgment',    color:'#22c55e', desc:'Confirm full payment and release.' },
+    // ── Tier 0: Proactive / no pressure ────────────────────────
+    { level:1,  label:'💛 L1 – Sympathetic (Good History)',   color:'#10b981', desc:'Warm outreach for borrowers with perfect repayment records. Offers waiver or instalment plan.' },
+    { level:2,  label:'🔔 L2 – PTP Due Tomorrow (Reminder)',  color:'#3b82f6', desc:'Proactive nudge the day before a promised payment is due.' },
+    { level:3,  label:'💬 L3 – Gentle Early Reminder (Day 1–3)', color:'#60a5fa', desc:'Soft nudge for early OD — no threats, no penalty language.' },
+    { level:4,  label:'📋 L4 – M2 Stage Entry Notice (Day 6)', color:'#a78bfa', desc:'Informational notice that the account has moved into enhanced recovery review.' },
+    // ── Tier 1: Standard engagement ────────────────────────────
+    { level:5,  label:'💰 L5 – Partial Payment Follow-Up',    color:'#f59e0b', desc:'Acknowledge partial payment, demand remainder.' },
+    { level:6,  label:'📅 L6 – Instalment Confirmation',      color:'#3b82f6', desc:'Confirm a structured repayment plan.' },
+    { level:7,  label:'📵 L7 – Wrong / Unreachable Number',   color:'#94a3b8', desc:'WhatsApp contact failed — ask the borrower to confirm their number, ideally sent by SMS.' },
+    // ── Tier 2: Formal warnings / broken commitments ───────────
+    { level:8,  label:'⚠️ L8 – Formal Warning',               color:'#f97316', desc:'First real escalation. Credit bureau threat, 24 hr deadline.' },
+    { level:9,  label:'💔 L9 – Broken Promise (PTP Missed)',  color:'#ef4444', desc:'Customer missed a promise to pay — first occurrence.' },
+    { level:10, label:'🔴 L10 – Repeat Broken Promise (Chronic)', color:'#dc2626', desc:'2nd+ broken promise on file — firmer tone, cites the count.' },
+    { level:11, label:'⚠️ L11 – Instalment Breach',           color:'#f97316', desc:'Missed payment on an instalment plan.' },
+    // ── Tier 3: Goodwill / settlement offers ───────────────────
+    { level:12, label:'🎯 L12 – Settlement Offer',            color:'#10b981', desc:'One-time reduced amount to close account.' },
+    { level:13, label:'🤝 L13 – Full OD Fee Waiver',          color:'#22c55e', desc:'Pay remaining balance only — waive all OD fees. Last resort goodwill.' },
+    { level:14, label:'🟡 L14 – Day 1 OD Only Waiver',        color:'#f0a030', desc:'Pay loan balance + 4% (Day 1 fee only) — all accumulated OD after Day 1 waived.' },
+    // ── Tier 4: Serious escalation / third-party involvement ───
+    { level:15, label:'📵 L15 – Unreachable / Silent Phone',  color:'#f97316', desc:'Phone not being answered — triggers offline escalation.' },
+    { level:16, label:'🚪 L16 – Field Visit Notification',    color:'#f97316', desc:'Warn before sending a field agent.' },
+    { level:17, label:'👥 L17 – Guarantor / Emergency Contact', color:'#8b5cf6', desc:'Notify guarantor or emergency contact of default.' },
+    { level:18, label:'💼 L18 – Workplace Contact Warning',   color:'#ef4444', desc:'Warn of employer contact if payment not received today.' },
+    // ── Tier 5: Final / legal ───────────────────────────────────
+    { level:19, label:'🚫 L19 – Credit Bureau Filed',         color:'#dc2626', desc:'Confirm submission to Ghana Credit Bureau.' },
+    { level:20, label:'⚖️ L20 – Final Demand (Pre-Legal)',    color:'#dc2626', desc:'Last notice before handing over to lawyers.' },
+    // ── Tier 6: Closure ─────────────────────────────────────────
+    { level:21, label:'✅ L21 – Payment Acknowledgment',      color:'#22c55e', desc:'Confirm full payment and release.' },
   ];
 
   let html = `<div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
@@ -14533,8 +14665,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#f97316',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',19:'#22c55e',20:'#10b981',21:'#f0a030'};
-  const levelLabels = {1:'Formal Warning',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',12:'Guarantor / Emergency Contact',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',19:'OD Fee Waiver',20:'Sympathetic (Good History)',21:'Day 1 OD Only Waiver'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '⚖️ ' + levelLabels[level];
@@ -14587,8 +14719,8 @@ function escalRenderModal() {
   const ph    = b.phone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#f97316',4:'#f59e0b',5:'#ef4444',6:'#f97316',7:'#dc2626',8:'#10b981',9:'#3b82f6',10:'#f97316',12:'#8b5cf6',13:'#22c55e',14:'#f97316',15:'#ef4444',16:'#dc2626',19:'#22c55e',20:'#10b981',21:'#f0a030'};
-  const levelLabels = {1:'Formal Warning',4:'Partial Follow-Up',5:'Broken Promise',6:'Field Visit',7:'Final Demand',8:'Settlement Offer',9:'Instalment Confirm',10:'Instalment Breach',12:'Guarantor / Emergency Contact',13:'Payment Ack',14:'Unreachable',15:'Workplace Warning',16:'Credit Bureau Filed',19:'OD Fee Waiver',20:'Sympathetic (Good History)',21:'Day 1 OD Only Waiver'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = '⚖️ Escalation — ' + (idx+1) + ' of ' + tot;
@@ -19656,7 +19788,8 @@ function getActiveApiKey() {
 }
 
 // Master borrower popup — shows filtered list in a modal instead of navigating
-function showBorrowersPopup(status, loanType, odAge, odMin, odMax) {
+function showBorrowersPopup(status, loanType, odAge, odMin, odMax, ptpFilter, minRatio) {
+  const today = new Date().toISOString().split('T')[0];
   let rows = state.borrowers.map(b => ({
     ...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     dueToday: getDueToday(b)
@@ -19666,9 +19799,13 @@ function showBorrowersPopup(status, loanType, odAge, odMin, odMax) {
   if (odAge) rows = rows.filter(r => r.odAge === parseInt(odAge));
   if (odMin) rows = rows.filter(r => r.odAge >= parseInt(odMin));
   if (odMax) rows = rows.filter(r => r.odAge <= parseInt(odMax));
+  if (ptpFilter === 'due')      rows = rows.filter(r => r.promisedToPay && r.promiseDate && r.promiseDate.startsWith(today) && !r.isPaid);
+  if (ptpFilter === 'breached') rows = rows.filter(r => r.ptpBreached && !r.isPaid);
+  if (minRatio) rows = rows.filter(r => !r.isPaid && r.loanDue > 0 && (r.amountPaid / r.loanDue) >= parseFloat(minRatio));
   rows = rows.sort((a,b) => b.dueToday - a.dueToday);
 
-  const label = status || (loanType ? loanType : '') || (odAge ? 'Day ' + odAge : '') || (odMin ? 'Day ' + odMin + '+' : 'All');
+  const label = status || (loanType ? loanType : '') || (odAge ? 'Day ' + odAge : '') || (odMin ? 'Day ' + odMin + '+' : '')
+    || (ptpFilter === 'due' ? 'PTP Due Today' : '') || (ptpFilter === 'breached' ? 'PTP Breached' : '') || (minRatio ? 'Quick Wins' : '') || 'All';
   document.getElementById('modal-title').textContent = '👥 ' + label + ' — ' + rows.length + ' account' + (rows.length!==1?'s':'');
   document.getElementById('modal-body').innerHTML = rows.length === 0
     ? '<div class="empty-state" style="padding:20px 0"><div>No accounts match</div></div>'
