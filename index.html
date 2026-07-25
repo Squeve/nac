@@ -460,6 +460,7 @@ tr.overdue-critical td:first-child,
 
 /* PTP HUB TABS — pill style matching nav */
 .ptp-tab { padding:7px 16px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; color:var(--text3); background:transparent; border:none; transition:all 0.15s; }
+.ptp-tab:hover { color:var(--text2); }
 .ptp-tab.active { color:var(--gold); background:var(--surface); box-shadow:0 1px 4px rgba(0,0,0,0.15); }
 
 /* FORECAST COLLAPSIBLE on dashboard */
@@ -1154,6 +1155,7 @@ select.form-input option { background: var(--surface2); }
 .summary-value { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: var(--section-gap); }
+.two-col-weighted { grid-template-columns: 1.5fr 1fr; }
 .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: var(--section-gap); }
 .txt-right { text-align: right; }
 .sep { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
@@ -1311,19 +1313,22 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
 .msg-toggle-btn{padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;background:none;border:none;color:var(--text3);transition:all 0.15s;}
 .msg-toggle-btn.active{background:var(--gold);color:#000;}
 /* EXPORT MODAL */
-.export-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;gap:0;}
+.export-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:var(--section-gap);gap:0;}
 .export-tab{flex:1;padding:10px 6px;font-size:12px;font-weight:700;color:var(--text3);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;letter-spacing:0.3px;user-select:none;}
+.export-tab:hover{color:var(--text2);}
 .export-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
 .export-tab-panel{display:none;}.export-tab-panel.active{display:block;}
 .exp-section-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
 .exp-cols-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:0;}
 .export-col-item{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;background:var(--surface2);border:1.5px solid transparent;cursor:pointer;font-size:12px;color:var(--text3);transition:all 0.15s;user-select:none;}
+.export-col-item:hover{border-color:var(--border2);}
 .export-col-item.checked{border-color:var(--gold);color:var(--text);background:rgba(232,160,32,0.07);font-weight:600;}
 .export-col-item input[type=checkbox]{accent-color:var(--gold);pointer-events:none;flex-shrink:0;}
 .exp-status-grid{display:flex;flex-wrap:wrap;gap:8px;}
 .exp-status-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;background:var(--surface2);border:1.5px solid var(--border2);cursor:pointer;font-size:12px;font-weight:600;color:var(--text3);transition:all 0.15s;user-select:none;white-space:nowrap;}
+.exp-status-pill:hover{border-color:var(--text3);}
 .exp-status-pill.on{border-color:var(--gold);color:var(--text);background:rgba(232,160,32,0.08);}
-.exp-count-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:16px;border:1px solid var(--border);}
+.exp-count-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:var(--section-gap);border:1px solid var(--border);}
 .exp-format-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;background:var(--surface2);border:1.5px solid var(--border2);cursor:pointer;transition:all 0.15s;user-select:none;}
 .exp-format-btn:hover{border-color:var(--gold);background:rgba(232,160,32,0.05);}
 .exp-format-btn.selected{border-color:var(--gold);background:rgba(232,160,32,0.1);}
@@ -1347,7 +1352,7 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
   .page-title { font-size: 18px !important; line-height: 1.2; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .analytics-grid { grid-template-columns: 1fr; }
-  .two-col, .three-col { grid-template-columns: 1fr; }
+  .two-col, .two-col-weighted, .three-col { grid-template-columns: 1fr; }
   .table-controls { flex-wrap: wrap; gap: 8px; }
   .search-input { width: 100%; }
   .modal { max-height: 92vh; max-width: 100vw; border-radius: 14px 14px 0 0; margin-top: auto; }
@@ -1692,6 +1697,26 @@ tr.overdue-critical .heat-ring {
   border-color: var(--gold); color: var(--text);
 }
 .bl-chip-sel option { background: var(--surface2); }
+.bl-chips {
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: var(--section-gap);
+  box-shadow: inset 0 1px 0 var(--border-hi), 0 2px 12px rgba(0,0,0,0.15);
+  animation: fadeUp 0.15s ease both;
+}
+.bl-filters-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border2); border-radius: 10px;
+  color: var(--text2); font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  padding: 8px 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.bl-filters-btn:hover { border-color: var(--gold); color: var(--text); }
+.bl-filters-btn.open { border-color: var(--gold); color: var(--gold); background: rgba(232,160,32,0.08); }
+.bl-filters-btn.has-active:not(.open) { border-color: rgba(232,160,32,0.4); color: var(--gold); }
+#bl-filters-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--gold); color: #1a1200; font-size: 10px; font-weight: 800;
+}
 .bl-meta {
   display: flex; align-items: center; justify-content: space-between;
   padding-top: 6px; border-top: 1px solid var(--border);
@@ -2935,7 +2960,7 @@ tr.overdue-critical .heat-ring {
     <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:12px 18px;margin-bottom:var(--section-gap)"></div>
 
     <!-- Priority 1: Action lists — most important for daily workflow -->
-    <div class="two-col" style="grid-template-columns:1.5fr 1fr">
+    <div class="two-col two-col-weighted">
       <div class="card">
         <div class="card-header"><span class="card-title">🏆 Top Overdue — Act Now</span><span style="font-size:10px;color:var(--text3)">tap any row</span></div>
         <div class="card-body" id="dash-top-due"></div>
@@ -2991,77 +3016,30 @@ tr.overdue-critical .heat-ring {
 
     <!-- ── Search + Filter bar ────────────────────────────── -->
     <div class="bl-filter-bar">
-      <div class="bl-search-wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="bl-search-wrap" style="flex:1;min-width:160px">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" class="bl-search-icon"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
         <input class="bl-search" id="loan-search" placeholder="Search name or phone…" oninput="debouncedRenderLoans()">
         <button onclick="clearSearch('loan-search',renderLoansTable)" class="bl-clear-btn" title="Clear">✕</button>
       </div>
-      <div class="bl-chips" id="bl-filter-chips">
-        <select class="bl-chip-sel" id="loan-filter-status" onchange="renderLoansTable()">
-          <option value="">All Status</option>
-          <option value="Unpaid">Unpaid</option>
-          <option value="Partial">Partial</option>
-          <option value="Paid">Paid</option>
+      <button class="bl-filters-btn" id="bl-filters-toggle" onclick="toggleBlFiltersPanel()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><path d="M3 5h14M6 10h8M8.5 15h3"/></svg>
+        Filters
+        <span id="bl-filters-count" style="display:none"></span>
+      </button>
+      <div class="bl-sort-wrap">
+        <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
+          <option value="priorityScore_-1">🎯 Priority ↑ High</option>
+          <option value="dueToday_-1">Due Today ↑ High</option>
+          <option value="dueToday_1">Due Today ↑ Low</option>
+          <option value="odAge_-1">OD Age ↑ High</option>
+          <option value="odAge_1">OD Age ↑ Low</option>
+          <option value="name_1">Name A–Z</option>
+          <option value="name_-1">Name Z–A</option>
+          <option value="loanDue_-1">Loan Due ↑ High</option>
+          <option value="status_1">Status</option>
         </select>
-        <select class="bl-chip-sel" id="loan-filter-priority" onchange="renderLoansTable()">
-          <option value="">Any Priority</option>
-          <option value="high">High (8–10)</option>
-          <option value="mid">Mid (5–7)</option>
-          <option value="low">Low (1–4)</option>
-        </select>
-        <select class="bl-chip-sel" id="loan-filter-od" onchange="renderLoansTable()">
-          <option value="">All Days</option>
-        </select>
-        <select class="bl-chip-sel" id="loan-filter-type" onchange="renderLoansTable()">
-          <option value="">All Types</option>
-          <option value="LoanBase">LoanBase</option>
-          <option value="LoanBase Pro">Pro</option>
-        </select>
-        <select class="bl-chip-sel" id="loan-filter-badge" onchange="renderLoansTable()">
-          <option value="">All Badges</option>
-          <option value="paid">Fully Paid</option>
-          <option value="star">Reliable</option>
-          <option value="ptp_today">PTP Today</option>
-          <option value="ptp_any">Any PTP</option>
-          <option value="warn">Broken PTP</option>
-          <option value="fraud">Fraud Flag</option>
-        </select>
-        <select class="bl-chip-sel" id="loan-filter-tag" onchange="renderLoansTable()">
-          <option value="">All Tags</option>
-          <option value="vip">⭐ VIP</option>
-          <option value="cooperative">👍 Cooperative</option>
-          <option value="difficult">😤 Difficult</option>
-          <option value="legal">⚖️ Legal</option>
-          <option value="ghost">👻 Ghost</option>
-          <option value="part-pay">💰 Part-Payer</option>
-        </select>
-        <select class="bl-chip-sel" id="loan-filter-amount" onchange="_onAmountPreset(this.value)" style="min-width:100px">
-          <option value="">₵ Amount</option>
-          <option value="0-500">Under ₵500</option>
-          <option value="500-1000">₵500–1k</option>
-          <option value="1000-2000">₵1k–2k</option>
-          <option value="2000-5000">₵2k–5k</option>
-          <option value="5000-99999">₵5k+</option>
-          <option value="custom">Custom…</option>
-        </select>
-        <span id="loan-amount-custom" style="display:none;align-items:center;gap:4px">
-          <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="renderLoansTable()" style="width:68px" min="0">
-          <span style="font-size:11px;color:var(--text3)">–</span>
-          <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="renderLoansTable()" style="width:68px" min="0">
-        </span>
-        <div class="bl-sort-wrap">
-          <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
-            <option value="priorityScore_-1">🎯 Priority ↑ High</option>
-            <option value="dueToday_-1">Due Today ↑ High</option>
-            <option value="dueToday_1">Due Today ↑ Low</option>
-            <option value="odAge_-1">OD Age ↑ High</option>
-            <option value="odAge_1">OD Age ↑ Low</option>
-            <option value="name_1">Name A–Z</option>
-            <option value="name_-1">Name Z–A</option>
-            <option value="loanDue_-1">Loan Due ↑ High</option>
-            <option value="status_1">Status</option>
-          </select>
-        </div>
+      </div>
       </div>
       <div class="bl-meta">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text3)">
@@ -3069,6 +3047,63 @@ tr.overdue-critical .heat-ring {
         </label>
         <span id="loans-showing" style="font-size:11px;color:var(--text3)"></span>
       </div>
+    </div>
+
+    <!-- ── Collapsible filter panel ───────────────────────── -->
+    <div class="bl-chips" id="bl-filter-chips" style="display:none">
+      <select class="bl-chip-sel" id="loan-filter-status" onchange="renderLoansTable()">
+        <option value="">All Status</option>
+        <option value="Unpaid">Unpaid</option>
+        <option value="Partial">Partial</option>
+        <option value="Paid">Paid</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-priority" onchange="renderLoansTable()">
+        <option value="">Any Priority</option>
+        <option value="high">High (8–10)</option>
+        <option value="mid">Mid (5–7)</option>
+        <option value="low">Low (1–4)</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-od" onchange="renderLoansTable()">
+        <option value="">All Days</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-type" onchange="renderLoansTable()">
+        <option value="">All Types</option>
+        <option value="LoanBase">LoanBase</option>
+        <option value="LoanBase Pro">Pro</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-badge" onchange="renderLoansTable()">
+        <option value="">All Badges</option>
+        <option value="paid">Fully Paid</option>
+        <option value="star">Reliable</option>
+        <option value="ptp_today">PTP Today</option>
+        <option value="ptp_any">Any PTP</option>
+        <option value="warn">Broken PTP</option>
+        <option value="fraud">Fraud Flag</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-tag" onchange="renderLoansTable()">
+        <option value="">All Tags</option>
+        <option value="vip">⭐ VIP</option>
+        <option value="cooperative">👍 Cooperative</option>
+        <option value="difficult">😤 Difficult</option>
+        <option value="legal">⚖️ Legal</option>
+        <option value="ghost">👻 Ghost</option>
+        <option value="part-pay">💰 Part-Payer</option>
+      </select>
+      <select class="bl-chip-sel" id="loan-filter-amount" onchange="_onAmountPreset(this.value)" style="min-width:100px">
+        <option value="">₵ Amount</option>
+        <option value="0-500">Under ₵500</option>
+        <option value="500-1000">₵500–1k</option>
+        <option value="1000-2000">₵1k–2k</option>
+        <option value="2000-5000">₵2k–5k</option>
+        <option value="5000-99999">₵5k+</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <span id="loan-amount-custom" style="display:none;align-items:center;gap:4px">
+        <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="renderLoansTable()" style="width:68px" min="0">
+        <span style="font-size:11px;color:var(--text3)">–</span>
+        <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="renderLoansTable()" style="width:68px" min="0">
+      </span>
+      <button class="btn btn-ghost btn-xs" onclick="clearBlFilters()" style="margin-left:auto">Clear all</button>
     </div>
 
     <!-- ── Cards list ─────────────────────────────────────── -->
@@ -3295,15 +3330,15 @@ tr.overdue-critical .heat-ring {
     </div>
 
     <!-- Today sticky CTA — shows Log/Edit depending on whether today is logged -->
-    <div id="log-today-cta" style="margin-bottom:14px"></div>
+    <div id="log-today-cta" style="margin-bottom:var(--section-gap)"></div>
 
     <!-- Month progress + projection -->
-    <div id="log-month-progress" style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;margin-bottom:14px"></div>
+    <div id="log-month-progress" style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;margin-bottom:var(--section-gap)"></div>
 
     <!-- KPI strip — 5 cards including streak -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px" id="log-kpi-strip">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:var(--section-gap)" id="log-kpi-strip">
       <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Total</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">All-Time</div>
         <div style="font-family:var(--font-mono);font-size:14px;font-weight:800;background:var(--gold-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="log-total">—</div>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:10px 6px;text-align:center">
@@ -3325,7 +3360,7 @@ tr.overdue-critical .heat-ring {
     </div>
 
     <!-- Bar chart with pace line -->
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:var(--section-gap)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px">Daily Collections</div>
         <div id="log-chart-legend" style="display:flex;gap:10px;font-size:10px;color:var(--text3)">
@@ -3337,7 +3372,7 @@ tr.overdue-critical .heat-ring {
     </div>
 
     <!-- Quick log entry — minimal, always visible -->
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;margin-bottom:14px;overflow:hidden" id="log-entry-form">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;margin-bottom:var(--section-gap);overflow:hidden" id="log-entry-form">
       <div style="padding:12px 14px 0;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Log Collection</div>
       <div style="padding:0 14px">
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -5984,6 +6019,10 @@ let   _odAgeCacheDay = '';
 // account has nothing left to promise on, so the PTP badge/breach state
 // shouldn't linger and clutter PTP Hub or trigger stale breach flags.
 function _clearPromiseOnPaid(b) {
+  if (b.promisedToPay) {
+    if (!b.promiseHistory) b.promiseHistory = [];
+    b.promiseHistory.push({ rescheduled: new Date().toISOString(), outcome: 'paid', note: 'Promise kept — paid in full' });
+  }
   b.promisedToPay = false;
   b.promiseDate = '';
   b.promiseNote = '';
@@ -7372,6 +7411,27 @@ var _loanFilterBadge    = '';
 
 let _lastLoanSearch = '', _lastFilterStatus = '', _lastFilterType = '', _lastFilterOd = '', _lastFilterPriority = '', _lastFilterBadge = '';
   
+function toggleBlFiltersPanel() {
+  const panel = document.getElementById('bl-filter-chips');
+  const btn = document.getElementById('bl-filters-toggle');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  if (btn) btn.classList.toggle('open', !isOpen);
+  haptic('light');
+}
+
+function clearBlFilters() {
+  ['loan-filter-status','loan-filter-priority','loan-filter-od','loan-filter-type','loan-filter-badge','loan-filter-tag','loan-filter-amount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const customEl = document.getElementById('loan-amount-custom');
+  if (customEl) customEl.style.display = 'none';
+  renderLoansTable();
+  haptic('light');
+}
+
 function _onAmountPreset(val) {
   const customEl = document.getElementById('loan-amount-custom');
   if (val === 'custom') {
@@ -7415,6 +7475,16 @@ function renderLoansTable() {
     if (!isNaN(_minVal)) fAmtMin = _minVal;
     if (!isNaN(_maxVal)) fAmtMax = _maxVal;
   }
+
+  // Update the Filters button badge with how many filters are active
+  const _activeFilterCount = [fStatus, fType, fOd, fPriority, fBadge, fTag, fAmountPreset].filter(Boolean).length;
+  const _filtersCountEl = document.getElementById('bl-filters-count');
+  if (_filtersCountEl) {
+    _filtersCountEl.textContent = _activeFilterCount;
+    _filtersCountEl.style.display = _activeFilterCount > 0 ? 'inline-flex' : 'none';
+  }
+  const _filtersBtn = document.getElementById('bl-filters-toggle');
+  if (_filtersBtn) _filtersBtn.classList.toggle('has-active', _activeFilterCount > 0);
 
   // Filter paid first (cheapest check) before doing expensive computations
   let source = fStatus === 'Paid'
@@ -7472,7 +7542,7 @@ function renderLoansTable() {
     if (fBadge === 'star')      return payRatio >= 0.5 && r.amountPaid > 0 && r.status !== 'Paid';
     if (fBadge === 'ptp_today') return r.promisedToPay && r.promiseDate && r.promiseDate.startsWith(today);
     if (fBadge === 'ptp_any')   return r.promisedToPay;
-    if (fBadge === 'warn')      return r.promisedToPay && r.amountPaid === 0;
+    if (fBadge === 'warn')      return !!r.ptpBreached;
     if (fBadge === 'fraud')     return (r.callLog||[]).some(c => c.outcome === 'Fraud');
     return true;
   });
@@ -8594,12 +8664,9 @@ function renderLog() {
   // ── (4) Personal best banner ──────────────────────────────────
   const pbEntry = nonZero.reduce((a,b) => (b.collected||0)>(a.collected||0)?b:a, nonZero[0]||{});
   const pbestBanner = pbEntry && pbEntry.collected > 0
-    ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(240,160,48,0.07);border-bottom:1px solid rgba(240,160,48,0.2)">
-        <span style="font-size:18px">🏆</span>
-        <div>
-          <div style="font-size:11px;font-weight:700;color:var(--gold)">Personal Best — ${fmtC(pbEntry.collected)}</div>
-          <div style="font-size:10px;color:var(--text3)">${new Date(pbEntry.date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div>
-        </div>
+    ? `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(240,160,48,0.05);border-bottom:1px solid var(--border)">
+        <span style="font-size:15px">🏆</span>
+        <div style="font-size:11px;color:var(--text3)">Personal best of <span style="color:var(--gold);font-weight:700">${fmtC(pbEntry.collected)}</span> set on ${new Date(pbEntry.date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</div>
        </div>`
     : '';
 
@@ -8611,13 +8678,56 @@ function renderLog() {
 
   const maxC = best || 1;
   let runningTotal = 0;
-  let weekBuf = [], weekIdx = 0, prevWeekTotal = 0;
+  let weekBuf = [], weekIdx = 0, prevWeekTotal = 0, currentWeekKey = null;
   let entriesHtml = '';
+
+  // Monday-start of the calendar week containing this date
+  const _weekStartStr = (dateStr) => {
+    const d = new Date(dateStr+'T00:00:00');
+    const day = d.getDay(); // 0=Sun..6=Sat
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    return d.toISOString().split('T')[0];
+  };
+
+  const _flushWeek = () => {
+    if (!weekBuf.length) return;
+    weekIdx++;
+    const wkTotal  = weekBuf.reduce((s,x) => s+(x.collected||0), 0);
+    const wkActive = weekBuf.filter(x => (x.collected||0)>0).length;
+    const wkAvg    = wkActive > 0 ? Math.round(wkTotal/wkActive) : 0;
+    const wkStart  = new Date(currentWeekKey+'T00:00:00');
+    const wkEnd    = new Date(wkStart); wkEnd.setDate(wkEnd.getDate()+6);
+    const wkLabel  = wkStart.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + '–' + wkEnd.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    let wowHtml = '';
+    if (weekIdx > 1 && prevWeekTotal > 0) {
+      const diff = wkTotal - prevWeekTotal;
+      const pct  = Math.round(Math.abs(diff)/prevWeekTotal*100);
+      const col  = diff>0?'var(--green)':diff<0?'var(--red)':'var(--text3)';
+      const arr  = diff>0?'↑':diff<0?'↓':'→';
+      wowHtml = `<span style="color:${col};font-size:10px;font-weight:700">${arr}${pct}% vs prev</span>`;
+    }
+    entriesHtml +=
+      `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(255,255,255,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px">Week of ${wkLabel}</span>
+        <div style="display:flex;gap:8px;align-items:center;font-size:10px">
+          <span style="color:var(--text3)">${wkActive}/7d</span>
+          <span style="font-family:var(--font-mono);color:var(--text3)">avg ${fmtC(wkAvg)}</span>
+          <span style="font-family:var(--font-mono);font-weight:700;color:var(--gold)">${fmtC(wkTotal)}</span>
+          ${wowHtml}
+        </div>
+      </div>`;
+    prevWeekTotal = wkTotal;
+    weekBuf = [];
+  };
 
   [...logs].reverse().forEach((e, i) => {
     const origI = logs.length - 1 - i;
     const val   = e.collected || 0;
     runningTotal = logs.slice(0, origI+1).reduce((s,x)=>s+(x.collected||0),0);
+
+    const wKey = _weekStartStr(e.date);
+    if (currentWeekKey === null) currentWeekKey = wKey;
+    if (wKey !== currentWeekKey) { _flushWeek(); currentWeekKey = wKey; }
     weekBuf.push(e);
 
     const w       = val > 0 ? Math.max(4, Math.round(val/maxC*100)) : 0;
@@ -8676,34 +8786,8 @@ function renderLog() {
         </button>
       </div>`;
 
-    // (5) Weekly summary with week-on-week comparison
-    const isEndOfWeek = weekBuf.length === 7 || origI === 0;
-    if (isEndOfWeek && weekBuf.length > 0) {
-      weekIdx++;
-      const wkTotal  = weekBuf.reduce((s,x) => s+(x.collected||0), 0);
-      const wkActive = weekBuf.filter(x => (x.collected||0)>0).length;
-      const wkAvg    = wkActive > 0 ? Math.round(wkTotal/wkActive) : 0;
-      let wowHtml = '';
-      if (weekIdx > 1 && prevWeekTotal > 0) {
-        const diff = wkTotal - prevWeekTotal;
-        const pct  = Math.round(Math.abs(diff)/prevWeekTotal*100);
-        const col  = diff>0?'var(--green)':diff<0?'var(--red)':'var(--text3)';
-        const arr  = diff>0?'↑':diff<0?'↓':'→';
-        wowHtml = `<span style="color:${col};font-size:10px;font-weight:700">${arr}${pct}% vs prev</span>`;
-      }
-      entriesHtml +=
-        `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:rgba(255,255,255,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-          <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px">Week ${weekIdx}</span>
-          <div style="display:flex;gap:8px;align-items:center;font-size:10px">
-            <span style="color:var(--text3)">${wkActive}/${weekBuf.length}d</span>
-            <span style="font-family:var(--font-mono);color:var(--text3)">avg ${fmtC(wkAvg)}</span>
-            <span style="font-family:var(--font-mono);font-weight:700;color:var(--gold)">${fmtC(wkTotal)}</span>
-            ${wowHtml}
-          </div>
-        </div>`;
-      prevWeekTotal = wkTotal;
-      weekBuf = [];
-    }
+    // (5) Weekly summary — flush when this is the last (oldest) entry
+    if (origI === 0) _flushWeek();
   });
 
   const le = document.getElementById('log-entries');
@@ -8901,12 +8985,15 @@ function openExportModal() {
       var exclFT=document.getElementById('exp-excl-future-today')?.checked || false;
       var todayStr2=new Date().toISOString().split('T')[0];
       var odMin= parseInt(document.getElementById('exp-od-min')?.value||'0')||0;
-      var odMax= parseInt(document.getElementById('exp-od-max')?.value||'99')||99;
+      var odMax= parseInt(document.getElementById('exp-od-max')?.value||'999')||999;
       var amtMin=parseFloat(document.getElementById('exp-amt-min')?.value||'0')||0;
       var amtMax=parseFloat(document.getElementById('exp-amt-max')?.value||'')||Infinity;
       var n = state.borrowers.filter(function(b){
+        var od=getOdAge(b.startDate, b), due=getDueToday(b);
+        if(od<odMin||od>odMax) return false;
+        if(due<amtMin||due>amtMax) return false;
         if(onlyPr) return b.promisedToPay;
-        var s=getStatus(b), od=getOdAge(b.startDate, b), due=getDueToday(b);
+        var s=getStatus(b);
         if(s==='Unpaid'&&!incU) return false;
         if(s==='Partial'&&!incPa) return false;
         if(s==='Paid'&&!incPd) return false;
@@ -8915,8 +9002,6 @@ function openExportModal() {
           var pd2 = b.promiseDate.split(' ')[0];
           if (pd2 >= todayStr2) return false;
         }
-        if(od<odMin||od>odMax) return false;
-        if(due<amtMin||due>amtMax) return false;
         return true;
       }).length;
       var el=document.getElementById('exp-count-num');
@@ -9006,22 +9091,22 @@ function openExportModal() {
     + '<span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--gold)" id="exp-count-num">'+totalActive+' accounts</span>'
     + '</div>'
     + '<div class="exp-section-label">Account status</div>'
-    + '<div class="exp-status-grid" style="margin-bottom:16px">'
+    + '<div class="exp-status-grid" style="margin-bottom:var(--section-gap)">'
     + '<div class="exp-status-pill on" id="pill-unpaid" onclick="_togglePill(this,\'exp-inc-unpaid\')">⏳ Unpaid</div>'
     + '<div class="exp-status-pill on" id="pill-partial" onclick="_togglePill(this,\'exp-inc-partial\')">⚠️ Part Paid</div>'
     + '<div class="exp-status-pill" id="pill-paid" onclick="_togglePill(this,\'exp-inc-paid\')">✅ Fully Paid</div>'
     + '<div class="exp-status-pill on" id="pill-promised" onclick="_togglePill(this,\'exp-inc-promised\')">🤝 Promised</div>'
     + '</div>'
-    + '<div style="margin-bottom:16px">'
+    + '<div style="margin-bottom:var(--section-gap)">'
     + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
     + '<input type="checkbox" id="exp-inc-promised-only" style="accent-color:var(--gold)"> Promised accounts only <span style="margin-left:auto;font-size:10px;color:var(--text3)">(overrides above)</span>'
     + '</label></div>'
-    + '<div style="margin-bottom:16px">'
+    + '<div style="margin-bottom:var(--section-gap)">'
     + '<label style="display:flex;align-items:center;gap:10px;font-size:12px;cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">'
     + '<input type="checkbox" id="exp-excl-future-today" style="accent-color:var(--gold)" onchange="setTimeout(_expCount,50)"> Exclude future &amp; today&#39;s promises <span style="margin-left:auto;font-size:10px;color:var(--text3)">(keeps only past-due / no promise)</span>'
     + '</label></div>'
     + '<div class="exp-section-label">OD Day range</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:16px">'
+    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:var(--section-gap)">'
     + '<div><label style="font-size:10px;color:var(--text3);margin-bottom:3px;display:block">From</label>'
     + '<input type="number" id="exp-od-min" class="form-input" style="font-size:13px;padding:8px 10px" min="0" max="90" value="'+minOd+'" oninput="setTimeout(_expCount,50)"></div>'
     + '<div style="text-align:center;padding-top:20px;color:var(--text3);font-size:13px">—</div>'
@@ -9029,7 +9114,7 @@ function openExportModal() {
     + '<input type="number" id="exp-od-max" class="form-input" style="font-size:13px;padding:8px 10px" min="0" max="90" value="'+maxOd+'" oninput="setTimeout(_expCount,50)"></div>'
     + '</div>'
     + '<div class="exp-section-label">Balance owed (₵)</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:20px">'
+    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:var(--section-gap)">'
     + '<div><label style="font-size:10px;color:var(--text3);margin-bottom:3px;display:block">Min</label>'
     + '<input type="number" id="exp-amt-min" class="form-input" style="font-size:13px;padding:8px 10px" min="0" placeholder="0" value="0" oninput="setTimeout(_expCount,50)"></div>'
     + '<div style="text-align:center;padding-top:20px;color:var(--text3);font-size:13px">—</div>'
@@ -9037,7 +9122,7 @@ function openExportModal() {
     + '<input type="number" id="exp-amt-max" class="form-input" style="font-size:13px;padding:8px 10px" min="0" placeholder="No limit" oninput="setTimeout(_expCount,50)"></div>'
     + '</div>'
     + '<div class="exp-section-label">Sort order</div>'
-    + '<select id="exp-sort-by" class="filter-select" style="width:100%;font-size:13px;margin-bottom:20px">'
+    + '<select id="exp-sort-by" class="filter-select" style="width:100%;font-size:13px;margin-bottom:var(--section-gap)">'
     + '<option value="odAge">OD Age (default)</option>'
     + '<option value="balance">Highest Balance</option>'
     + '<option value="paid">Amount Paid</option>'
@@ -9049,9 +9134,9 @@ function openExportModal() {
 
     // ── Panel 3: Export
     + '<div class="export-tab-panel" id="exppanel-export">'
-    + '<div class="exp-count-bar">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;background:transparent;padding:6px 2px;margin-bottom:var(--section-gap)">'
     + '<span style="font-size:12px;color:var(--text3)">Ready to export</span>'
-    + '<span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--gold)" id="exp-count-num2">— accounts</span>'
+    + '<span style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text2)" id="exp-count-num2">— accounts</span>'
     + '</div>'
     + '<div class="exp-section-label">Choose format</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
@@ -9085,8 +9170,6 @@ function openExportModal() {
     if(s!=='paid') inp.checked=true;
     document.getElementById('modal-body').appendChild(inp);
   });
-  var inpOnly=document.createElement('input'); inpOnly.type='checkbox'; inpOnly.id='exp-inc-promised-only'; inpOnly.style.display='none';
-  document.getElementById('modal-body').appendChild(inpOnly);
 
   // selected format
   window._expFmt = 'csv';
@@ -15368,7 +15451,7 @@ function getBorrowerBadges(b) {
   const status = getStatus(b);
   if (status === 'Paid') badges.push('<span class="badge-star" title="Fully paid ✅" style="font-size:10px">✅</span>');
   else if (payRatio >= 0.5 && b.amountPaid > 0) badges.push('<span class="badge-star" title="Reliable payer (50%+)">⭐</span>');
-  if (b.promisedToPay && b.amountPaid === 0) badges.push('<span class="badge-warn" title="Promise not yet honoured">⚠️</span>');
+  if (b.promisedToPay && b.amountPaid === 0 && !b.ptpBreached) badges.push('<span class="badge-warn" title="Promise not yet honoured">⚠️</span>');
   if ((b.callLog||[]).some(cl => cl.outcome === 'Fraud')) badges.push('<span title="Fraud suspected" style="font-size:10px">🚨</span>');
   if (b.ptpBreached && b.amountPaid === 0) badges.push('<span title="PTP Breached" style="font-size:10px">🔴</span>');
   const _3d = new Date(Date.now()-3*86400000).toISOString().split('T')[0];
@@ -16514,7 +16597,7 @@ function ptpShowRemindMenu(borrowerId) {
     + '<div style="font-size:11px;color:var(--text3)">' + amount + ' due · ' + dateTimeStr + '</div>'
     + '</div>'
 
-    + '<div style="margin-bottom:14px">'
+    + '<div style="margin-bottom:var(--section-gap)">'
     + '<label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Message Tone</label>'
     + '<div style="display:flex;flex-direction:column;gap:6px">'
     + _ptpToneBtn('friendly', '\uD83D\uDE0A Friendly Reminder', 'Day before — warm and encouraging', defaultTone)
@@ -16523,7 +16606,7 @@ function ptpShowRemindMenu(borrowerId) {
     + '</div>'
     + '</div>'
 
-    + '<div style="margin-bottom:14px">'
+    + '<div style="margin-bottom:var(--section-gap)">'
     + '<label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Message Preview</label>'
     + '<div id="ptp-msg-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text);line-height:1.6;white-space:pre-wrap;min-height:80px;max-height:180px;overflow-y:auto">'
     + _ptpBuildMessage(b, defaultTone).replace(/\n/g, '<br>')
@@ -16661,7 +16744,7 @@ function ptpSendAllReminders() {
       + allPtps.length + ' PTP reminder' + (allPtps.length !== 1 ? 's' : '') + ' queued</div>'
     + '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Opens each chat one by one — just tap Send in each</div>'
     + '</div>'
-    + '<div style="background:var(--surface2);border-radius:10px;overflow:hidden;max-height:200px;overflow-y:auto;margin-bottom:14px">'
+    + '<div style="background:var(--surface2);border-radius:10px;overflow:hidden;max-height:200px;overflow-y:auto;margin-bottom:var(--section-gap)">'
     + allPtps.map(function(b) {
         var isToday = b.promiseDate && b.promiseDate.startsWith(today);
         return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)">'
@@ -16921,6 +17004,8 @@ function ptpToggleHonour(bid) {
     toast(b.name.split(' ')[0] + ' marked as pending', 'info');
   } else {
     b.ptpOutcome = 'paid';
+    if (!b.promiseHistory) b.promiseHistory = [];
+    b.promiseHistory.push({ rescheduled: new Date().toISOString(), outcome: 'paid', note: 'Promise kept — marked honoured' });
     // Cancel this borrower's individual alarm immediately
     if (_ptpReminderTimeouts[bid]) {
       clearTimeout(_ptpReminderTimeouts[bid]);
@@ -17131,7 +17216,7 @@ function buildPtpWeekForecastHtml() {
   }).join('');
 
   return `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px;overflow:hidden">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:var(--section-gap);overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-size:12px;font-weight:700">📈 Week Forecast
           <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:4px">· tap a day</span>
@@ -17191,7 +17276,7 @@ function buildPtpMorningHtml() {
     weekDays.push({ ds, cnt, label, isToday });
   }
   const weekStripHtml = `
-    <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none">
+    <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:var(--section-gap);scrollbar-width:none">
       ${weekDays.map(w => {
         const col = w.cnt > 0 ? (w.isToday ? 'var(--gold)' : 'var(--text2)') : 'var(--text3)';
         const bg  = w.isToday ? 'rgba(240,160,48,0.12)' : w.cnt > 0 ? 'var(--surface2)' : 'transparent';
@@ -17206,7 +17291,7 @@ function buildPtpMorningHtml() {
   // ── Progress bar: expected vs collected ─────────────────────
   const collPct  = totalExp > 0 ? Math.min(100, Math.round(totalColl / totalExp * 100)) : 0;
   const collBar  = `
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:var(--section-gap)">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
         <span>Collected from PTPs today</span>
         <span>${fmtC(totalColl)} / ${fmtC(totalExp)}</span>
@@ -17266,7 +17351,7 @@ function buildPtpMorningHtml() {
 
   // ── Carryover banner ─────────────────────────────────────────
   if (carryover.length > 0) {
-    html += `<div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+    html += `<div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:var(--section-gap)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;color:var(--red)">⚠️ ${carryover.length} Unresolved from Yesterday</div>
         <button onclick="ptpCarryoverMoveAll()" style="font-size:10px;font-weight:700;color:var(--gold);background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--font-body)">Move all → Today</button>
@@ -17298,7 +17383,7 @@ function buildPtpMorningHtml() {
 
   // ── Today's list header (minimal) ────────────────────────────
   if (ptps.length === 0) {
-    html += `<div style="background:var(--surface2);border-radius:10px;padding:24px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:14px">
+    html += `<div style="background:var(--surface2);border-radius:10px;padding:24px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:var(--section-gap)">
       No promises today.<br><span style="font-size:11px">Tap <strong>＋ PTP</strong> or open a borrower → 🤝 Promise.</span></div>`;
   } else {
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -17308,7 +17393,7 @@ function buildPtpMorningHtml() {
         Remind All
       </button>
     </div>`;
-    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">`;
+    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:var(--section-gap)">`;
     sortedPtps.forEach(b => {
       const ok    = b.isPaid === true || b.ptpOutcome === 'paid';
       const phone = b.phone.replace(/\s/g,'').replace('+','');
@@ -17339,7 +17424,7 @@ function buildPtpMorningHtml() {
   if (upcoming.length > 0) {
     const thisWeekId = 'ptp-upcoming-body';
     html += `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:14px">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:var(--section-gap)">
       <div onclick="var b=document.getElementById('${thisWeekId}');var ic=document.getElementById('ptp-upcoming-ic');b.style.display=b.style.display==='none'?'block':'none';ic.textContent=b.style.display==='none'?'›':'⌄'"
         style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer">
         <div style="font-size:12px;font-weight:700">📅 Coming Up <span style="font-size:10px;font-weight:400;color:var(--text3)">${upcoming.length} promise${upcoming.length!==1?'s':''}</span></div>
@@ -17566,7 +17651,7 @@ function buildPtpEodHtml() {
   const convCol = conv >= 70 ? 'var(--green)' : conv >= 40 ? 'var(--gold)' : 'var(--red)';
 
   let html = `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:var(--section-gap)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">EOD Summary · ${todayStr}</div>
         <span style="font-family:var(--font-mono);font-size:15px;font-weight:800;color:${convCol}">${conv}%</span>
@@ -17650,7 +17735,7 @@ function ptpShowHistoryDay(date) {
   const rate = day.total > 0 ? Math.round(day.honoured / day.total * 100) : 0;
   document.getElementById('modal-title').textContent = '📅 ' + dateStr;
   document.getElementById('modal-body').innerHTML =
-    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:var(--section-gap)">
       <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--gold)">${day.total}</div><div style="font-size:10px;color:var(--text3)">PTPs</div></div>
       <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--green)">${day.honoured}</div><div style="font-size:10px;color:var(--text3)">Honoured</div></div>
       <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--red)">${day.broken||0}</div><div style="font-size:10px;color:var(--text3)">Broken</div></div>
@@ -17713,7 +17798,7 @@ function buildPtpStatsHtml2() {
   }, 60);
 
   return `
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:var(--section-gap)">
       <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center">
         <div style="font-family:var(--font-mono);font-size:28px;font-weight:800;color:${rateCol};line-height:1">${overallRate}%</div>
         <div style="font-size:10px;color:var(--text3);margin-top:4px">Overall honour rate</div>
@@ -17735,7 +17820,7 @@ function buildPtpStatsHtml2() {
         <div style="font-size:11px;color:var(--text3);margin-top:2px">since ${new Date(history[history.length-1]?.date||Date.now()).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
       </div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:16px">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:var(--section-gap)">
       <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px">Honour Rate Trend (last ${reversed.length} days)</div>
       <div style="height:160px"><canvas id="ptp-trend-chart"></canvas></div>
     </div>
@@ -17814,7 +17899,7 @@ function buildPtpCalendarHtml() {
   });
 
   let html = `<div style="background:var(--surface);border-radius:16px;padding:16px;overflow-x:auto">
-    <div style="text-align:center;font-weight:700;margin-bottom:16px">${firstDay.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</div>
+    <div style="text-align:center;font-weight:700;margin-bottom:var(--section-gap)">${firstDay.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;min-width:280px">`;
   
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -17864,7 +17949,7 @@ function showPtpsForDate(dateStr) {
   
   document.getElementById('modal-title').textContent = `📅 PTPs for ${displayDate}`;
   document.getElementById('modal-body').innerHTML = `
-    <div style="margin-bottom:16px; padding:12px; background:rgba(240,160,48,0.08); border-radius:12px; border-left:3px solid var(--gold);">
+    <div style="margin-bottom:var(--section-gap); padding:12px; background:rgba(240,160,48,0.08); border-radius:12px; border-left:3px solid var(--gold);">
       <div style="font-size:12px; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px;">Total Expected</div>
       <div style="font-family:var(--font-mono); font-size:22px; font-weight:800; color:var(--gold);">${fmtC(totalExpected)}</div>
       <div style="font-size:11px; color:var(--text3);">from ${ptps.length} PTP${ptps.length !== 1 ? 's' : ''}</div>
@@ -19071,7 +19156,7 @@ function getSmartReplySuggestions(b) {
   const od = getOdAge(b.startDate, b);
   const status = getStatus(b);
   const hasPTP = b.promisedToPay;
-  const brokenPTP = hasPTP && b.amountPaid === 0;
+  const brokenPTP = !!b.ptpBreached;
   const callCount = (b.callLog||[]).length;
   const lastCall = (b.callLog||[]).slice(-1)[0];
 
@@ -24638,7 +24723,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 //  DECOY CALCULATOR — secret code configuration
 //  Change DECOY_SECRET to any digit sequence you want.
 //  Enter those digits then press  =  to unlock.
-const DECOY_SECRET = '1984';
+const DECOY_SECRET = '1047';
 // ═══════════════════════════════════════════════════
 
 (function () {
@@ -24754,6 +24839,7 @@ const DECOY_SECRET = '1984';
 
     // ─ operators ─
     if (btn === '+' || btn === '−' || btn === '×' || btn === '÷') {
+      if (cVal === 'Error') { calcReset(); }
       if (!cNew && cPrev !== null && cOp) {
         var res = doMath(cPrev, parseFloat(cVal), cOp);
         cVal = fmtNum(res); setDisp(cVal);
