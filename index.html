@@ -31,6 +31,7 @@
 <meta name="apple-mobile-web-app-title" content="Veltrix">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -3130,7 +3131,7 @@ tr.overdue-critical .heat-ring {
     <div class="bl-filter-bar" style="margin-bottom:10px">
       <div class="bl-search-wrap">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" class="bl-search-icon"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
-        <input class="bl-search" id="paid-search" placeholder="Search paid accounts…" oninput="renderPaidPage()">
+        <input class="bl-search" id="paid-search" placeholder="Search paid accounts…" oninput="_paidSearchDebounce()">
         <button onclick="clearSearch('paid-search', renderPaidPage)" class="bl-clear-btn">✕</button>
       </div>
       <div class="bl-chips">
@@ -3491,7 +3492,7 @@ tr.overdue-critical .heat-ring {
         <div style="display:flex;gap:8px;align-items:center">
           <div class="bl-search-wrap" style="max-width:160px">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" class="bl-search-icon" style="left:9px"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
-            <input class="bl-search" id="sms-search" placeholder="Search…" oninput="renderSmsBlast()" style="padding-left:30px;padding-right:28px;font-size:12px;height:34px">
+            <input class="bl-search" id="sms-search" placeholder="Search…" oninput="_smsSearchDebounce()" style="padding-left:30px;padding-right:28px;font-size:12px;height:34px">
             <button onclick="clearSearch('sms-search',renderSmsBlast)" class="bl-clear-btn">✕</button>
           </div>
           <select class="bl-chip-sel" id="sms-filter" onchange="renderSmsBlast()">
@@ -3580,7 +3581,7 @@ tr.overdue-critical .heat-ring {
     </div>
 
     <!-- Gap alert -->
-    <div id="ranking-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;font-size:13px;animation:fadeUp 0.3s ease both"></div>
+    <div id="ranking-page-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;font-size:13px;animation:fadeUp 0.3s ease both"></div>
 
     <!-- Tab bar -->
     <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
@@ -5953,14 +5954,27 @@ function _doSaveState() {
   const key     = getStateKey();
   const agentId = _activeAgent?.id || null;
   const json    = JSON.stringify(state);
+  const _persist = function(payload) {
+    let lsOk = true;
+    try {
+      localStorage.setItem(key, payload);
+    } catch (e) {
+      lsOk = false;
+      console.warn('localStorage.setItem failed (quota or private mode?) — falling back to IndexedDB only', e);
+    }
+    if (window.indexedDB) {
+      _saveStateToIndexedDB(key, state).catch(function(idbErr) {
+        console.warn(idbErr);
+        if (!lsOk) toast('⚠️ Save failed — storage may be full. Free up space or export a backup.', 'error');
+      });
+    } else if (!lsOk) {
+      toast('⚠️ Save failed — storage may be full. Free up space or export a backup.', 'error');
+    }
+  };
   if (agentId && crypto?.subtle) {
-    _encryptForStorage(json, agentId).then(function(encrypted) {
-      localStorage.setItem(key, encrypted);
-      if (window.indexedDB) _saveStateToIndexedDB(key, state).catch(console.warn);
-    });
+    _encryptForStorage(json, agentId).then(_persist);
   } else {
-    localStorage.setItem(key, json);
-    if (window.indexedDB) _saveStateToIndexedDB(key, state).catch(console.warn);
+    _persist(json);
   }
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(_pushToSupabaseIncremental, 400);
@@ -8296,7 +8310,7 @@ function renderDispatch() {
         + '<div class="dispatch-rank">' + (i+1) + '</div>'
         + '<div class="dispatch-info">'
         + '<div class="dispatch-name">' + escapeHtml(b.name) + (b.promisedToPay ? ' <span class="promise-badge">🤝 Promised</span>' : '') + _waStatusBadge(b.id) + '</div>'
-        + '<div class="dispatch-meta">' + formatPhoneDisplay(b.phone)
+        + '<div class="dispatch-meta"><span onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + b.phone + '\').then(()=>toast(\'Phone copied\',\'success\'))" style="cursor:pointer" title="Tap to copy">' + formatPhoneDisplay(b.phone) + ' 📋</span>'
         + ' &nbsp;·&nbsp; <span class="' + odCls + '">Day ' + b.odAge + '</span>'
         + ' &nbsp;·&nbsp; ' + (b.loanType==='LoanBase Pro' ? '<span class="badge badge-pro">Pro</span>' : '<span class="badge badge-loanbase">Base</span>')
         + ' &nbsp;·&nbsp; ' + statusBadge(b.status)
@@ -8402,11 +8416,11 @@ function openWaCheckPanel() {
         const bg   = st === 'active' ? 'rgba(37,211,102,0.07)' : st === 'unknown' ? 'rgba(239,68,68,0.05)' : 'var(--surface2)';
         const bor  = st === 'active' ? 'rgba(37,211,102,0.3)'  : st === 'unknown' ? 'rgba(239,68,68,0.2)'  : 'var(--border2)';
         const btns = !st
-          ? `<a href="https://wa.me/${phGH}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" onclick="waCheckMarkPending('${b.id}')">🔍</a>
-             <button style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="waCheckMark('${b.id}','active')">✓</button>
-             <button style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.25);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="waCheckMark('${b.id}','unknown')">✗</button>`
+          ? `<a href="https://wa.me/${phGH}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" aria-label="Check WhatsApp number" onclick="waCheckMarkPending('${b.id}')">🔍</a>
+             <button style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" aria-label="Mark WhatsApp active" onclick="waCheckMark('${b.id}','active')">✓</button>
+             <button style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.25);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" aria-label="Mark WhatsApp not found" onclick="waCheckMark('${b.id}','unknown')">✗</button>`
           : `<span style="font-size:11px;font-weight:700;color:${st==='active'?'#25d366':'var(--red)'}">${st==='active'?'✓ Active':'✗ Not found'}</span>
-             <button style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:10px;padding:2px 7px;border-radius:6px;cursor:pointer" onclick="waCheckMark('${b.id}',null)">↺</button>`;
+             <button style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:10px;padding:2px 7px;border-radius:6px;cursor:pointer" aria-label="Reset WhatsApp check status" onclick="waCheckMark('${b.id}',null)">↺</button>`;
         return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:${bg};border:1px solid ${bor};border-radius:9px" id="wa-row-${b.id}">
           <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600">${escapeHtml(b.name)}</div><div style="font-size:10px;color:var(--text3)">${b.phone}</div></div>
           ${btns}
@@ -8437,7 +8451,7 @@ window.waCheckMark = function(id, status) {
     row.style.background  = st === 'active' ? 'rgba(37,211,102,0.07)' : st === 'unknown' ? 'rgba(239,68,68,0.05)' : 'var(--surface2)';
     row.style.borderColor = st === 'active' ? 'rgba(37,211,102,0.3)'  : st === 'unknown' ? 'rgba(239,68,68,0.2)'  : 'var(--border2)';
     const btns = !st
-      ? `<a href="https://wa.me/${phGH}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" onclick="waCheckMarkPending('${id}')">🔍</a>
+      ? `<a href="https://wa.me/${phGH}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;font-size:10px" aria-label="Check WhatsApp number" onclick="waCheckMarkPending('${id}')">🔍</a>
          <button style="background:rgba(37,211,102,0.12);color:#25d366;border:1px solid rgba(37,211,102,0.3);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="waCheckMark('${id}','active')">✓</button>
          <button style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.25);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="waCheckMark('${id}','unknown')">✗</button>`
       : `<span style="font-size:11px;font-weight:700;color:${st==='active'?'#25d366':'var(--red)'}">${st==='active'?'✓ Active':'✗ Not found'}</span>
@@ -9586,8 +9600,9 @@ function doExportPDF(mode) {
 
 function deleteLogEntry(date) {
   confirmAction({ title: 'Delete Log Entry', message: 'Remove this daily log entry?', confirmLabel: 'Delete', onConfirm: function() {
+    pushUndo('Delete log entry', { borrowers: state.borrowers, dailyLog: state.dailyLog });
     state.dailyLog = state.dailyLog.filter(e => e.date !== date);
-    saveState(); renderLog(); updateDailyPill(); toast('Entry deleted', 'info');
+    saveState(); renderLog(); updateDailyPill(); toastWithUndo('Entry deleted');
   }});
 }
 
@@ -10651,7 +10666,7 @@ function deleteBorrower(id) {
       saveState();
       updateBadges();
       renderCurrentPage();
-      toast(b.name.split(' ')[0] + ' removed (Ctrl+Z to undo)', 'info');
+      toastWithUndo(b.name.split(' ')[0] + ' removed');
      if (!navigator.onLine) {
   queueOfflineAction({ type: 'delete', id, name: b.name });
 }
@@ -15187,10 +15202,10 @@ function renderHitList() {
         <div style="font-size:10px;color:var(--text3)">Day ${getOdAge(b.startDate, b)} · ${fmtC(getDueToday(b))}</div>
       </div>
       <div style="display:flex;gap:6px">
-        <a href="tel:${b.phone}" class="btn btn-ghost btn-xs" onclick="haptic('light')">📞</a>
-        <button class="btn btn-green btn-xs" onclick="openPayModal('${b.id}')">💰</button>
-        <a href="https://wa.me/${phone}?text=${encodeURIComponent(getWaLink(b, true))}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366">💬</a>
-        <button class="btn btn-ghost btn-xs" onclick="removeFromHitList('${b.id}')">✕</button>
+        <a href="tel:${b.phone}" class="btn btn-ghost btn-xs" aria-label="Call ${escapeHtml(b.name.split(' ')[0])}" onclick="haptic('light')">📞</a>
+        <button class="btn btn-green btn-xs" aria-label="Record payment" onclick="openPayModal('${b.id}')">💰</button>
+        <a href="https://wa.me/${phone}?text=${encodeURIComponent(getWaLink(b, true))}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp">💬</a>
+        <button class="btn btn-ghost btn-xs" aria-label="Remove from Hit List" onclick="removeFromHitList('${b.id}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -15585,7 +15600,7 @@ function renderSmartClusters() {
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0">
           <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
-          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="event.stopPropagation();haptic('light')">💬</a>
           <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();addToHitList('${b.id}');haptic('light')">📌</button>
         </div>
       </div>`;
@@ -15638,7 +15653,7 @@ function showClusterPopup(cls) {
       <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;margin-right:8px">${fmtC(getDueToday(b))}</div>
       <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
         <button class="btn btn-green btn-xs" onclick="openPayModal('${b.id}');haptic('light')">💰</button>
-        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="haptic('light')">💬</a>
+        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="haptic('light')">💬</a>
       </div>
     </div>`;
   }).join('');
@@ -15757,6 +15772,7 @@ function scanRanking() {
 }
 
 function renderRanking() {
+  checkRankingGapAlert();
   const myName = (localStorage.getItem('ranking_my_name') || '').toLowerCase();
   const sub = document.getElementById('ranking-sub');
   if (sub) sub.textContent = myName ? 'Tracking ' + localStorage.getItem('ranking_my_name') : 'Set your agent name in ＋ Log to start';
@@ -17143,7 +17159,7 @@ function ptpForecastSelect(ds) {
           <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:${ok?'var(--green)':'var(--text2)'};flex-shrink:0">${fmtC(getDueToday(b))}</div>
           ${isToday?`<button class="btn btn-green btn-xs" onclick="openPayModal('${b.id}');haptic('light')">💰</button>`:''}
           <button class="btn btn-ghost btn-xs" style="color:var(--gold)" onclick="ptpReschedule('${b.id}');haptic('light')">📅</button>
-          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="haptic('light')">📩</a>
+          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="haptic('light')">📩</a>
         </div>`;
     });
   }
@@ -17374,7 +17390,7 @@ function buildPtpMorningHtml() {
           <button class="btn btn-ghost btn-xs" style="color:var(--gold);font-size:10px;padding:3px 7px" onclick="ptpCarryoverOne('${b.id}')">→ Today</button>
           <button class="btn btn-ghost btn-xs" style="color:var(--orange);border-color:rgba(249,115,22,0.35);font-size:10px;padding:3px 7px" onclick="togglePromise('${b.id}')" title="Re-negotiate and clear breach">🔄 Rescue</button>
           <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')">💰</button>
-          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+          <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="event.stopPropagation();haptic('light')">💬</a>
         </div>
       </div>`;
     });
@@ -18879,16 +18895,19 @@ function checkRankingGapAlert() {
   const needed = Math.round((drop / 100) * totalOutstanding * 2);
   const lastDismissed = localStorage.getItem('ranking_gap_dismissed');
   if (lastDismissed === latest.date) return;
-  const alert = document.getElementById('ranking-gap-alert');
-  if (!alert) return;
-  alert.style.display = 'flex';
-  alert.innerHTML = `<div style="flex:1;font-size:13px">📉 Your rate dropped <strong>${drop.toFixed(1)}%</strong> since last scan. You need ~<strong style="color:var(--gold)">${fmtC(needed)}</strong> today to hold #${myPos}.</div>
+  const targets = ['ranking-gap-alert', 'ranking-page-gap-alert']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!targets.length) return;
+  const html = `<div style="flex:1;font-size:13px">📉 Your rate dropped <strong>${drop.toFixed(1)}%</strong> since last scan. You need ~<strong style="color:var(--gold)">${fmtC(needed)}</strong> today to hold #${myPos}.</div>
     <button class="btn btn-ghost btn-xs" onclick="dismissRankingAlert('${latest.date}')">✕</button>`;
+  targets.forEach(el => { el.style.display = 'flex'; el.innerHTML = html; });
 }
 function dismissRankingAlert(date) {
   localStorage.setItem('ranking_gap_dismissed', date);
-  const el = document.getElementById('ranking-gap-alert');
-  if (el) el.style.display = 'none';
+  ['ranking-gap-alert', 'ranking-page-gap-alert'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 }
 
 // ── INSTANT PAY — NO MODAL (item 10) ───────────────────
@@ -19746,7 +19765,7 @@ function showTreadmillPopup() {
           <div style="font-family:var(--font-mono);font-size:12px;color:var(--red);font-weight:700">${fmtC(getDueToday(b))}</div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-green btn-xs" onclick="event.stopPropagation();closeModal();openPayModal('${b.id}')">💰</button>
-            <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic('light')">💬</a>
+            <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="event.stopPropagation();haptic('light')">💬</a>
           </div>
         </div>`;
       }).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px 0">No Day 6 accounts currently</div>';
@@ -20097,7 +20116,7 @@ function _bulkDispatchNext() {
     <div style="background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--text2);border-left:3px solid var(--gold)">
       <strong>${msg.title}</strong><br><span style="color:var(--text3)">${(msg.body||'').slice(0,80)}…</span>
     </div>
-    <input id="bd-b-search" class="bl-search" placeholder="Search borrower…" oninput="_bulkFilterBorrowers()" style="width:100%;margin-bottom:8px;box-sizing:border-box">
+    <input id="bd-b-search" class="bl-search" placeholder="Search borrower…" oninput="_bulkDispatchSearchDebounce()" style="width:100%;margin-bottom:8px;box-sizing:border-box">
     <div id="bd-borrower-list" style="display:flex;flex-direction:column;gap:5px;max-height:310px;overflow-y:auto">
       ${borrowers.map(b => {
         const firstName = getFirstName(b);
@@ -21142,8 +21161,45 @@ let _pinBuffer = '';
 let _pinTarget = null;   // agent being unlocked
 let _pinMode = 'unlock'; // 'unlock' | 'set' | 'confirm'
 let _pinSetBuffer = '';
-let _pinAttempts  = 0;       // wrong PIN counter
+let _pinAttempts  = 0;       // wrong PIN counter (this cycle)
 let _pinLockUntil = 0;       // timestamp when lockout expires
+let _pinLockCycles = 0;      // how many times lockout has been triggered — escalates duration
+
+// Lockout state persists across page reloads (per agent) — otherwise a
+// simple refresh would fully reset brute-force protection.
+function _pinLockStorageKey(agentId) { return 'sq_pinlock_' + agentId; }
+function _loadPinLockState(agentId) {
+  try {
+    const raw = localStorage.getItem(_pinLockStorageKey(agentId));
+    if (!raw) { _pinAttempts = 0; _pinLockUntil = 0; _pinLockCycles = 0; return; }
+    const d = JSON.parse(raw);
+    _pinAttempts = d.attempts || 0;
+    _pinLockUntil = d.lockUntil || 0;
+    _pinLockCycles = d.cycles || 0;
+  } catch (e) { _pinAttempts = 0; _pinLockUntil = 0; _pinLockCycles = 0; }
+}
+function _savePinLockState(agentId) {
+  try {
+    localStorage.setItem(_pinLockStorageKey(agentId), JSON.stringify({
+      attempts: _pinAttempts, lockUntil: _pinLockUntil, cycles: _pinLockCycles
+    }));
+  } catch (e) {}
+}
+// Escalating lockout duration by cycle count: 1st→30s, 2nd→5min, 3rd→30min, 4th+→24h
+function _pinLockDurationMs(cycle) {
+  if (cycle <= 1) return 30 * 1000;
+  if (cycle === 2) return 5 * 60 * 1000;
+  if (cycle === 3) return 30 * 60 * 1000;
+  return 24 * 60 * 60 * 1000;
+}
+function _fmtLockRemaining(ms) {
+  const s = Math.ceil(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.ceil(s / 60);
+  if (m < 60) return m + 'min';
+  const h = Math.ceil(m / 60);
+  return h + 'h';
+}
 
 // ── Crypto helpers ────────────────────────────────────────────
 async function hashPin(pin, agentId) {
@@ -21324,6 +21380,7 @@ function lockSelectAgent(id) {
     || (window._pendingAgent?.id === id ? window._pendingAgent : null);
   if (!_pinTarget) return;
   _pinBuffer = ''; _pinMode = 'unlock';
+  _loadPinLockState(_pinTarget.id);
 
   // ── Always fetch latest pinHash from Supabase before unlock ──
   // This ensures admin resets take effect immediately on the agent's device
@@ -21376,7 +21433,8 @@ function lockSelectAgent(id) {
   document.getElementById('lock-pin-name').textContent = _pinTarget.name;
   const col = { M0:'#3b82f6',M1:'#22c55e',M2:'#e8a020',M3:'#f97316',M4:'#ef4444',M5:'#7c3aed' }[_pinTarget.stage] || '#e8a020';
   document.getElementById('lock-pin-stage').innerHTML = '<span style="color:'+col+';font-weight:700">'+(_pinTarget.stage||'M2')+'</span> — '+(_pinTarget.stage ? (STAGE_CONFIG[_pinTarget.stage]?.name||'') : 'Active Default');
-  document.getElementById('lock-pin-error').textContent = '';
+  document.getElementById('lock-pin-error').textContent =
+    (Date.now() < _pinLockUntil) ? '⛔ Locked — try again in ' + _fmtLockRemaining(_pinLockUntil - Date.now()) : '';
   document.getElementById('lock-dev-override').style.display = 'none';
   updatePinDots();
   haptic('light');
@@ -21396,6 +21454,12 @@ function lockSelectAgent(id) {
 }
 
 function pinPress(digit) {
+  if (_pinMode === 'unlock' && _pinTarget && Date.now() < _pinLockUntil) {
+    const errEl = document.getElementById('lock-pin-error');
+    if (errEl) errEl.textContent = '⛔ Locked — try again in ' + _fmtLockRemaining(_pinLockUntil - Date.now());
+    haptic('medium');
+    return;
+  }
   if (_pinBuffer.length >= 4) return;
   _pinBuffer += digit;
   haptic('light');
@@ -21422,6 +21486,17 @@ function updatePinDots() {
 async function processPin() {
   try {
   if (!_pinTarget) return;
+
+  if (_pinMode === 'unlock' && Date.now() < _pinLockUntil) {
+    // Enforce the lockout for real — previously this was checked nowhere,
+    // so typing PINs during the "locked" countdown still evaluated them.
+    _pinBuffer = '';
+    updatePinDots();
+    const errEl0 = document.getElementById('lock-pin-error');
+    if (errEl0) errEl0.textContent = '⛔ Locked — try again in ' + _fmtLockRemaining(_pinLockUntil - Date.now());
+    haptic('medium');
+    return;
+  }
 
   if (_pinMode === 'unlock') {
     const hash = await hashPin(_pinBuffer, _pinTarget.id);
@@ -21456,7 +21531,8 @@ async function processPin() {
         saveAgentList(agents);
         window._pendingAgent = null;
       }
-      _pinAttempts = 0; _pinLockUntil = 0;  // reset on success
+      _pinAttempts = 0; _pinLockUntil = 0; _pinLockCycles = 0;  // reset on success
+      _savePinLockState(_pinTarget.id);
       localStorage.setItem('sq_lastactive_' + _pinTarget.id, Date.now().toString());
       hideLockScreen();
       initAutoLock();  // restart idle timer on unlock
@@ -21472,23 +21548,27 @@ async function processPin() {
         if (dot) { void dot.offsetWidth; dot.classList.add('shake'); }
       }
       if (_pinAttempts >= 5) {
-        _pinLockUntil = Date.now() + 30000; // 30 second lockout
+        _pinLockCycles++;
+        const dur = _pinLockDurationMs(_pinLockCycles);
+        _pinLockUntil = Date.now() + dur;
         _pinAttempts  = 0;
+        _savePinLockState(_pinTarget.id);
         const errEl2 = document.getElementById('lock-pin-error');
-        if (errEl2) errEl2.textContent = '⛔ Too many attempts — locked for 30s';
+        if (errEl2) errEl2.textContent = '⛔ Too many attempts — locked for ' + _fmtLockRemaining(dur);
         haptic('medium');
         // Countdown timer on the error message
         const lockTimer = setInterval(function() {
-          const remaining = Math.ceil((_pinLockUntil - Date.now()) / 1000);
+          const remaining = _pinLockUntil - Date.now();
           const errElT = document.getElementById('lock-pin-error');
           if (remaining <= 0) {
             clearInterval(lockTimer);
             if (errElT) errElT.textContent = '';
           } else {
-            if (errElT) errElT.textContent = '⛔ Locked — try again in ' + remaining + 's';
+            if (errElT) errElT.textContent = '⛔ Locked — try again in ' + _fmtLockRemaining(remaining);
           }
         }, 500);
       } else {
+        _savePinLockState(_pinTarget.id);
         const remaining = 5 - _pinAttempts;
         document.getElementById('lock-pin-error').textContent =
           'Incorrect PIN. ' + remaining + ' attempt' + (remaining===1?'':'s') + ' remaining.';
@@ -22685,6 +22765,26 @@ function _dispatchSearchDebounce() {
   clearTimeout(window._dispSearchTimer);
   window._dispSearchTimer = setTimeout(renderDispatch, 200);
 }
+function _paidSearchDebounce() {
+  clearTimeout(window._paidSearchTimer);
+  window._paidSearchTimer = setTimeout(renderPaidPage, 200);
+}
+function _smsSearchDebounce() {
+  clearTimeout(window._smsSearchTimer);
+  window._smsSearchTimer = setTimeout(renderSmsBlast, 200);
+}
+function _bulkDispatchSearchDebounce() {
+  clearTimeout(window._bulkDispSearchTimer);
+  window._bulkDispSearchTimer = setTimeout(_bulkFilterBorrowers, 200);
+}
+function _msgBankSearchDebounce() {
+  clearTimeout(window._mbSearchTimer);
+  window._mbSearchTimer = setTimeout(msgBankFilterBorrowers, 200);
+}
+function _cmdSearchDebounce(val) {
+  clearTimeout(window._cmdSearchTimer);
+  window._cmdSearchTimer = setTimeout(function(){ cmdFilter(val); }, 150);
+}
 
 // ── Render Message Bank Page ─────────────────────────────────
 function renderMessageBank() {
@@ -22964,7 +23064,7 @@ function msgBankOpenBorrowerPicker(msgId, type) {
 
   let bHtml = `
     <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Choose a borrower — then pick how to send:</div>
-    <input id="mb-bpicker-search" placeholder="Search borrower…" oninput="msgBankFilterBorrowers()" class="bl-search"
+    <input id="mb-bpicker-search" placeholder="Search borrower…" oninput="_msgBankSearchDebounce()" class="bl-search"
            style="width:100%;margin-bottom:10px;box-sizing:border-box">
     <div id="mb-bpicker-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">`;
 
@@ -24520,7 +24620,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 <!-- COMMAND PALETTE -->
 <div id="cmd-overlay" onclick="if(event.target===this)closeCmd()">
   <div id="cmd-box">
-    <input id="cmd-input" placeholder="Search borrowers, pages, actions…" oninput="cmdFilter(this.value)" onkeydown="cmdKey(event)" autocomplete="off">
+    <input id="cmd-input" placeholder="Search borrowers, pages, actions…" oninput="_cmdSearchDebounce(this.value)" onkeydown="cmdKey(event)" autocomplete="off">
     <div id="cmd-results"></div>
   </div>
 </div>
