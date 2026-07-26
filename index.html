@@ -3044,19 +3044,6 @@ tr.overdue-critical .heat-ring {
         Filters
         <span id="bl-filters-count" style="display:none"></span>
       </button>
-      <div class="bl-sort-wrap">
-        <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
-          <option value="priorityScore_-1">🎯 Priority ↑ High</option>
-          <option value="dueToday_-1">Due Today ↑ High</option>
-          <option value="dueToday_1">Due Today ↑ Low</option>
-          <option value="odAge_-1">OD Age ↑ High</option>
-          <option value="odAge_1">OD Age ↑ Low</option>
-          <option value="name_1">Name A–Z</option>
-          <option value="name_-1">Name Z–A</option>
-          <option value="loanDue_-1">Loan Due ↑ High</option>
-          <option value="status_1">Status</option>
-        </select>
-      </div>
       </div>
       <div class="bl-meta">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--text-base);color:var(--text3)">
@@ -3072,6 +3059,17 @@ tr.overdue-critical .heat-ring {
         style="font-weight:700;cursor:pointer;border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.08)">
         🔥 High Priority
       </button>
+      <select class="bl-chip-sel" id="bl-sort-sel" onchange="blSortChange(this.value)" style="min-width:120px">
+        <option value="priorityScore_-1">🎯 Priority ↑ High</option>
+        <option value="dueToday_-1">Due Today ↑ High</option>
+        <option value="dueToday_1">Due Today ↑ Low</option>
+        <option value="odAge_-1">OD Age ↑ High</option>
+        <option value="odAge_1">OD Age ↑ Low</option>
+        <option value="name_1">Name A–Z</option>
+        <option value="name_-1">Name Z–A</option>
+        <option value="loanDue_-1">Loan Due ↑ High</option>
+        <option value="status_1">Status</option>
+      </select>
       <select class="bl-chip-sel" id="loan-filter-status" onchange="renderLoansTable()">
         <option value="">All Status</option>
         <option value="Unpaid">Unpaid</option>
@@ -7681,7 +7679,7 @@ function renderLoansTable() {
       + '<div class="bl-card-inner">'
         + '<div class="bl-avatar" style="background:linear-gradient(135deg,' + ac1 + ',' + ac2 + ')" title="Priority ' + pScore + '/10">' + initials + '</div>'
         + '<div class="bl-content">'
-          + '<div class="bl-name">' + r.name + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + buildTagHtml(r, true) + '</div>'
+          + '<div class="bl-name">' + escapeHtml(r.name) + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + buildTagHtml(r, true) + '</div>'
           + '<div class="bl-meta-row">'
             + '<span class="bl-phone">' + formatPhoneDisplay(r.phone) + '</span>'
             + '<span class="bl-day ' + heatCls + '">Day ' + r.odAge + '</span>'
@@ -16618,26 +16616,39 @@ function _ptpBuildMessage(b, tone) {
   var agentName = getAgentProfileName();
   var note = b.promiseNote ? '\n\nNote: ' + b.promiseNote : '';
 
+  // ── WhatsApp versions (markdown bold, warmer greeting) ──
   if (tone === 'friendly') {
     return 'Hello ' + name + ' \uD83D\uDC4B\n\n'
-      + 'This is a friendly reminder that you made a promise to pay *' + amount + '* on *' + dateTimeStr + '*.' + note + '\n\n'
-      + 'We look forward to your payment. Please reach out if you need to make any arrangements.\n\n'
+      + 'This is a reminder that you promised to pay *' + amount + '* on *' + dateTimeStr + '*.' + note + '\n\n'
+      + 'Please ensure this is settled on that date. Let us know now if anything has changed.\n\n'
       + 'Thank you\nLoanBase';
   }
   if (tone === 'dayon') {
     return 'Good morning ' + name + ' \u2600\uFE0F\n\n'
-      + 'Today is the day! You promised to pay *' + amount + '* today (' + dateTimeStr + ').' + note + '\n\n'
-      + 'Please ensure payment is made today to keep your account in good standing.\n\n'
+      + 'Today is the day you promised to pay *' + amount + '* (' + dateTimeStr + ').' + note + '\n\n'
+      + 'Please make payment today. Your account must stay current to avoid further action.\n\n'
       + 'Thank you\nLoanBase';
   }
   if (tone === 'missed') {
     return 'Hello ' + name + ',\n\n'
-      + 'We notice that the promised payment of *' + amount + '* due on *' + dateTimeStr + '* has not yet been received.' + note + '\n\n'
-      + 'Please make your payment as soon as possible or contact us to reschedule.\n\n'
-      + 'Thank you\nLoanBase';
+      + '*Your promised payment of ' + amount + ' due on ' + dateTimeStr + ' has not been received.*' + note + '\n\n'
+      + 'This is now a broken promise on your account. Pay immediately or contact us today to reschedule — no further reminders will be sent before escalation.\n\n'
+      + 'LoanBase Recovery';
   }
+
+  // ── SMS versions — short, no WhatsApp markdown, tone-matched ──
+  if (tone === 'sms_friendly' || tone === 'friendly_sms') {
+    return name + ', reminder: payment of ' + amount + ' promised for ' + dateTimeStr + '. Please ensure it is settled. - LoanBase';
+  }
+  if (tone === 'sms_dayon') {
+    return name + ', today is the day: ' + amount + ' promised for ' + dateTimeStr + ' is due now. Please pay today. - LoanBase';
+  }
+  if (tone === 'sms_missed') {
+    return name + ', your promised payment of ' + amount + ' (due ' + dateTimeStr + ') was NOT received. This is a broken promise. Pay now or contact us today. - LoanBase';
+  }
+  // Legacy fallback for any old callers still passing plain 'sms'
   if (tone === 'sms') {
-    return name + ', reminder: You promised to pay ' + amount + ' on ' + dateTimeStr + '. Please ensure payment is made. - LoanBase';
+    return name + ', reminder: you promised to pay ' + amount + ' on ' + dateTimeStr + '. Please ensure payment is made. - LoanBase';
   }
   return '';
 }
@@ -16750,7 +16761,8 @@ function _ptpSendViaSMS(borrowerId) {
   var b = state.borrowers.find(function(x) { return x.id === borrowerId; });
   if (!b) return;
   var tone = _ptpGetActiveTone();
-  var msg = _ptpBuildMessage(b, 'sms'); // SMS is always short format
+  var smsToneMap = { friendly: 'sms_friendly', dayon: 'sms_dayon', missed: 'sms_missed' };
+  var msg = _ptpBuildMessage(b, smsToneMap[tone] || 'sms');
   var phone = (b.phone || '').replace(/\s/g, '');
   var isIOSdev = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   var url = 'sms:' + phone + (isIOSdev ? '&body=' : '?body=') + encodeURIComponent(msg);
@@ -16857,7 +16869,8 @@ function _showPtpSeqModal() {
   var isToday   = b.promiseDate && b.promiseDate.startsWith(today);
   var isMissed  = b.promiseDate && b.promiseDate.split(' ')[0] < today;
   var tone      = isMissed ? 'missed' : isToday ? 'dayon' : 'friendly';
-  var msg       = _ptpBuildMessage(b, tone);
+  var smsToneMap = { friendly: 'sms_friendly', dayon: 'sms_dayon', missed: 'sms_missed' };
+  var msg       = _ptpBuildMessage(b, _ptpSeqChan === 'sms' ? smsToneMap[tone] : tone);
   var phone     = (b.phone || '').replace(/\s/g, '').replace('+', '');
   if (phone.startsWith('0')) phone = '233' + phone.slice(1);
   var link = _ptpSeqChan === 'wa'
@@ -19754,9 +19767,8 @@ function initRowSwipe() {
     const bid    = btn.dataset.bid;
     const b      = bid ? state.borrowers.find(x => x.id === bid) : null;
     if (!b) return;
-    const phone = b.phone.replace(/\D/g,'');
-    if      (action === 'wa')   { haptic('light');  window.open('https://wa.me/' + phone, '_blank'); }
-    else if (action === 'call') { haptic('light');  window.location.href = 'tel:' + b.phone; }
+    if      (action === 'wa')   { if (!b.phone) { toast('No phone number on file', 'error'); } else { haptic('light'); window.open('https://wa.me/' + b.phone.replace(/\D/g,''), '_blank'); } }
+    else if (action === 'call') { if (!b.phone) { toast('No phone number on file', 'error'); } else { haptic('light'); window.location.href = 'tel:' + b.phone; } }
     else if (action === 'pay')  { haptic('medium'); toggleQuickPayBar(bid); }
     else if (action === 'ptp')  { haptic('medium'); togglePromise(bid); }
     // Close swipe after action
