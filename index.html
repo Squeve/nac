@@ -17547,6 +17547,7 @@ function buildPtpMorningHtml() {
 // Also fires a morning briefing and an EOD summary.
 
 var _ptpReminderTimeouts = {}; // { borrowerId: timeoutId }
+var _ptpNotifiedCatchup = new Set(); // borrower ids already caught up on this session — avoid re-notifying every foreground return
 var _ptpMorningTimeout   = null;
 var _ptpEodTimeout       = null;
 
@@ -20622,10 +20623,13 @@ function renderMonthComparison() {
     });
     Object.values(payDayMap).forEach(v => { if (v > payBest) payBest = v; });
 
-    // Use payLog as truth if it has data, otherwise dailyLog
-    const total  = payTotal > 0 ? payTotal : logTotal;
-    const days   = payTotal > 0 ? payDaysSet.size : logDaysSet.size;
-    const best   = payTotal > 0 ? payBest : (logEntries.length ? Math.max(...logEntries.map(e=>e.collected||0)) : 0);
+    // Use whichever source captured MORE for the month — previously payLog
+    // "won" just by having any entry at all, even ₵1, silently discarding a
+    // much larger dailyLog total for agents who use both.
+    const usePay = payTotal >= logTotal;
+    const total  = usePay ? payTotal : logTotal;
+    const days   = usePay ? payDaysSet.size : logDaysSet.size;
+    const best   = usePay ? payBest : (logEntries.length ? Math.max(...logEntries.map(e=>e.collected||0)) : 0);
     const avg    = days > 0 ? Math.round(total / days) : 0;
 
     // Count accounts fully paid during this month (check payLog dates, not just isPaid flag)
@@ -20691,7 +20695,7 @@ function renderMonthComparison() {
     <!-- Comparison table: current vs previous -->
     <div style="display:grid;grid-template-columns:1fr 80px 76px 36px;gap:0 4px;font-size:var(--text-sm);align-items:center">
       <div style="color:var(--text3);font-weight:700;padding:4px 0 6px;border-bottom:1px solid var(--border)">Metric</div>
-      <div style="color:var(--gold);font-weight:700;text-align:right;padding:4px 0 6px;border-bottom:1px solid var(--border)">${current.label} ▲</div>
+      <div style="color:var(--gold);font-weight:700;text-align:right;padding:4px 0 6px;border-bottom:1px solid var(--border)">${current.label}</div>
       <div style="color:var(--text3);text-align:right;padding:4px 0 6px;border-bottom:1px solid var(--border)">${prev.label}</div>
       <div style="padding:4px 0 6px;border-bottom:1px solid var(--border)"></div>
       ${[
@@ -22090,9 +22094,7 @@ function renderSettingsPage() {
           + '<button onclick="openProfileEditModal()" style="font-size:var(--text-sm);font-weight:700;padding:5px 12px;border-radius:20px;background:' + s.colorHex + '18;border:1px solid ' + s.colorHex + '44;color:' + s.colorHex + ';cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit ✏️</button>'
         + '</div>'
 
-        + '<div style="font-size:var(--text-2xs);font-weight:800;letter-spacing:0.16em;color:' + s.colorHex + ';text-transform:uppercase;margin-bottom:6px">Agent Profile</div>'
-        + '<div style="font-family:var(--font-head);font-size:var(--text-6xl);font-weight:800;color:var(--text);letter-spacing:-0.5px;line-height:1.15;margin-bottom:12px">' + displayName + '</div>'
-        + '<div style="width:28px;height:3px;background:' + s.colorHex + ';border-radius:2px;margin-bottom:14px"></div>'
+        + '<div style="font-size:var(--text-2xs);font-weight:800;letter-spacing:0.16em;color:' + s.colorHex + ';text-transform:uppercase;margin-bottom:10px">Agent Profile</div>'
         + infoRows
         + '</div>'
         + '</div>';
@@ -22550,11 +22552,11 @@ function settingsSaveTarget() {
 
 function settingsChangePin() {
   if(!_activeAgent) return;
-  _pinTarget=_activeAgent; _pinBuffer=''; _pinSetBuffer=''; _pinMode='set';
+  _pinTarget=_activeAgent; _pinBuffer=''; _pinSetBuffer=''; _pinMode='verify_current';
   document.getElementById('modal-title').textContent='🔑 Change PIN';
   document.getElementById('modal-body').innerHTML=
     '<div style="text-align:center;padding:10px 0">'
-    +'<div style="font-size:var(--text-md);color:var(--text2);margin-bottom:20px">Enter a new 4-digit PIN.</div>'
+    +'<div id="settings-pin-instruction" style="font-size:var(--text-md);color:var(--text2);margin-bottom:20px">Enter your current PIN.</div>'
     +'<div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px">'
     +'<div class="pin-dot" id="modal-pindot-0"></div><div class="pin-dot" id="modal-pindot-1"></div>'
     +'<div class="pin-dot" id="modal-pindot-2"></div><div class="pin-dot" id="modal-pindot-3"></div>'
@@ -22573,12 +22575,26 @@ function settingsPinPress(k) {
   if(k==='⌫')_pinBuffer=_pinBuffer.slice(0,-1); else if(_pinBuffer.length<4)_pinBuffer+=String(k);
   for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.toggle('filled',i<_pinBuffer.length);}
   if(_pinBuffer.length===4){setTimeout(async()=>{
-    if(_pinMode==='set'){_pinSetBuffer=_pinBuffer;_pinBuffer='';_pinMode='confirm';
+    if(_pinMode==='verify_current'){
+      const hash = await hashPin(_pinBuffer,_pinTarget.id);
+      if(hash === _pinTarget.pinHash){
+        _pinBuffer=''; _pinMode='set';
+        if(errEl) errEl.textContent='';
+        const instrEl = document.getElementById('settings-pin-instruction');
+        if(instrEl) instrEl.textContent='Enter a new 4-digit PIN.';
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
+      }else{
+        _pinBuffer='';
+        if(errEl) errEl.textContent='Incorrect current PIN — try again';
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
+        haptic('medium');
+      }
+    }else if(_pinMode==='set'){_pinSetBuffer=_pinBuffer;_pinBuffer='';_pinMode='confirm';
       if(errEl)errEl.textContent='Enter the same PIN again to confirm';
       for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
     }else if(_pinMode==='confirm'){
       if(_pinBuffer===_pinSetBuffer){
-        const hash=await hashPin(_pinBuffer,null);
+        const hash=await hashPin(_pinBuffer,_pinTarget.id);
         const agents=getAgentList();const idx=agents.findIndex(a=>a.id===_pinTarget.id);
         if(idx>=0){agents[idx].pinHash=hash;saveAgentList(agents);_pinTarget.pinHash=hash;if(_activeAgent)_activeAgent.pinHash=hash;}
         state._pinHash=hash;
@@ -22767,10 +22783,31 @@ function initAutoLock() {
   // Wire user activity events to reset the timer
   const events = ['touchstart','mousedown','keydown','scroll','click'];
   events.forEach(ev => document.addEventListener(ev, resetAutoLockTimer, { passive: true }));
-  // Also reset on visibility returning
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') resetAutoLockTimer();
-  });
+  // Track when the tab goes to background — mobile browsers throttle/suspend
+  // setTimeout while backgrounded, so a pending lock timer may never actually
+  // fire while the screen is off. Record the moment we go hidden, then on
+  // return, check real elapsed time and lock immediately if it's overdue,
+  // instead of just resetting the clock as if nothing happened.
+  if (!window._alBackgroundHandlerBound) {
+    window._alBackgroundHandlerBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        window._alHiddenAt = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        const hiddenAt = window._alHiddenAt;
+        window._alHiddenAt = null;
+        if (hiddenAt && _autoLockMinutes > 0 && _sessionUnlocked) {
+          const elapsed = Date.now() - hiddenAt;
+          if (elapsed >= _autoLockMinutes * 60 * 1000) {
+            lockApp();
+            toast('Screen locked after inactivity', 'info');
+            return;
+          }
+        }
+        resetAutoLockTimer();
+      }
+    });
+  }
   // Start timer if setting is active
   if (saved > 0 && _sessionUnlocked) startAutoLockTimer();
 }
@@ -23413,6 +23450,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof ptpAutoFlagMissed === 'function') ptpAutoFlagMissed();
       if (currentPage === 'ptp' && typeof renderPtpHub === 'function') renderPtpHub();
       if (currentPage === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
+      // setTimeout-based reminders can be suspended/killed while the tab is
+      // backgrounded, so re-establish future ones and catch up on any today's
+      // PTPs whose reminder window silently passed while the app was away.
+      if (typeof refreshPtpReminders === 'function') refreshPtpReminders();
+      if (localStorage.getItem('ptp_reminders_enabled') === '1' && Notification.permission === 'granted'
+          && state && state.borrowers && typeof _fireNotif === 'function') {
+        const nowMs   = Date.now();
+        const todayDs = new Date().toISOString().split('T')[0];
+        const missed  = state.borrowers.filter(function(b) {
+          if (!b.promisedToPay || !b.promiseDate || b.isPaid || b.ptpOutcome === 'paid') return false;
+          const raw   = b.promiseDate.trim();
+          const dtStr = raw.includes(' ') ? raw.replace(' ', 'T') : raw + 'T09:00:00';
+          const ms    = new Date(dtStr).getTime();
+          // Was due within the last 4 hours (today) — reminder window already passed
+          return raw.startsWith(todayDs) && !isNaN(ms) && ms <= nowMs && (nowMs - ms) < 4*60*60*1000
+            && !_ptpNotifiedCatchup.has(b.id);
+        });
+        if (missed.length) {
+          missed.forEach(function(b) { _ptpNotifiedCatchup.add(b.id); });
+          const total = missed.reduce(function(s,b){ return s + getDueToday(b); }, 0);
+          _fireNotif(
+            `🔔 ${missed.length} PTP reminder${missed.length!==1?'s':''} while you were away`,
+            missed.length === 1 ? `${missed[0].name.split(' ')[0]} — ${fmtC(getDueToday(missed[0]))} promised today` : `Total ${fmtC(total)} promised today — check PTP Hub`,
+            'ptp-catchup', missed.length === 1 ? missed[0].id : null
+          );
+        }
+      }
     }
   });
   // Init feature systems
@@ -23457,8 +23521,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
-  if (localStorage.getItem('ptp_reminders_enabled') === '1') {
-  enablePtpReminders();
+  if (localStorage.getItem('ptp_reminders_enabled') === '1' && Notification.permission === 'granted') {
+    schedulePtpReminders();
 }
 
   // Preload Chart.js so it's ready for Dashboard and other pages
