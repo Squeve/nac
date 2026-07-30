@@ -10368,6 +10368,7 @@ function _openBorrowerDetailFill(id) {
     + '<button class="btn btn-ghost btn-sm" id="bd-tags" style="grid-column:1/-1"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5V4h7.5L21 14.5 13.5 22 3 11.5z"/><circle cx="7.5" cy="8" r="1.3" fill="currentColor" stroke="none"/></svg></span> Tags' + (b.tags&&b.tags.length?' ('+b.tags.length+')':'') + '</button>'
     + '<button class="btn btn-ghost btn-sm" id="bd-escalate" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(220,38,38,0.12));border-color:rgba(124,58,237,0.3);color:#a78bfa;font-weight:700"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Escalate</button>'
     + '<button class="btn btn-ghost" id="bd-timeline" style="grid-column:1/-1"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Timeline</button>'
+    + (st==='Paid' ? '<button class="btn btn-ghost btn-sm" id="bd-undo-paid" style="grid-column:1/-1;color:var(--orange);border-color:rgba(249,115,22,0.3)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></span> Undo Fully Paid</button>' : '')
     + '</div>'
     + (log.length ? '<div style="margin-bottom:6px"><div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Recent Payments</div>'
       + [].concat(log).reverse().slice(0,3).map(function(e){
@@ -10416,6 +10417,8 @@ function _openBorrowerDetailFill(id) {
     if (elCL)  elCL.onclick  = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openCallLogModal(id); };
     var elTL = document.getElementById('bd-timeline');
     if (elTL) elTL.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openBorrowerTimeline(id); };
+    var elUndoPaid = document.getElementById('bd-undo-paid');
+    if (elUndoPaid) elUndoPaid.onclick = function(){ haptic('light'); unmarkFullyPaid(id); };
     if (elHL)  elHL.onclick  = function(){ haptic('medium'); addToHitList(id); elHL.textContent = 'In Hit List'; };
     if (elD)   elD.onclick   = function(){
       confirmAction({ title: 'Delete Borrower', message: 'Remove <strong>' + escapeHtml(b.name) + '</strong> from your portfolio?', confirmLabel: 'Delete', onConfirm: function() { deleteBorrower(id); } });
@@ -10583,6 +10586,29 @@ function recordPayment(id) {
     toast('' + b.name.split(' ')[0] + ' payment recorded', 'success');
   }
   updateBadges(); renderCurrentPage();
+}
+
+// ── Undo a mistaken "fully paid" mark ──────────────────
+// Reopens the account for collection. Amount already paid stays on record —
+// the agent can correct it afterwards via the Pay screen if it was wrong too.
+function unmarkFullyPaid(id) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  confirmAction({
+    title: 'Undo Fully Paid',
+    message: 'Unmark <strong>' + escapeHtml(b.name) + '</strong> as fully paid? The account reopens for collection and OD fees resume. The amount already logged stays on record — use <strong>Pay</strong> afterwards if that figure needs correcting too.',
+    danger: false,
+    confirmLabel: 'Undo',
+    onConfirm: function() {
+      b.isPaid = false;
+      delete b.paidAtOdAge;
+      _odFeeCache.clear();
+      saveState();
+      toast(b.name.split(' ')[0] + ' unmarked as paid', 'success');
+      updateBadges();
+      openBorrowerDetail(id);
+    }
+  });
 }
 
 function buildOdOptions(b) {
@@ -15518,13 +15544,13 @@ function getBorrowerBadges(b) {
   const badges = [];
   const payRatio = b.loanDue > 0 ? b.amountPaid / b.loanDue : 0;
   const status = getStatus(b);
-  if (status === 'Paid') badges.push('<span class="badge-star" title="Fully paid <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></span>');
+  if (status === 'Paid') badges.push('<span class="badge-star" title="Fully paid" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></span>');
   else if (payRatio >= 0.5 && b.amountPaid > 0) badges.push('<span class="badge-star" title="Good progress — 50%+ paid"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3L3 9.4l6.4-.6z"/></svg></span></span>');
   if (b.promisedToPay && b.amountPaid === 0 && !b.ptpBreached) badges.push('<span class="badge-warn" title="Promise not yet honoured"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span></span>');
   if ((b.callLog||[]).some(cl => cl.outcome === 'Fraud')) badges.push('<span title="Fraud suspected" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a5 5 0 00-5 5v2c0 2-1 3-1 3h12s-1-1-1-3V8a5 5 0 00-5-5z"/><path d="M9 19a3 3 0 006 0"/></svg></span></span>');
   if (b.ptpBreached && b.amountPaid === 0) badges.push('<span title="PTP Breached" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span></span>');
   const _3d = new Date(Date.now()-3*86400000).toISOString().split('T')[0];
-  if ((b.payLog||[]).some(p=>p.date>=_3d&&(p.delta||0)>0) && getStatus(b)!=='Paid') badges.push('<span title="<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span> Active — paid in last 3 days" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span></span>');
+  if ((b.payLog||[]).some(p=>p.date>=_3d&&(p.delta||0)>0) && getStatus(b)!=='Paid') badges.push('<span title="Active — paid in last 3 days" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span></span>');
   return badges.length ? ' ' + badges.join('') : '';
 }
 
