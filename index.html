@@ -4509,7 +4509,7 @@ function _requestNotifPermission() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     Notification.requestPermission().then(p => {
-      if (p === 'granted') { toast('EOD reminders enabled <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>', 'success'); _scheduleEodNotif(); }
+      if (p === 'granted') { toast('EOD reminders enabled', 'success'); _scheduleEodNotif(); }
     });
   } else if (Notification.permission === 'granted') {
     _scheduleEodNotif();
@@ -5469,7 +5469,7 @@ function setSyncStatus(status) {
   const map = {
     offline: { color:'var(--text3)',  label:'Local only' },
     saving:  { color:'var(--gold)',   label:'Saving...' },
-    saved:   { color:'var(--green)',  label:'Synced <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>' },
+    saved:   { color:'var(--green)',  label:'Synced' },
     error:   { color:'var(--red)',    label:'Sync error' },
     loading: { color:'var(--blue)',   label:'Loading...' },
   };
@@ -5992,10 +5992,10 @@ function _doSaveState() {
     if (window.indexedDB) {
       _saveStateToIndexedDB(key, state).catch(function(idbErr) {
         console.warn(idbErr);
-        if (!lsOk) toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Save failed — storage may be full. Free up space or export a backup.', 'error');
+        if (!lsOk) toast('Save failed — storage may be full. Free up space or export a backup.', 'error');
       });
     } else if (!lsOk) {
-      toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Save failed — storage may be full. Free up space or export a backup.', 'error');
+      toast('Save failed — storage may be full. Free up space or export a backup.', 'error');
     }
   };
   if (agentId && crypto?.subtle) {
@@ -8364,20 +8364,20 @@ function renderDispatch() {
         + '<div class="dispatch-rank">' + (i+1) + '</div>'
         + '<div class="dispatch-info">'
         + '<div class="dispatch-name">' + escapeHtml(b.name) + (b.promisedToPay ? ' <span class="promise-badge"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> Promised</span>' : '') + _waStatusBadge(b.id) + '</div>'
-        + '<div class="dispatch-meta"><span onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + b.phone + '\').then(()=>toast(\'Phone copied\',\'success\'))" style="cursor:pointer" title="Tap to copy">' + formatPhoneDisplay(b.phone) + ' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></span>'
+        + '<div class="dispatch-meta"><span onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + b.phone + '\').then(()=>toast(\'Phone copied\',\'success\'))" style="cursor:pointer" title="Tap to copy">' + formatPhoneDisplay(b.phone) + ' </span>'
         + ' &nbsp;·&nbsp; <span class="' + odCls + '">Day ' + b.odAge + '</span>'
         + ' &nbsp;·&nbsp; ' + (b.loanType==='LoanBase Pro' ? '<span class="badge badge-pro">Pro</span>' : '<span class="badge badge-loanbase">Base</span>')
         + ' &nbsp;·&nbsp; ' + statusBadge(b.status)
         + ' &nbsp;·&nbsp; <span class="dispatch-amount" style="font-family:var(--font-mono);color:var(--gold)">' + fmtC(amountShown) + '</span>'
-        + (lastContactStr ? ' &nbsp;·&nbsp; <span style="color:var(--text3);font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span> ' + lastContactStr + '</span>' : '')
+        + (lastContactStr ? ' &nbsp;·&nbsp; <span style="color:var(--text3);font-size:var(--text-xs)"> ' + lastContactStr + '</span>' : '')
         + '</div>'
         + '<div class="dispatch-msg" style="font-size:var(--text-sm);color:var(--text2);background:var(--surface2);padding:6px 10px;border-radius:var(--radius-sm);margin-top:5px;line-height:1.5">' + msg + '</div>'
         + '</div>'
         + '<div class="dispatch-actions">'
-        + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</a>'
-        + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="11" y1="18.5" x2="13" y2="18.5"/></svg></span> SMS</a>'
-        + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></button>'
-        + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></button>'
+        + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"> WA</a>'
+        + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"> SMS</a>'
+        + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"></button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')"></button>'
         + '</div></div>';
     });
   });
@@ -8535,7 +8535,7 @@ let _waScanQueue = [], _waScanIdx = 0;
 
 window.waCheckStartScan = function() {
   const list = state.borrowers.filter(b => getStatus(b) !== 'Paid' && !window._waStatusCache[b.id]);
-  if (!list.length) { toast('All numbers already checked <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success'); return; }
+  if (!list.length) { toast('All numbers already checked', 'success'); return; }
   _waScanQueue = list;
   _waScanIdx   = 0;
   _waRunScan();
@@ -8546,7 +8546,7 @@ function _waRunScan() {
     closeModal();
     renderCurrentPage();
     const activeCount = _waScanQueue.filter(b => window._waStatusCache[b.id] === 'active').length;
-    toast('Scan done — ' + activeCount + '/' + _waScanQueue.length + ' on WhatsApp <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast('Scan done — ' + activeCount + '/' + _waScanQueue.length + ' on WhatsApp', 'success');
     return;
   }
   const b    = _waScanQueue[_waScanIdx];
@@ -8643,7 +8643,7 @@ function renderLog() {
   _kpi('log-total',      total > 0 ? fmtC(total) : '—');
   _kpi('log-best',       best  > 0 ? fmtC(best)  : '—');
   _kpi('log-avg',        avg   > 0 ? fmtC(avg)   : '—');
-  _kpi('log-streak-kpi', streak > 0 ? streak + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span>' : '0');
+  _kpi('log-streak-kpi', streak > 0 ? streak + 'd 🔥' : '0');
   _kpi('log-active-days',activeDays + 'd');
 
   const mlEl = document.getElementById('log-month-label');
@@ -8956,7 +8956,7 @@ function importLogFromPayments() {
   const entry = { date: todayStr, collected: todayPay, notes: 'Auto-synced from payment records' };
   if (idx >= 0) state.dailyLog[idx] = entry; else state.dailyLog.push(entry);
   saveState(); updateDailyPill(); renderLog();
-  toast(`<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M18 13l-6 6-6-6"/></svg></span> Synced ${fmtC(todayPay)} from today's payments`, 'success');
+  toast(`Synced ${fmtC(todayPay)} from today's payments`, 'success');
   haptic('medium');
 }
 
@@ -9351,7 +9351,7 @@ function doExportCSV() {
   a.download = 'SqueveTrack-' + month + (descriptor||'') + '.csv';
   a.click(); URL.revokeObjectURL(url);
   closeModal();
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> CSV downloaded — ' + borrowers.length + ' accounts', 'success');
+  toast('CSV downloaded — ' + borrowers.length + ' accounts', 'success');
 }
 
 function _getExportData() {
@@ -9638,7 +9638,7 @@ function doExportPDF(mode) {
     w.addEventListener('load', function() {
       setTimeout(function() { w.print(); URL.revokeObjectURL(blobUrl); }, 300);
     });
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><line x1="8.5" y1="13" x2="15.5" y2="13"/><line x1="8.5" y1="17" x2="15.5" y2="17"/></svg></span> Print dialog will open — choose "Save as PDF"', 'info');
+    toast('Print dialog will open — choose "Save as PDF"', 'info');
   } else {
     // Popup blocked — download the HTML file directly
     const a = document.createElement('a');
@@ -9648,7 +9648,7 @@ function doExportPDF(mode) {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Report downloaded — open in browser and press Ctrl+P to save as PDF', 'info');
+    toast('Report downloaded — open in browser and press Ctrl+P to save as PDF', 'info');
   }
 }
 
@@ -9971,7 +9971,7 @@ function importFromXLSX() {
   closeModal();
   updateBadges();
   renderCurrentPage();
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Imported ' + added + ' borrower' + (added !== 1 ? 's' : '') + ' from Excel' + (skipped > 0 ? ' · ' + skipped + ' skipped' : ''), 'success');
+  toast('Imported ' + added + ' borrower' + (added !== 1 ? 's' : '') + ' from Excel' + (skipped > 0 ? ' · ' + skipped + ' skipped' : ''), 'success');
 }
 
 
@@ -10578,9 +10578,9 @@ function recordPayment(id) {
   const status = getStatus(b);
   haptic(status === 'Paid' ? 'fullpay' : 'pay');
   if (status === 'Paid') {
-    toastWithUndo(b.name.split(' ')[0] + ' fully paid! <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span>', 7000);
+    toastWithUndo(b.name.split(' ')[0] + ' fully paid!', 7000);
   } else {
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> ' + b.name.split(' ')[0] + ' payment recorded', 'success');
+    toast('' + b.name.split(' ')[0] + ' payment recorded', 'success');
   }
   updateBadges(); renderCurrentPage();
 }
@@ -11322,7 +11322,7 @@ function savePromise(id, isEdit = false) {
   refreshPtpReminders();
   closeModal();
   renderCurrentPage();
-  toast(b.name.split(' ')[0] + ` promise ${isEdit ? 'updated' : 'set'} <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>`, 'success');
+  toast(b.name.split(' ')[0] + ` promise ${isEdit ? 'updated' : 'set'}`, 'success');
 }
 
 function rescueBreachedPtp(id) {
@@ -11343,7 +11343,7 @@ function rescueBreachedPtp(id) {
   saveState();
   closeModal();
   renderCurrentPage();
-  toast(b.name.split(' ')[0] + ' PTP rescued <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 105.5 16.5"/><path d="M20 4v7h-7"/></svg></span> — breach cleared', 'success');
+  toast(b.name.split(' ')[0] + ' PTP rescued  — breach cleared', 'success');
 }
 
 function clearPromise(id) {
@@ -11828,11 +11828,11 @@ function _showIOSBulkModal(contacts, fixedMsg) {
     var cb = document.getElementById('ios-copy-nums-btn');
     if (cb) cb.addEventListener('click', function() {
       navigator.clipboard.writeText(nums).then(function() {
-        toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> ' + contacts.length + ' numbers copied — paste into Messages', 'success');
+        toast('' + contacts.length + ' numbers copied — paste into Messages', 'success');
         closeModal();
       }).catch(function() {
         var ta=document.createElement('textarea');ta.value=nums;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-        toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Numbers copied — paste into Messages', 'success');
+        toast('Numbers copied — paste into Messages', 'success');
         closeModal();
       });
     });
@@ -11921,7 +11921,7 @@ function _copySmsMsg(encodedMsg) {
     : encodedMsg;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(msg).then(function() {
-      toast('Message copied — paste into SMS app <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>', 'success');
+      toast('Message copied — paste into SMS app', 'success');
     }).catch(function() {
       _copySmsLegacy(msg);
     });
@@ -11935,7 +11935,7 @@ function _copySmsLegacy(msg) {
   ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
   document.body.appendChild(ta);
   ta.focus(); ta.select();
-  try { document.execCommand('copy'); toast('Message copied — paste into SMS app <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>', 'success'); }
+  try { document.execCommand('copy'); toast('Message copied — paste into SMS app', 'success'); }
   catch(e) { toast('Could not copy — please copy manually', 'error'); }
   document.body.removeChild(ta);
 }
@@ -12038,7 +12038,7 @@ function doCopyNumbers() {
   const nums = reviewContacts.map(b => b.phone.replace(/\s/g, '')).join(',');
   navigator.clipboard.writeText(nums).then(() => {
     closeModal();
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> ' + reviewContacts.length + ' numbers copied to clipboard', 'success');
+    toast('' + reviewContacts.length + ' numbers copied to clipboard', 'success');
   }).catch(() => {
     // Clipboard API unavailable — show selectable textarea so user can copy manually
     const overlay = document.createElement('div');
@@ -12076,7 +12076,7 @@ function doSmsExport() {
   const month = new Date().toLocaleDateString('en-GB',{month:'short',year:'numeric'}).replace(' ','-');
   a.href = url; a.download = 'SMS-Blast-' + month + '.csv';
   a.click(); URL.revokeObjectURL(url);
-  closeModal(); toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Exported ' + reviewContacts.length + ' contacts', 'success');
+  closeModal(); toast('Exported ' + reviewContacts.length + ' contacts', 'success');
 }
 
 function doSmsExportXLSX() {
@@ -12104,7 +12104,7 @@ function doSmsExportXLSX() {
   const month = _smsNow.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
     + '-' + _smsNow.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
   XLSX.writeFile(wb, 'SMS-Blast-'+month+'.xlsx');
-  closeModal(); toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> Excel exported — ' + reviewContacts.length + ' contacts', 'success');
+  closeModal(); toast('Excel exported — ' + reviewContacts.length + ' contacts', 'success');
 }
 
 // ── NAV ────────────────────────────────────────────────
@@ -12626,11 +12626,11 @@ function bulkAction(action) {
       if (!logEntry) { logEntry = { date: todayStr, collected: 0 }; state.dailyLog.push(logEntry); }
       logEntry.collected = (logEntry.collected || 0) + totalDelta;
     }
-    toast(ids.length + ' accounts marked Paid <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>  (+' + fmtC(totalDelta) + ' logged today)', 'success');
+    toast(ids.length + ' accounts marked Paid   (+' + fmtC(totalDelta) + ' logged today)', 'success');
   } else if (action === 'promise') {
     const d = new Date().toISOString().split('T')[0];
     ids.forEach(id => { const b = state.borrowers.find(x => x.id === id); if (b) { b.promisedToPay = true; b.promiseDate = d; } });
-    toast(ids.length + ' accounts marked as Promised <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>', 'success');
+    toast(ids.length + ' accounts marked as Promised', 'success');
   } else if (action === 'base') {
     ids.forEach(id => { const b = state.borrowers.find(x => x.id === id); if (b) b.loanType = 'LoanBase'; });
     toast(ids.length + ' accounts set to LoanBase', 'info');
@@ -12803,7 +12803,7 @@ function checkAutoRollover() {
 
   saveState();
   updateBadges();
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Auto-rolled over to ' + thisMonthStr + ' — fresh start!', 'success');
+  toast('Auto-rolled over to ' + thisMonthStr + ' — fresh start!', 'success');
 }
 
 function openRolloverModal() {
@@ -12990,7 +12990,7 @@ function doRollover() {
   closeModal(); 
   updateBadges();
   navigate('dashboard');
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Rolled over to ' + newMonthStr + '. Fresh start!', 'success');
+  toast('Rolled over to ' + newMonthStr + '. Fresh start!', 'success');
 }
 
 // ── COLLECTION PACING HELPER ───────────────────────────
@@ -13943,7 +13943,7 @@ async function adminRemoveAgent(slug, name, db) {
       if (!db) { toast('No connection', 'error'); return; }
       try {
         await db.from('app_state').delete().eq('id', 'agent_' + slug);
-        toast('Agent removed <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+        toast('Agent removed', 'success');
         await adminShowDashboard(db);
       } catch(e) {
         toast('Error: ' + e.message, 'error');
@@ -14030,7 +14030,7 @@ async function adminResetPin(slug, name, db) {
         const agents = getAgentList();
         const local = agents.find(a => a.id === slug);
         if (local) { local.pinHash = null; saveAgentList(agents); }
-        toast('PIN cleared for '+escapeHtml(name)+' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> — they will set a new one on next login', 'success');
+        toast('PIN cleared for '+escapeHtml(name)+'  — they will set a new one on next login', 'success');
         haptic('success');
       } catch(e) { toast('Error: '+e.message,'error'); }
     }
@@ -14049,7 +14049,7 @@ async function adminChangePw() {
       data: { pwHash: hash, updatedAt: new Date().toISOString() },
       updated_at: new Date().toISOString()
     });
-    toast('Admin password updated <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast('Admin password updated', 'success');
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
@@ -14804,7 +14804,7 @@ function saveEscalSettings() {
   if (dl) localStorage.setItem('sq_escalation_deadline', dl);
   if (pn) localStorage.setItem('sq_escalation_pay_number', pn);
   if (ap) localStorage.setItem('sq_agent_phone', ap);
-  toast('Settings saved <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('Settings saved', 'success');
   haptic('success');
 }
 
@@ -14861,7 +14861,7 @@ function escalRenderModal() {
   const idx = window._escalIdx;
   if (idx >= tot) {
     closeModal();
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Escalation complete — ' + tot + ' notices sent', 'success');
+    toast('Escalation complete — ' + tot + ' notices sent', 'success');
     haptic('pay');
     return;
   }
@@ -15219,7 +15219,7 @@ function addToHitList(id) {
   haptic('medium');
   saveState();
   renderHitList();
-  toast('Added to Hit List <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span>', 'success');
+  toast('Added to Hit List', 'success');
 }
 function removeFromHitList(id) {
   state.hitList = (state.hitList||[]).filter(x => x !== id);
@@ -15322,7 +15322,7 @@ function checkPersonalBest(amount) {
   const best = getPersonalBest();
   if (amount > 0 && amount >= best) {
     fireConfetti();
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> New personal best! ' + fmtC(amount), 'success');
+    toast('New personal best! ' + fmtC(amount), 'success');
     const el = document.getElementById('streak-badge-dash');
     if (el) { el.classList.add('gold-flash'); setTimeout(() => el.classList.remove('gold-flash'), 3000); }
   }
@@ -15378,7 +15378,7 @@ function fireConfetti() {
   }
   draw();
   // Toast celebration
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> Monthly target reached! Outstanding work!', 'success');
+  toast('Monthly target reached! Outstanding work!', 'success');
 }
 
 // ── EOD REPORT (One-Tap) ───────────────────────────────
@@ -15447,7 +15447,7 @@ function importBackup() {
             updateBadges();
             renderCurrentPage();
             renderSettingsAgedOut();
-            toast('Backup restored <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+            toast('Backup restored', 'success');
             haptic('success');
           }
         });
@@ -15593,7 +15593,7 @@ function logCallOutcome(id, outcome, btn) {
   btn.style.background = 'var(--gold)';
   btn.style.color = '#000';
   saveState();
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span> Logged: ' + outcome, 'success');
+  toast('Logged: ' + outcome, 'success');
 }
 
 // ── WHATSAPP QUEUE BUILDER ─────────────────────────────
@@ -15604,7 +15604,7 @@ function startWaQueue(ids) {
   sendNextInWaQueue();
 }
 function sendNextInWaQueue() {
-  if (_waQueueIdx >= _waQueue.length) { toast('WhatsApp queue complete <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success'); return; }
+  if (_waQueueIdx >= _waQueue.length) { toast('WhatsApp queue complete', 'success'); return; }
   const b = state.borrowers.find(x => x.id === _waQueue[_waQueueIdx]);
   if (!b) { _waQueueIdx++; sendNextInWaQueue(); return; }
   const phone = b.phone.replace(/\s/g,'').replace('+','');
@@ -15612,7 +15612,7 @@ function sendNextInWaQueue() {
   const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
   _waQueueIdx++;
-  toast(`Sent ${_waQueueIdx} of ${_waQueue.length} — `, 'info');
+  toast(`Sent ${_waQueueIdx} of ${_waQueue.length} —`, 'info');
   document.getElementById('wa-queue-progress') && (document.getElementById('wa-queue-progress').textContent = `${_waQueueIdx} of ${_waQueue.length} sent`);
   if (_waQueueIdx < _waQueue.length) {
     document.getElementById('modal-body').querySelector && showWaQueueModal();
@@ -15821,7 +15821,7 @@ function scanRanking() {
   setTimeout(() => {
     closeRankingLogPanel();
     renderRanking();
-    toast('Ranking saved <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast('Ranking saved', 'success');
   }, 900);
 }
 
@@ -16394,7 +16394,7 @@ function undoFromHistory(idx) {
   state.dailyLog  = entry.snapshot.dailyLog;
   haptic('medium');
   saveState(); updateBadges(); renderCurrentPage();
-  toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></span> Undone: ' + entry.label, 'success');
+  toast('Undone: ' + entry.label, 'success');
   renderUndoHistory();
 }
 
@@ -16865,7 +16865,7 @@ function ptpSendAllReminders() {
 function _showPtpSeqModal() {
   if (_ptpSeqIndex >= _ptpSeqList.length) {
     closeModal();
-    toast('All ' + _ptpSeqList.length + ' PTP reminders sent <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast('All ' + _ptpSeqList.length + ' PTP reminders sent', 'success');
     haptic('pay');
     return;
   }
@@ -17096,7 +17096,7 @@ function ptpToggleHonour(bid) {
       clearTimeout(_ptpReminderTimeouts[bid]);
       delete _ptpReminderTimeouts[bid];
     }
-    toast(b.name.split(' ')[0] + ' marked as honoured <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast(b.name.split(' ')[0] + ' marked as honoured', 'success');
   }
   saveState();
   refreshPtpReminders();
@@ -18117,15 +18117,12 @@ function _ptpGroupByTime(ptps) {
 }
 
 function _timeEmoji(label) {
-  const h = parseInt(label);
-  if (isNaN(h)) return '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 119.5 4 7 7 0 0020 14.5z"/></svg></span>';
-  const map = {6:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',7:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',8:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',9:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',10:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',11:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',12:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',1:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',2:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',3:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',4:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',5:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>'};
-  return map[h] || '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>';
+  return '\u23f0';
 }
 
 function _ocLabel(oc) {
   const map = {
-    paid:        '*Paid* <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>',
+    paid:        '*Paid* \u2705',
     partial:     '_part paid_',
     no_answer:   '_no answer_',
     blocked:     '_blocked_',
@@ -18233,7 +18230,7 @@ function ptpShareEod(agentName) {
 
 function _ptpOpenFormatModal(type) {
   const isEod = type === 'eod';
-  const title = isEod ? '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> EOD Report' : '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Morning Report';
+  const title = isEod ? 'EOD Report' : 'Morning Report';
   const formats = [
     { val:'whatsapp', label:'WhatsApp (grouped by time)' },
     { val:'numbered', label:'Numbered list' },
@@ -19010,7 +19007,7 @@ function quickPay(id, pct) {
   }
   haptic(b.isPaid ? 'fullpay' : 'pay');
   const st = getStatus(b);
-  toast((b.isPaid ? '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> ' : '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> ') + b.name.split(' ')[0] + (b.isPaid ? ' fully paid! <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span>' : ' payment recorded'), 'success');
+  toast((b.isPaid ? ' ' : ' ') + b.name.split(' ')[0] + (b.isPaid ? ' fully paid! ' : ' payment recorded'), 'success');
   saveState(); updateBadges(); renderCurrentPage();
   queueOfflineAction({ type: 'pay', id, newPaid });
 }
@@ -19089,7 +19086,7 @@ function initPullToRefresh() {
       renderCurrentPage();
       updateBadges();
       setTimeout(() => { indicator.style.transform = 'translateX(-50%) translateY(-60px)'; }, 800);
-      toast('Refreshed <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+      toast('Refreshed', 'success');
     }
   }, { passive: true });
 }
@@ -19189,7 +19186,7 @@ async function replayOfflineQueue() {
   saveState();
   updatePendingSyncLabel();
   await _pushToSupabase();
-  toast('All changes synced <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('All changes synced', 'success');
 }
 
 // ── BEST TIME TO CALL (item 29) ────────────────────────
@@ -19725,7 +19722,7 @@ table { min-width: 480px; }
   a.click();
   URL.revokeObjectURL(url);
   haptic('pay');
-  toast('Report downloaded <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('Report downloaded', 'success');
 }
 
 // ── Row Swipe Actions ────────────────────────────────────────
@@ -19894,7 +19891,7 @@ function waqRenderModal() {
   const idx = window._waqIdx;
   if (idx >= tot) {
     closeModal();
-    toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> All ' + tot + ' messages sent!', 'success');
+    toast('All ' + tot + ' messages sent!', 'success');
     haptic('pay');
     return;
   }
@@ -20862,7 +20859,7 @@ async function obNextStep(n) {
 
     // 1. Hard block if offline
     if (!navigator.onLine) {
-      toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> Internet required to create an account.', 'error');
+      toast('Internet required to create an account.', 'error');
       const codeEl0 = document.getElementById('ob-agent-code');
       if (codeEl0) codeEl0.style.borderColor = 'var(--red)';
       return;
@@ -20871,7 +20868,7 @@ async function obNextStep(n) {
     // 2. Block if Supabase not configured
     const _db = initSupabase();
     if (!_db) {
-      toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> Cannot connect to server. Internet required to create an account.', 'error');
+      toast('Cannot connect to server. Internet required to create an account.', 'error');
       return;
     }
 
@@ -20895,11 +20892,11 @@ async function obNextStep(n) {
         .maybeSingle();
       if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = origText; }
       if (sbErr) {
-        toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Could not verify agent code. Check your connection and try again.', 'error');
+        toast('Could not verify agent code. Check your connection and try again.', 'error');
         return;
       }
       if (existing) {
-        toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> That Agent Code already exists. Use your own unique LoanBase code.', 'error');
+        toast('That Agent Code already exists. Use your own unique LoanBase code.', 'error');
         const codeEl = document.getElementById('ob-agent-code');
         if (codeEl) { codeEl.style.borderColor = 'var(--red)'; codeEl.focus(); }
         return;
@@ -20907,7 +20904,7 @@ async function obNextStep(n) {
     } catch(e) {
       // Network failure — hard stop, no offline bypass
       if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = origText; }
-      toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> No connection. Internet is required to create an account.', 'error');
+      toast('No connection. Internet is required to create an account.', 'error');
       return;
     }
     // Reset any red border on the code input
@@ -21152,7 +21149,7 @@ async function obFinish() {
           .eq('id', 'agent_' + slugCode)
           .maybeSingle();
         if (sbRow?.data?._pinHash) {
-          toast('<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> That code belongs to an existing account. Please sign in instead.', 'error');
+          toast('That code belongs to an existing account. Please sign in instead.', 'error');
           obGoToStep(2);
           return;
         }
@@ -21211,7 +21208,7 @@ async function obFinish() {
   updateBadges();
   renderDashboard();
   haptic('pay');
-  toast('Welcome back, ' + name + '! <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span>', 'success');
+  toast('Welcome back, ' + name + '!', 'success');
 }
 
 function updateSidebarAgentInfo() {
@@ -21684,7 +21681,7 @@ async function processPin() {
       }
       hideLockScreen();
       haptic('pay');
-      toast('PIN set <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Welcome, ' + _activeAgent.name, 'success');
+      toast('PIN set  Welcome, ' + _activeAgent.name, 'success');
       await loadStateForAgent();
     } else {
       _pinBuffer = ''; _pinSetBuffer = ''; _pinMode = 'set';
@@ -21945,7 +21942,7 @@ async function settingsToggleBiometric() {
     const ok = await bioRegister(id);
     if (ok) {
       _updateBioSettingsRow();
-      toast('Biometric unlock enabled <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+      toast('Biometric unlock enabled', 'success');
       haptic('success');
     } else {
       toast('Biometric registration failed or cancelled', 'error');
@@ -22355,7 +22352,7 @@ _syncProfileToSupabase()
   if (editAvatar) editAvatar.innerHTML = '<img src="'+dataUrl+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)"><div style="position:absolute;bottom:2px;right:2px;width:26px;height:26px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:var(--text-md);box-shadow:0 2px 8px rgba(0,0,0,0.3)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.5"/></svg></span></div>';
   document.getElementById('crop-overlay').style.display = 'none';
   renderSettingsPage();
-  toast('Profile photo saved <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('Profile photo saved', 'success');
   haptic('pay');
 }
 
@@ -22395,7 +22392,7 @@ _syncProfileToSupabase()
 
   closeModal();
   renderSettingsPage();
-  toast('Profile saved <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('Profile saved', 'success');
   haptic('pay');
 }
 
@@ -22422,7 +22419,7 @@ function settingsCopyCode() {
   const code = _activeAgent?.lbCode || _activeAgent?.id || '';
   if (!code) return;
   navigator.clipboard?.writeText(code).then(() => {
-    toast('Agent code copied <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>', 'success');
+    toast('Agent code copied', 'success');
     haptic('light');
   }).catch(() => {
     toast(code, 'info'); // fallback — show in toast
@@ -22551,7 +22548,7 @@ function settingsSaveTarget() {
   state.monthlyTarget = val;
   saveState();
   updateDailyPill();
-  toast('Monthly target updated <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+  toast('Monthly target updated', 'success');
   haptic('pay');
 }
 
@@ -22607,7 +22604,7 @@ function settingsPinPress(k) {
         const db=initSupabase();if(db){try{
           await db.from('app_state').upsert({id:'agent_'+_pinTarget.id,data:{...state,_pinHash:hash},updated_at:new Date().toISOString()});
         }catch{}}
-        closeModal();haptic('pay');toast('PIN changed <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>','success');
+        closeModal();haptic('pay');toast('PIN changed','success');
         _pinBuffer='';_pinSetBuffer='';_pinMode='unlock';
       }else{
         _pinBuffer='';_pinSetBuffer='';_pinMode='set';
@@ -23817,12 +23814,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     localStorage.setItem('pwa_installed', '1');
     _setInstallBtnsVisible(false);
     _deferredPrompt = null;
-    toast('SqueveTrack installed! <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>', 'success');
+    toast('SqueveTrack installed!', 'success');
   });
 
   window._installPWA = function() {
     if (!_deferredPrompt) {
-      toast('Already installed or use browser menu <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span> Install App', 'info');
+      toast('Already installed or use browser menu  Install App', 'info');
       return;
     }
     _deferredPrompt.prompt();
