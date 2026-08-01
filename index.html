@@ -1195,6 +1195,34 @@ select.form-input option { background: var(--surface2); }
 .target-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .target-label { font-size:var(--text-base); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 .target-value { font-family: var(--font-mono); font-size:var(--text-md); color: var(--gold); }
+.target-input-wrap {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(180deg, rgba(240,160,48,0.10), rgba(240,160,48,0.05));
+  border: 1px solid rgba(240,160,48,0.28);
+  border-radius: 999px;
+  padding: 4px 11px 4px 12px;
+  cursor: text;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+}
+.target-input-wrap:hover {
+  border-color: rgba(240,160,48,0.5);
+  background: linear-gradient(180deg, rgba(240,160,48,0.15), rgba(240,160,48,0.07));
+}
+.target-input-wrap:focus-within {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgba(240,160,48,0.18), rgba(240,160,48,0.08));
+  box-shadow: 0 0 0 3px rgba(240,160,48,0.16);
+  transform: translateY(-0.5px);
+}
+.target-input-currency { color: var(--gold); opacity: 0.65; font-size: var(--text-sm); font-family: var(--font-mono); font-weight: 600; }
+#target-input {
+  background: transparent; border: none; outline: none;
+  color: var(--gold); font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700;
+  width: 78px; text-align: right; padding: 0; -moz-appearance: textfield;
+}
+#target-input::-webkit-outer-spin-button, #target-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.target-input-edit-ico { display: flex; color: var(--gold); opacity: 0.5; transition: opacity 0.18s ease; }
+.target-input-wrap:hover .target-input-edit-ico, .target-input-wrap:focus-within .target-input-edit-ico { opacity: 0.95; }
 .progress-big { background: var(--border); border-radius:var(--radius-sm); height: 12px; overflow: hidden; }
 .progress-big-fill {
   height: 100%; border-radius:var(--radius-sm);
@@ -5575,10 +5603,19 @@ async function _pushToSupabaseIncremental() {
       return;
     }
     // Always do a full upsert – simpler and safer
+    // IMPORTANT: must include _pinHash explicitly. Supabase upsert replaces the
+    // entire `data` JSON column rather than deep-merging it, and `state` itself
+    // rarely carries _pinHash (it normally lives on the agent-list record) — so
+    // omitting it here was silently erasing the stored PIN on almost every save,
+    // which then made the next unlock attempt think an admin had reset it.
+    const agents  = getAgentList();
+    const myAgent = agents.find(a => a.id === _activeAgent?.id);
+    const pinHash = myAgent?.pinHash || state._pinHash || null;
     await _db.from('app_state').upsert({
   id: getSupabaseId(),
   data: { 
     ...currentState, 
+    _pinHash: pinHash,
     _lastSaveTs: Date.now(),
     _lastLocalSave: currentState._lastLocalSave
   },
@@ -7036,16 +7073,21 @@ async function renderDashboard() {
     + '<div><div class="target-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Collection Progress</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:3px">Collected so far vs your target</div></div>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-    + '<div class="target-value">' + fmtC(logTotal) + ' / '
-    + '<input type="number" id="target-input" value="' + monthTarget + '" min="0"'
-    + ' style="background:transparent;border:none;border-bottom:1px dashed var(--gold);color:var(--gold);font-family:var(--font-mono);font-size:var(--text-md);width:90px;text-align:right;outline:none;padding:0"'
-    + ' onchange="updateMonthlyTarget(this.value)" title="Type your monthly target">'
-    + ' &nbsp;·&nbsp; <span style="color:' + barColor + '">' + (pctOver*100).toFixed(1) + '%</span></div>'
+    + '<div class="target-value" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<span>' + fmtC(logTotal) + '</span>'
+    + '<span style="color:var(--text3);font-weight:400">/</span>'
+    + '<label class="target-input-wrap" title="Tap to edit your monthly target">'
+    + '<span class="target-input-currency">₵</span>'
+    + '<input type="number" id="target-input" value="' + monthTarget + '" min="0" onchange="updateMonthlyTarget(this.value)">'
+    + '<span class="target-input-edit-ico"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></span>'
+    + '</label>'
+    + '<span style="color:' + barColor + ';font-weight:700;font-family:var(--font-mono)">' + (pctOver*100).toFixed(1) + '%</span>'
+    + '</div>'
     + '</div></div>'
     + '<div class="progress-big"><div class="progress-big-fill" id="dash-progress-fill" style="width:0%;background:linear-gradient(90deg,#c17a10,' + barColor + ')"></div></div>'
-    + '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:var(--text-base);color:var(--text3);align-items:center">'
-    + '<span>Outstanding: <span style="color:var(--gold);font-family:var(--font-mono)">' + fmtC(totalOutstanding) + '</span></span>'
-    + '<span>Remaining: <span style="color:' + (logTotal>=monthTarget&&monthTarget>0?'var(--green)':'var(--red)') + ';font-family:var(--font-mono)">' + (logTotal>=monthTarget&&monthTarget>0?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> Hit!':fmtC(Math.max(0,monthTarget-logTotal))) + '</span></span>'
+    + '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:var(--text-base);color:var(--text3);align-items:center">'
+    + '<span>Outstanding: <span style="color:var(--gold);font-family:var(--font-mono);font-weight:600">' + fmtC(totalOutstanding) + '</span></span>'
+    + '<span>Remaining: <span style="color:' + (logTotal>=monthTarget&&monthTarget>0?'var(--green)':'var(--red)') + ';font-family:var(--font-mono);font-weight:600">' + (logTotal>=monthTarget&&monthTarget>0?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> Hit!':fmtC(Math.max(0,monthTarget-logTotal))) + '</span></span>'
     + '<span style="margin-left:auto">' + _pacingText(logTotal, monthTarget, state.dailyLog) + '</span>'
     + '</div>'
     + forecastHtml
