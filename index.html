@@ -4413,9 +4413,11 @@ tr.overdue-critical .heat-ring {
 #daily-target-pill.behind   #daily-pill-amount { color: var(--red) !important; }
 #daily-target-pill.behind   #daily-pill-bar    { background: var(--red) !important; }
 #daily-target-pill.behind   #daily-pill-inner  { box-shadow: 0 14px 36px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(239,68,68,0.18), 0 0 22px -6px rgba(239,68,68,0.35); }
+#daily-target-pill.behind   #daily-pill-icon-badge { background: linear-gradient(145deg, rgba(239,68,68,0.22), rgba(239,68,68,0.08)); border-color: rgba(239,68,68,0.3); color: var(--red); }
 #daily-target-pill.done     #daily-pill-amount { color: var(--green) !important; }
 #daily-target-pill.done     #daily-pill-bar    { background: var(--green) !important; }
 #daily-target-pill.done     #daily-pill-inner  { border-color: rgba(34,197,94,0.35) !important; box-shadow: 0 14px 36px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,197,94,0.2), 0 0 22px -6px rgba(34,197,94,0.4); }
+#daily-target-pill.done     #daily-pill-icon-badge { background: linear-gradient(145deg, rgba(34,197,94,0.22), rgba(34,197,94,0.08)); border-color: rgba(34,197,94,0.3); color: var(--green); }
 #daily-pill-inner {
   transition: transform 0.18s ease, box-shadow 0.25s ease;
 }
@@ -4451,7 +4453,20 @@ tr.overdue-critical .heat-ring {
 [data-theme="light"] #daily-pill-label { color:rgba(0,0,0,0.4) !important; }
 [data-theme="light"] #daily-pill-sub   { color:rgba(0,0,0,0.3) !important; }
 [data-theme="light"] #daily-pill-icon-badge { background:rgba(0,0,0,0.05) !important; border-color:rgba(0,0,0,0.1) !important; }
-@media (max-width: 900px) { #daily-target-pill { left: 12px !important; right: 12px !important; bottom: 12px !important; } #daily-pill-inner { max-width: none !important; } }
+@media (max-width: 900px) {
+  #daily-target-pill { left: 12px !important; right: 12px !important; bottom: 12px !important; }
+  #daily-pill-inner {
+    max-width: none !important;
+    background: linear-gradient(145deg, rgba(48,43,32,0.97), rgba(26,24,19,0.97)) !important;
+    border-color: rgba(240,160,48,0.32) !important;
+    padding: 11px 14px !important;
+    gap: 12px !important;
+  }
+  #daily-pill-icon-badge { width: 34px !important; height: 34px !important; }
+  #daily-pill-amount { font-size: var(--text-lg) !important; }
+  #daily-pill-label { font-size: 9px !important; }
+  #daily-pill-sub { font-size: 10px !important; }
+}
 </style>
 
 <!-- TOAST AREA -->
@@ -4515,7 +4530,8 @@ tr.overdue-critical .heat-ring {
 @keyframes fabIn { from { opacity:0; transform:scale(0.6) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
 /* On mobile push up above bottom nav area */
 @media (max-width: 900px) {
-  #fab-add { bottom: 90px; left: 10px; width: 44px; height: 44px; }
+  #fab-add { bottom: 150px; left: 10px; width: 44px; height: 44px; }
+  .page { padding-bottom: 150px !important; }
 }
 /* Hide FAB when bulk bar is showing to avoid overlap */
 #fab-add.hidden-by-bulk { display: none !important; }
