@@ -4412,31 +4412,46 @@ tr.overdue-critical .heat-ring {
 /* Daily target bar state colours */
 #daily-target-pill.behind   #daily-pill-amount { color: var(--red) !important; }
 #daily-target-pill.behind   #daily-pill-bar    { background: var(--red) !important; }
+#daily-target-pill.behind   #daily-pill-inner  { box-shadow: 0 14px 36px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(239,68,68,0.18), 0 0 22px -6px rgba(239,68,68,0.35); }
 #daily-target-pill.done     #daily-pill-amount { color: var(--green) !important; }
 #daily-target-pill.done     #daily-pill-bar    { background: var(--green) !important; }
-#daily-target-pill.done     #daily-pill-inner  { border-color: rgba(34,197,94,0.35) !important; }
+#daily-target-pill.done     #daily-pill-inner  { border-color: rgba(34,197,94,0.35) !important; box-shadow: 0 14px 36px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,197,94,0.2), 0 0 22px -6px rgba(34,197,94,0.4); }
+#daily-pill-inner {
+  transition: transform 0.18s ease, box-shadow 0.25s ease;
+}
+#daily-target-pill:hover #daily-pill-inner {
+  transform: translateY(-3px);
+}
+#daily-pill-icon-badge {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, rgba(240,160,48,0.22), rgba(240,160,48,0.08));
+  border: 1px solid rgba(240,160,48,0.25);
+  color: var(--gold);
+}
 </style>
-<!-- DAILY TARGET BAR — replaces floating pill -->
-<div id="daily-target-pill" style="display:none;position:fixed;bottom:0;right:0;z-index:299;cursor:pointer;padding:0 16px;padding-bottom:env(safe-area-inset-bottom);left:var(--sidebar-w)" onclick="navigate('log');haptic('light')">
-  <div id="daily-pill-inner" style="background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:12px 12px 0 0;padding:9px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.25)">
+<!-- FLOATING PREMIUM PILL -->
+<div id="daily-target-pill" style="display:none;position:fixed;bottom:20px;right:24px;left:calc(var(--sidebar-w) + 24px);z-index:299;cursor:pointer;justify-content:flex-end;pointer-events:none;padding-bottom:env(safe-area-inset-bottom)" onclick="navigate('log');haptic('light')">
+  <div id="daily-pill-inner" style="pointer-events:auto;max-width:420px;width:100%;background:linear-gradient(145deg, rgba(38,34,26,0.94), rgba(24,22,18,0.94));backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(240,160,48,0.22);border-radius:20px;padding:12px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 14px 36px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset">
+    <div id="daily-pill-icon-badge"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></div>
     <div style="flex:1;min-width:0">
-      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
-        <span id="daily-pill-label" style="font-size:var(--text-2xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Need Today</span>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:5px">
+        <span id="daily-pill-label" style="font-size:var(--text-2xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;font-weight:700">Need Today</span>
         <span id="daily-pill-amount" style="font-family:var(--font-mono);font-weight:800;font-size:var(--text-xl);color:var(--gold)">₵0</span>
-        <span id="daily-pill-sub" style="font-size:var(--text-xs);color:var(--text3);margin-left:auto"></span>
+        <span id="daily-pill-sub" style="font-size:var(--text-xs);color:var(--text3);margin-left:auto;white-space:nowrap">tap to log</span>
       </div>
-      <div style="height:4px;background:var(--border2);border-radius:3px;overflow:hidden">
+      <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
         <div id="daily-pill-bar" style="height:100%;background:var(--gold-grad);border-radius:3px;width:0%;transition:width 0.7s cubic-bezier(0.34,1.2,0.64,1)"></div>
       </div>
     </div>
-    <div style="font-size:var(--text-3xl);flex-shrink:0"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></div>
   </div>
 </div>
 <style>
-[data-theme="light"] #daily-pill-inner { background:rgba(255,255,255,0.95) !important; }
+[data-theme="light"] #daily-pill-inner { background:rgba(255,255,255,0.92) !important; backdrop-filter:blur(18px) !important; }
 [data-theme="light"] #daily-pill-label { color:rgba(0,0,0,0.4) !important; }
 [data-theme="light"] #daily-pill-sub   { color:rgba(0,0,0,0.3) !important; }
-@media (max-width: 900px) { #daily-target-pill { left: 0 !important; } }
+[data-theme="light"] #daily-pill-icon-badge { background:rgba(0,0,0,0.05) !important; border-color:rgba(0,0,0,0.1) !important; }
+@media (max-width: 900px) { #daily-target-pill { left: 12px !important; right: 12px !important; bottom: 12px !important; } #daily-pill-inner { max-width: none !important; } }
 </style>
 
 <!-- TOAST AREA -->
@@ -6629,7 +6644,7 @@ function ptpAutoFlagMissed() {
 
 // ── Dashboard Hero Card ───────────────────────────────────────
 // ── M2 Daily Target Strip ───────────────────────────────────────
-// 9% of total M2 (Day 6-15) balance owed. NEVER auto-locks — the agent must
+// 10% of total M2 (Day 6-15) balance owed. NEVER auto-locks — the agent must
 // explicitly confirm each day (since Day 6 accounts are added manually every
 // morning, not auto-aged in). This holds even on days with zero new Day 6
 // accounts: confirmation is a deliberate daily action, not a passive default.
@@ -6652,7 +6667,7 @@ function confirmM2DayReview() {
   state.m2DayReviews[key] = new Date().toISOString();
   const m2Active  = getActiveBorrowers();
   const m2Balance = m2Active.reduce((s,b) => s + getDueToday(b), 0);
-  const target = Math.round(m2Balance * 0.09);
+  const target = Math.round(m2Balance * 0.10);
   state.m2TargetLocks[key] = { target, base: m2Balance, lockedAt: new Date().toISOString() };
   saveState(); // pushes both the confirmation and the lock to Supabase
   renderM2TargetStrip();
@@ -6687,7 +6702,7 @@ function renderM2TargetStrip() {
         <span style="font-size:var(--text-2xl);flex-shrink:0">⏳</span>
         <div style="flex:1;min-width:0">
           <span style="font-size:var(--text-base);color:var(--text);font-weight:600">Target pending</span>
-          <span style="font-size:var(--text-sm);color:var(--text3)"> · ${day6Note} · confirm to lock today's 9% target</span>
+          <span style="font-size:var(--text-sm);color:var(--text3)"> · ${day6Note} · confirm to lock today's 10% target</span>
         </div>
         ${day6Count > 0 ? `<button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="showTreadmillPopup();haptic('light')">View</button>` : ''}
         <button class="btn btn-gold btn-xs" style="flex-shrink:0" onclick="confirmM2DayReview();haptic('medium')">Confirm &amp; Lock</button>
@@ -6708,7 +6723,7 @@ function renderM2TargetStrip() {
       <div style="flex:1;min-width:0">
         <span style="font-size:var(--text-base);color:var(--text2)">M2 target today </span>
         <span style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:800;color:var(--text)">${fmtC(locked.target)}</span>
-        <span style="font-size:var(--text-sm);color:var(--text3)"> · 9% of ${fmtC(locked.base)}</span>
+        <span style="font-size:var(--text-sm);color:var(--text3)"> · 10% of ${fmtC(locked.base)}</span>
         <span style="font-size:var(--text-sm);color:${pct>=1?'var(--green)':'var(--text3)'}"> · ${fmtC(collected)} collected (${Math.round(pct*100)}%)</span>
         <span style="font-size:var(--text-sm);color:${pct>=1?'var(--green)':'var(--gold)'};font-weight:700"> · ${pct>=1?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span> Target hit!':fmtC(remaining)+' to go'}</span>
       </div>
@@ -20203,7 +20218,7 @@ function updateDailyPill() {
   const pct = Math.min(100, Math.round(todayCollected / Math.max(needed,1) * 100));
 
   pill.classList.remove('on-track','behind','done');
-  pill.style.display = 'block';
+  pill.style.display = 'flex';
 
   if (totalCollected >= target) {
     pill.classList.add('done');
