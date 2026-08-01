@@ -6102,7 +6102,9 @@ function getOdAge(startDate, borrower) {
   start.setHours(0,0,0,0);
   const diff = Math.floor((todayObj - start) / 86400000);
   // +1 so Day 1 = the day after issue (consistent with stored startDate format)
-  const result = Math.max(0, diff + 1);
+  // Floor at -1 (not 0) so M0's "pre-due, due tomorrow" state can be distinguished
+  // from "due today" — every consumer already treats <=0 as "no default yet".
+  const result = Math.max(-1, diff + 1);
   _odAgeCache.set(startDate, result);
   return result;
 }
@@ -10629,16 +10631,18 @@ function buildOdOptions(b) {
   // Restrict day options to the range of the active agent's stage
   const stage = (_activeAgent && STAGE_CONFIG[_activeAgent.stage]) ? _activeAgent.stage : null;
   const stageBands = {
-    M0: [0, 0], M1: [1, 5], M2: [6, 15], M3: [16, 40], M4: [41, 60], M5: [61, 89]
+    M0: [-1, 0], M1: [1, 5], M2: [6, 15], M3: [16, 40], M4: [41, 60], M5: [61, 89]
   };
   const [minDay, maxDay] = stage && stageBands[stage] ? stageBands[stage] : [1, 89];
   // Clamp current OD to stage range for pre-selection
   const preselect = b ? Math.min(Math.max(currentOd, minDay), maxDay) : minDay;
   let html = '';
-  for (let i = Math.max(1, minDay); i <= maxDay; i++) {
+  for (let i = minDay; i <= maxDay; i++) {
     const sel = preselect === i ? ' selected' : '';
     let label = 'Day ' + i;
-    if (i === 1) label += ' — M1 start (4%)';
+    if (i === -1) label = 'Day -1 — Pre-Due (due tomorrow)';
+    else if (i === 0) label = 'Day 0 — Due Today';
+    else if (i === 1) label += ' — M1 start (4%)';
     html += '<option value="' + i + '"' + sel + '>' + label + '</option>';
   }
   return html;
@@ -10686,7 +10690,8 @@ phone = normalizePhone(phone);
   const principal = parseFloat(document.getElementById('f-principal').value) || 0;
   const loanDue = parseFloat(document.getElementById('f-loandue').value) || 0;
   const amountPaid = parseFloat(document.getElementById('f-paid').value) || 0;
-  const odAge = parseInt(document.getElementById('f-odage').value) || 6;
+  const odAgeRaw = parseInt(document.getElementById('f-odage').value);
+  const odAge = Number.isNaN(odAgeRaw) ? 6 : odAgeRaw;
   const startDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
