@@ -10264,7 +10264,7 @@ function openAdjustOdModal(id) {
       // Clear old additive base if it existed
       delete b.odFeeBase;
       delete b.odFeeBaseNote;
-      _odFeeCache.clear();
+      _invalidateOdCache(b.id);
       saveState();
       haptic('pay');
       var newTotal = getOdFee(b);
@@ -10281,9 +10281,8 @@ function clearOdSnapshot(id) {
   delete b.odFeeSnapshot;
   delete b.odFeeSnapshotDate;
   delete b.odFeeSnapshotNote;
-  _odFeeCache.clear();
+  _invalidateOdCache(id);
   saveState();
-  _odFeeCache.clear();
   closeModal();
   renderCurrentPage();
   toast('OD correction removed — back to auto-calculation', 'info');
@@ -10711,7 +10710,7 @@ function recordPayment(id) {
       if (logEntry) logEntry.collected = Math.max(0, (logEntry.collected || 0) + payDelta); // payDelta is negative
     }
   }
-  purgeAgedOut(); saveState(); setTimeout(() => { state._blockRemotePullUntil = 0; }, 3000); _odFeeCache.clear(); closeModal();
+  purgeAgedOut(); saveState(); setTimeout(() => { state._blockRemotePullUntil = 0; }, 3000); _invalidateOdCache(id); closeModal();
   updateTemplatePerfFromPayment(id);
   const status = getStatus(b);
   haptic(status === 'Paid' ? 'fullpay' : 'pay');
@@ -10737,7 +10736,7 @@ function unmarkFullyPaid(id) {
     onConfirm: function() {
       b.isPaid = false;
       delete b.paidAtOdAge;
-      _odFeeCache.clear();
+      _invalidateOdCache(b.id);
       saveState();
       toast(b.name.split(' ')[0] + ' unmarked as paid', 'success');
       updateBadges();
@@ -10858,10 +10857,8 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
       promisedToPay: false, isPaid: false, payLog: [], callLog: [] });
     toast('Borrower added', 'success');
   }
-  _odFeeCache.clear();
+  if (id) _invalidateOdCache(id);
   saveState();
-
-  // Re-enable after timeout
   setTimeout(() => { state._blockRemotePullUntil = 0; }, 3000);
   
   closeModal();
