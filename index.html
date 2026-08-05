@@ -4519,37 +4519,12 @@ tr.overdue-critical .heat-ring {
   </div>
 </div>
 
-<!-- FAB — Quick Add Borrower (left side, never overlaps pill) -->
 <style>
-#fab-add {
-  position: fixed; bottom: 80px; left: 14px;
-  z-index: 299;
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  background: var(--gold-grad);
-  border: none; cursor: pointer;
-  display: none; /* shown only on dashboard + loans pages */
-  align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(240,160,48,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
-  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
-  animation: fabIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
-}
-#fab-add:hover  { transform: scale(1.08); box-shadow: 0 6px 28px rgba(240,160,48,0.6); }
-#fab-add:active { transform: scale(0.93); }
-@keyframes fabIn { from { opacity:0; transform:scale(0.6) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
-/* On mobile push up above bottom nav area */
+/* Mobile bottom clearance for the floating daily target pill */
 @media (max-width: 900px) {
-  #fab-add { bottom: 150px; left: 10px; width: 44px; height: 44px; }
   .page { padding-bottom: 150px !important; }
 }
-/* Hide FAB when bulk bar is showing to avoid overlap */
-#fab-add.hidden-by-bulk { display: none !important; }
 </style>
-<button id="fab-add" title="Add borrower" onclick="openAddModal();haptic('medium')">
-  <svg viewBox="0 0 20 20" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" style="width:20px;height:20px">
-    <line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/>
-  </svg>
-</button>
 
 <script>
 // ═══ AUTO EOD NOTIFICATION
@@ -6765,8 +6740,17 @@ function renderDashHero() {
   const today    = new Date().toISOString().split('T')[0];
   const logEntry = (state.dailyLog||[]).find(e => e.date === today);
   const collected = logEntry ? (logEntry.collected||0) : 0;
+  // Adaptive daily target: spread whatever's LEFT of the monthly target over
+  // the days LEFT in the month — not a flat monthlyTarget/daysInMonth average,
+  // which never adjusts for being ahead or behind pace and used to silently
+  // disagree with the floating pill's (correct) figure.
+  const now2      = new Date();
+  const dim2      = new Date(now2.getFullYear(), now2.getMonth()+1, 0).getDate();
+  const daysLeft2 = Math.max(1, dim2 - now2.getDate() + 1);
+  const totalCollectedMonth = (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0);
+  const collectedBeforeToday2 = totalCollectedMonth - collected;
   const target    = state.monthlyTarget > 0
-    ? Math.round(state.monthlyTarget / new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate())
+    ? Math.ceil(Math.max(0, state.monthlyTarget - collectedBeforeToday2) / daysLeft2)
     : 0;
   const pct  = target > 0 ? Math.min(1, collected / target) : 0;
   const r    = 30, circ = 2 * Math.PI * r;
@@ -10573,14 +10557,6 @@ function openEditModal(id) {
   currentModal = 'edit';
 }
 
-function _updateFab(page) {
-  const fab = document.getElementById('fab-add');
-  if (!fab) return;
-  const showOn = ['dashboard', 'loans'];
-  const bulkActive = document.getElementById('bulk-bar')?.dataset.active === '1';
-  fab.style.display = (showOn.includes(page) && !bulkActive) ? 'flex' : 'none';
-}
-
 function openPayModal(id) {
   const b = state.borrowers.find(b => b.id === id);
   if (!b) return;
@@ -12355,7 +12331,6 @@ function navigate(page) {
   window._scrollJustNavigated = page;
 
   if (typeof updateStatusBarColor === 'function') updateStatusBarColor(page);
-  _updateFab(page);
   haptic('light');
 
   // Defer the heavy content render until after the transition frame
@@ -12730,7 +12705,6 @@ function updateBulkBar() {
   const bar  = document.getElementById('bulk-bar');
   const cnt  = document.getElementById('bulk-count');
   const list = document.getElementById('loans-tbody');
-  const fab  = document.getElementById('fab-add');
   const pill = document.getElementById('daily-target-pill');
   if (!bar) return;
 
@@ -12743,7 +12717,6 @@ function updateBulkBar() {
       bar.classList.remove('hiding');
       bar.classList.add('visible');
     }
-    if (fab)  fab.style.display = 'none';
     if (pill) pill.style.display = 'none';
   } else {
     _hideBulkBar();
@@ -12767,7 +12740,6 @@ function _hideBulkBar() {
     bar.classList.remove('hiding');
   }, { once: true });
   if (list) list.classList.remove('bulk-selecting');
-  _updateFab(currentPage);
   updateDailyPill();
 }
 
@@ -20273,7 +20245,13 @@ function updateDailyPill() {
 
   const totalCollected = (state.dailyLog||[]).reduce((s,e) => s+(e.collected||0), 0);
   const daysLeft  = Math.max(1, dim - now.getDate() + 1);
-  const needed    = Math.ceil(Math.max(0, target - totalCollected) / daysLeft);
+  // Gross target for TODAY specifically — based on the balance BEFORE today's
+  // collection, spread over the remaining days. (totalCollected already
+  // includes today's contribution, so it must be excluded here or today's
+  // amount gets subtracted twice — once implicitly via totalCollected, and
+  // again explicitly below — which was silently showing "Done" too early.)
+  const collectedBeforeToday = totalCollected - todayCollected;
+  const needed    = Math.ceil(Math.max(0, target - collectedBeforeToday) / daysLeft);
   const stillNeeded = Math.max(0, needed - todayCollected);
   const pct = Math.min(100, Math.round(todayCollected / Math.max(needed,1) * 100));
 
@@ -21628,7 +21606,6 @@ async function loadStateForAgent() {
   updateSidebarAgentInfo();
   renderDashboard();
   showSkeletons(false);
-  _updateFab(currentPage);
   } catch(e) {
     console.error("loadStateForAgent error:", e);
     toast("Failed to load account data — please try signing in again", "error");
@@ -23297,13 +23274,24 @@ function _scoreSuggestMsg(msg, b, od) {
     if (pos < 0.35 && /reminder|friendly|gentle|soon/.test(tags + title))   score += 2;
   }
 
-  // ── Priority score (agent-assigned 1–10) ──
-  const pri = b.priorityScore || 5;
+  // ── Priority score — real, live-computed urgency (0-10), not the stale
+  // stored field which is initialized once to 5 and never updated again ──
+  const pri = calcPriorityScore(b);
   if (pri >= 8 && /urgent|critical|final|court|legal/.test(tags + title + body)) score += 2;
   if (pri <= 3 && /gentle|sweet|reminder|positive/.test(tags + title + body))    score += 2;
 
   // ── Legal tags preferred for later stages ──
   if (['M3','M4','M5'].includes(msg.stage) && (msg.legalRefs || []).length >= 2) score += 1;
+
+  // ── Real historical performance — how often this exact template has led to
+  // a payment within 48h of being sent, out of borrowers it's actually been
+  // sent to. Only trust it once there's a real sample size, so a template
+  // used once or twice can't swing the ranking on a fluke.
+  const perf = (state.templatePerf || {})[msg.id];
+  if (perf && perf.sent >= 3) {
+    const rate = perf.paid / perf.sent; // 0–1
+    score += rate * 4; // up to +4 for a template that reliably gets paid
+  }
 
   // Small shuffle so agents don't see identical 5 on every open
   score += Math.random() * 0.8;
@@ -23357,11 +23345,18 @@ function _renderSuggestList() {
     <div style="display:flex;flex-direction:column;gap:8px">
       ${scored.map((msg, i) => {
         const preview = msg.body.replace(/\[Name\]/g, firstName).slice(0, 110).replace(/\n/g,' ');
+        const perf = (state.templatePerf || {})[msg.id];
+        const perfBadge = (perf && perf.sent >= 3)
+          ? `<span style="background:rgba(34,197,94,0.15);color:var(--green);font-size:var(--text-2xs);padding:1px 6px;border-radius:var(--radius-sm);font-weight:700">${Math.round(perf.paid/perf.sent*100)}% paid after · ${perf.sent} sent</span>`
+          : '';
         return `<div onclick="msgBankSuggestShowSend(${i})"
           style="background:var(--surface2);border-left:3px solid ${color};border-radius:var(--radius-md);padding:10px 12px;cursor:pointer;transition:border-color 0.15s"
           onmouseover="this.style.background='var(--surface3,var(--surface))'"
           onmouseout="this.style.background='var(--surface2)'">
-          <div style="font-size:var(--text-sm);font-weight:600;color:var(--text);margin-bottom:4px">${msg.title}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+            <div style="font-size:var(--text-sm);font-weight:600;color:var(--text)">${msg.title}</div>
+            ${perfBadge}
+          </div>
           <div style="font-size:var(--text-sm);color:var(--text3);line-height:1.5">${preview}…</div>
           <div style="font-size:var(--text-xs);color:var(--text3);margin-top:5px;display:flex;gap:8px">
             ${(msg.tags||[]).slice(0,3).map(t=>`<span style="opacity:0.7">#${t}</span>`).join('')}
@@ -23393,11 +23388,11 @@ function msgBankSuggestShowSend(i) {
     </button>
     <div style="background:var(--surface2);border-left:3px solid ${color};border-radius:var(--radius-md);padding:12px;font-size:var(--text-base);color:var(--text2);line-height:1.8;white-space:pre-wrap;margin-bottom:14px">${filled}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <a href="${waLink}" target="_blank" onclick="closeModal();haptic('medium')"
+      <a href="${waLink}" target="_blank" onclick="recordTemplateSent('${msg.id}','${b.id}');closeModal();haptic('medium')"
          style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius);background:rgba(37,211,102,0.12);color:#25d366;font-size:var(--text-md);font-weight:700;text-decoration:none;border:1px solid rgba(37,211,102,0.3)">
         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> Send via WhatsApp
       </a>
-      <a href="${smsLink}" onclick="closeModal();haptic('medium')"
+      <a href="${smsLink}" onclick="recordTemplateSent('${msg.id}','${b.id}');closeModal();haptic('medium')"
          style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius);background:rgba(56,189,248,0.12);color:var(--blue);font-size:var(--text-md);font-weight:700;text-decoration:none;border:1px solid rgba(56,189,248,0.3)">
         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="11" y1="18.5" x2="13" y2="18.5"/></svg></span> Send via SMS
       </a>
@@ -23417,6 +23412,7 @@ function msgBankSuggestCopyAndClose(i) {
   if (!msg) return;
   const filled = msg.body.replace(/\[Name\]/g, getFirstName(b));
   navigator.clipboard.writeText(filled).then(() => {
+    recordTemplateSent(msg.id, b.id);
     toast('Message copied!', 'success');
     closeModal();
   });
@@ -23599,7 +23595,6 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     }
     updateBadges(); checkOdAdvance(); checkRankingGapAlert();
     checkPtpBreaches(); updateDailyPill(); renderDashboard(); initPullToRefresh();
-    _updateFab(currentPage);
   } else {
     // No session — show lock screen or onboarding
     {
