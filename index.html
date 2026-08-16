@@ -1195,34 +1195,57 @@ select.form-input option { background: var(--surface2); }
 .target-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .target-label { font-size:var(--text-base); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 .target-value { font-family: var(--font-mono); font-size:var(--text-md); color: var(--gold); }
+.target-stat-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.target-collected {
+  font-family: var(--font-mono); font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+  background: linear-gradient(135deg, var(--gold2), var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.target-divider { color: var(--text3); opacity: 0.4; font-size: 18px; font-weight: 300; }
 .target-input-wrap {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: linear-gradient(180deg, rgba(240,160,48,0.10), rgba(240,160,48,0.05));
-  border: 1px solid rgba(240,160,48,0.28);
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(180deg, rgba(240,160,48,0.13), rgba(240,160,48,0.04));
+  border: 1px solid rgba(240,160,48,0.3);
   border-radius: 999px;
-  padding: 4px 11px 4px 12px;
+  padding: 6px 7px 6px 14px;
   cursor: text;
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.18);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 .target-input-wrap:hover {
-  border-color: rgba(240,160,48,0.5);
-  background: linear-gradient(180deg, rgba(240,160,48,0.15), rgba(240,160,48,0.07));
+  border-color: rgba(240,160,48,0.55);
+  background: linear-gradient(180deg, rgba(240,160,48,0.19), rgba(240,160,48,0.07));
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(240,160,48,0.14);
 }
 .target-input-wrap:focus-within {
   border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(240,160,48,0.18), rgba(240,160,48,0.08));
-  box-shadow: 0 0 0 3px rgba(240,160,48,0.16);
-  transform: translateY(-0.5px);
+  background: linear-gradient(180deg, rgba(240,160,48,0.23), rgba(240,160,48,0.09));
+  box-shadow: 0 0 0 3px rgba(240,160,48,0.18), 0 4px 14px rgba(240,160,48,0.16);
+  transform: translateY(-1px);
 }
-.target-input-currency { color: var(--gold); opacity: 0.65; font-size: var(--text-sm); font-family: var(--font-mono); font-weight: 600; }
+.target-input-currency { color: var(--gold); opacity: 0.7; font-size: var(--text-sm); font-family: var(--font-mono); font-weight: 700; }
 #target-input {
   background: transparent; border: none; outline: none;
-  color: var(--gold); font-family: var(--font-mono); font-size: var(--text-md); font-weight: 700;
-  width: 78px; text-align: right; padding: 0; -moz-appearance: textfield;
+  color: var(--gold2); font-family: var(--font-mono); font-size: var(--text-md); font-weight: 800;
+  width: 82px; text-align: right; padding: 0; -moz-appearance: textfield; letter-spacing: -0.2px;
 }
 #target-input::-webkit-outer-spin-button, #target-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.target-input-edit-ico { display: flex; color: var(--gold); opacity: 0.5; transition: opacity 0.18s ease; }
-.target-input-wrap:hover .target-input-edit-ico, .target-input-wrap:focus-within .target-input-edit-ico { opacity: 0.95; }
+.target-input-edit-ico {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(240,160,48,0.15); color: var(--gold); opacity: 0.65;
+  transition: opacity 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.target-input-wrap:hover .target-input-edit-ico,
+.target-input-wrap:focus-within .target-input-edit-ico { opacity: 1; background: rgba(240,160,48,0.25); transform: rotate(-10deg); }
+.target-pct-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-weight: 800; font-size: var(--text-md);
+  padding: 6px 13px; border-radius: 999px; letter-spacing: -0.2px;
+  border: 1px solid; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.target-pct-chip .ico svg { width: 13px; height: 13px; }
 .progress-big { background: var(--border); border-radius:var(--radius-sm); height: 12px; overflow: hidden; }
 .progress-big-fill {
   height: 100%; border-radius:var(--radius-sm);
@@ -3633,11 +3656,6 @@ tr.overdue-critical .heat-ring {
   </section>
 
   <!-- AGED OUT PAGE -->
-  <!-- SEGMENTS -->
-  <section class="page" id="page-segments">
-    <div class="page-header"><div><div class="page-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v1H3z"/><path d="M3 8l1.5 10a2 2 0 002 1.8h11a2 2 0 002-1.8L21 8"/></svg></span> Portfolio Segments</div><div class="page-sub">Borrowers grouped by risk tier</div></div></div>
-    <div id="segments-body"></div>
-  </section>
 
   <!-- RANKING PAGE -->
   <section class="page" id="page-ranking">
@@ -7062,6 +7080,16 @@ async function renderDashboard() {
   const pctOver = monthTarget > 0 ? logTotal / monthTarget : 0;
   const barPct = Math.min(100, (pctOver * 100).toFixed(1));
   const barColor = pctOver >= 1 ? 'var(--green)' : pctOver >= 0.7 ? 'var(--gold)' : 'var(--red)';
+  // Status chip colors — hardcoded rgba to match the app's existing convention
+  // for translucent badges (see alert widgets below), not theme-token-derived.
+  const pctHex    = pctOver >= 1 ? '#22c55e' : pctOver >= 0.7 ? '#f0a030' : '#ef4444';
+  const pctBg     = pctOver >= 1 ? 'rgba(34,197,94,0.13)' : pctOver >= 0.7 ? 'rgba(240,160,48,0.13)' : 'rgba(239,68,68,0.13)';
+  const pctBorder = pctOver >= 1 ? 'rgba(34,197,94,0.4)'  : pctOver >= 0.7 ? 'rgba(240,160,48,0.4)'  : 'rgba(239,68,68,0.4)';
+  const pctIcon   = pctOver >= 1
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+    : pctOver >= 0.7
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7l-10 10M17 7H8M17 7v9"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17L7 7M7 17V8M7 17h9"/></svg>';
 
   // Build forecast inline
   const nowF = new Date();
@@ -7101,15 +7129,15 @@ async function renderDashboard() {
     + '<div><div class="target-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Collection Progress</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:3px">Collected so far vs your target</div></div>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-    + '<div class="target-value" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    + '<span>' + fmtC(logTotal) + '</span>'
-    + '<span style="color:var(--text3);font-weight:400">/</span>'
+    + '<div class="target-stat-row">'
+    + '<span class="target-collected">' + fmtC(logTotal) + '</span>'
+    + '<span class="target-divider">/</span>'
     + '<label class="target-input-wrap" title="Tap to edit your monthly target">'
     + '<span class="target-input-currency">₵</span>'
     + '<input type="number" id="target-input" value="' + monthTarget + '" min="0" onchange="updateMonthlyTarget(this.value)">'
     + '<span class="target-input-edit-ico"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></span>'
     + '</label>'
-    + '<span style="color:' + barColor + ';font-weight:700;font-family:var(--font-mono)">' + (pctOver*100).toFixed(1) + '%</span>'
+    + '<span class="target-pct-chip" style="color:' + pctHex + ';background:' + pctBg + ';border-color:' + pctBorder + '"><span class="ico">' + pctIcon + '</span>' + (pctOver*100).toFixed(1) + '%</span>'
     + '</div>'
     + '</div></div>'
     + '<div class="progress-big"><div class="progress-big-fill" id="dash-progress-fill" style="width:0%;background:linear-gradient(90deg,#c17a10,' + barColor + ')"></div></div>'
@@ -7848,13 +7876,13 @@ function renderLoansTable() {
   // Remove any existing observer
   if (window._loanObserver) window._loanObserver.disconnect();
 
-  let currentPage = 0;
+  let _loanPageIdx = 0;
   const PAGE_SIZE = 25;
   const container = document.getElementById('loans-tbody');
   container.innerHTML = ''; // clear existing content
 
   function loadPage() {
-    const start = currentPage * PAGE_SIZE;
+    const start = _loanPageIdx * PAGE_SIZE;
     const chunk = window._loanRows.slice(start, start + PAGE_SIZE);
     if (!chunk.length) return;
     // Remove loading sentinel if present
@@ -7862,7 +7890,7 @@ function renderLoansTable() {
     if (oldSentinel) oldSentinel.remove();
     // Append new cards
     chunk.forEach(b => container.appendChild(_buildBorrowerCard(b)));
-    currentPage++;
+    _loanPageIdx++;
     // If more rows remain, add a sentinel to trigger next load
     if (start + PAGE_SIZE < window._loanRows.length) {
       const sentinel = document.createElement('div');
@@ -12400,7 +12428,6 @@ function renderCurrentPage() {
   else if (currentPage === 'ptp-history') { navigate('reports'); return; }
   else if (currentPage === 'ptp-stats') { navigate('reports'); return; }
   else if (currentPage === 'forecast') { navigate('dashboard'); return; }
-  else if (currentPage === 'segments') renderSegments();
   else if (currentPage === 'ranking') renderRanking();
   else if (currentPage === 'ptp') { if(typeof switchPtpHub==='function') switchPtpHub(_ptpTab||'morning'); }
   else if (currentPage === 'reports') renderReportsPage();
@@ -15296,21 +15323,18 @@ function renderSegments() {
 // ── FILTER + NAVIGATE HELPER ───────────────────────────}
 
 function filterAndNavigate(page, status, odAge, loanType) {
+  // Set the filter dropdowns BEFORE navigating (they're static markup that
+  // always exists in the DOM, not created by renderLoansTable) so the one
+  // render triggered by navigate() already reflects them. Previously this
+  // set filters 80ms AFTER navigating, causing a visible flash of the
+  // unfiltered table before the filtered one replaced it.
+  const sSel = document.getElementById('loan-filter-status');
+  const odSel = document.getElementById('loan-filter-od');
+  const tSel = document.getElementById('loan-filter-type');
+  if (sSel) sSel.value = (status !== undefined && status !== '') ? status : '';
+  if (odSel) odSel.value = (odAge !== undefined && odAge !== '') ? odAge : '';
+  if (tSel) tSel.value = (loanType !== undefined && loanType !== '') ? loanType : '';
   navigate(page);
-  setTimeout(function() {
-    const sSel = document.getElementById('loan-filter-status');
-    const odSel = document.getElementById('loan-filter-od');
-    const tSel = document.getElementById('loan-filter-type');
-    // Reset all filters first
-    if (sSel) sSel.value = '';
-    if (odSel) odSel.value = '';
-    if (tSel) tSel.value = '';
-    // Apply requested filters
-    if (status !== undefined && status !== '') { if (sSel) sSel.value = status; }
-    if (odAge !== undefined && odAge !== '') { if (odSel) odSel.value = odAge; }
-    if (loanType !== undefined && loanType !== '') { if (tSel) tSel.value = loanType; }
-    renderLoansTable();
-  }, 80);
 }
 
 // ── DEBOUNCED SEARCH ───────────────────────────────────
