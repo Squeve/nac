@@ -10759,8 +10759,15 @@ function borrowerForm(b) {
     + '<div class="form-row">'
     + '<div class="form-group"><label>Guarantor / Emergency Contact <span style="font-size:var(--text-sm);color:var(--text3)">optional</span></label>'
     + '<input type="text" class="form-input" id="f-guarantor-name" placeholder="Name" value="' + (b ? escapeHtml(b.guarantorName || '') : '') + '"></div>'
-    + '<div class="form-group"><label>Guarantor / Emergency Phone</label>'
+    + '<div class="form-group"><label>Contact Phone</label>'
     + '<input type="text" class="form-input" id="f-guarantor-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.guarantorPhone || '') : '') + '"></div>'
+    + '</div>'
+    + '<div class="form-group" style="margin-top:-6px">'
+    + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal;font-weight:500">'
+    + '<input type="checkbox" id="f-guarantor-formal" style="width:16px;height:16px;accent-color:var(--gold)"' + (b && b.guarantorIsFormal ? ' checked' : '') + '>'
+    + 'This person signed a formal loan guarantee (not just an emergency contact)'
+    + '</label>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:4px">Only check this if they actually co-signed as guarantor. Unchecked = plain emergency contact with no liability — the escalation message wording adjusts accordingly.</div>'
     + '</div>'
     + '<div class="form-row">'
     + '<div class="form-group"><label>Principal (₵)</label>'
@@ -10809,6 +10816,7 @@ phone = normalizePhone(phone);
   const guarantorName = document.getElementById('f-guarantor-name')?.value.trim() || '';
   let guarantorPhone = document.getElementById('f-guarantor-phone')?.value.trim() || '';
   guarantorPhone = guarantorPhone ? normalizePhone(guarantorPhone) : '';
+  const guarantorIsFormal = !!document.getElementById('f-guarantor-formal')?.checked;
   const instAmt   = parseFloat(document.getElementById('f-inst-amt')?.value) || 0;
   const instFreq  = document.getElementById('f-inst-freq')?.value || '';
   const instStart = document.getElementById('f-inst-start')?.value || '';
@@ -10823,7 +10831,7 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
 
   if (id) {
     const b = state.borrowers.find(x => x.id === id);
-    if (b) Object.assign(b, { name, phone, principal, loanDue, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone,
+    if (b) Object.assign(b, { name, phone, principal, loanDue, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone, guarantorIsFormal,
       // Preserve fields not in the form
       payLog: b.payLog || [], callLog: b.callLog || [],
       promisedToPay: b.promisedToPay, promiseDate: b.promiseDate, promiseNote: b.promiseNote,
@@ -10843,7 +10851,7 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
       if (!confirm('A borrower named "' + dupe.name + '" with a similar name or phone already exists. Add anyway?')) return;
     }
     state.borrowers.push({ id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now()),
-      name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone,
+      name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone, guarantorIsFormal,
       promisedToPay: false, isPaid: false, payLog: [], callLog: [] });
     toast('Borrower added', 'success');
   }
@@ -14287,13 +14295,35 @@ function _ordinal(n) {
 
 function _escalPayGuide(b) {
   const serial = b.loanType === 'LoanBase Pro' ? '2' : '1';
-  return 'Dial *' + _escalPhone() + '* > Enter loan number > Select ' + serial + ' (' + b.loanType + ') > Enter amount > Confirm payment.';
+  return 'Dial ```' + _escalPhone() + '``` > Enter loan number > Select ' + serial + ' (' + b.loanType + ') > Enter amount > Confirm payment.';
 }
 
 function _escalVisitDate() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return tomorrow.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+}
+
+// Formal header for Tier 2+ notices — bold facts, monospace case ref, italic date.
+// fields: [{label, value, strike?}] — strike wraps value in bold+strikethrough (for waived/discounted amounts)
+function _escalHeader(icon, title, b, caseRef, dateStr, fields) {
+  let head = icon + ' *' + title + '*\n'
+    + '_' + dateStr + '_  ·  ```' + caseRef + '```\n\n'
+    + '*' + b.name.toUpperCase() + '*  (' + b.loanType + ')';
+  (fields || []).forEach(function (f) {
+    const v = f.strike ? ('~' + f.value + '~') : f.value;
+    head += '\n' + f.label + ': *' + v + '*';
+  });
+  return head;
+}
+
+// Light header for Tier 0 (soft) and closure messages — no case ref, less formal.
+function _escalHeaderLight(icon, title, dateStr, fields) {
+  let head = icon + ' *' + title + '*\n_' + dateStr + '_';
+  (fields || []).forEach(function (f) {
+    head += '\n' + f.label + ': *' + f.value + '*';
+  });
+  return head;
 }
 
 function buildEscalationMsg(b, level) {
@@ -14310,23 +14340,25 @@ function buildEscalationMsg(b, level) {
 
   // Level 1: Sympathetic — Good Repayment History
   if (level === 1) {
-    return `Dear *${b.name}*,
+    return `🌱 *A Friendly Check-In*
+_${dateStr}_
+
+Dear *${b.name}*,
 
 We hope this message finds you well.
 
-We noticed your current ${b.loanType} payment is delayed, and because you have a *perfect repayment record* with us, we are reaching out with concern — not pressure. Your commitment to paying on time has always been appreciated.
+_We noticed your current ${b.loanType} payment is delayed — and because you have a genuinely good repayment record with us, we're reaching out with concern, not pressure._ Your track record has always been appreciated.
 
-Are you currently facing a temporary challenge that is preventing you from completing the payment?
+Are you facing a temporary challenge that's making it hard to pay right now?
 
-We want to help you maintain your good standing. Due to your history, we can immediately offer one of the following solutions:
+Because of your history, you may qualify for one of the following:
 
-1. *Partial Waiver:* We can reduce a portion of the penalty fees if you can clear the balance of *${balance}* today.
+1. *Partial fee waiver* — a reduction on penalty fees if you clear the balance of *${balance}* today.
+2. *Flexible instalment plan* — spread the balance over a period that suits you.
 
-2. *Flexible Instalment Plan:* We can set up a manageable plan to split the outstanding balance over a period that suits your current situation.
+Please call or reply so we can find the right fit together. If you'd rather pay now: ${_escalPayGuide(b)}
 
-Please call or reply to us today so we can find the best solution and activate your waiver or instalment plan immediately. If you'd rather pay now: ${_escalPayGuide(b)}
-
-Your success is our priority.
+_Your success is our priority._
 
 Sincerely,
 *LoanBase Management Team*`;
@@ -14335,20 +14367,15 @@ Sincerely,
   // Level 2: PTP Due Tomorrow — Reminder
   if (level === 2) {
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'tomorrow';
-    return `🔔 *REMINDER: PAYMENT DUE TOMORROW* 🔔
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-PROMISED DATE: *${promiseDate}*
-AMOUNT DUE: *${balance}*
+    return `🔔 *Reminder: Payment Due Tomorrow*
+_${dateStr}_
+Promised date: *${promiseDate}*  ·  Amount due: *${balance}*
 
 Hi *${b.name.split(' ')[0]}*,
 
-Just a friendly reminder — you promised to pay *${balance}* on your ${loanType} loan on *${promiseDate}*.
+_Just a friendly reminder_ — you promised to pay *${balance}* on your ${loanType} loan on *${promiseDate}*.
 
-We look forward to receiving your payment as agreed. If anything has changed, please reach out to us before then so we can adjust the plan together.
+We look forward to receiving your payment as agreed. If anything has changed, please reach out before then so we can adjust the plan together.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14357,17 +14384,13 @@ We look forward to receiving your payment as agreed. If anything has changed, pl
 
   // Level 3: Gentle Early Reminder (Day 1–3)
   if (level === 3) {
-    return `📌 *PAYMENT REMINDER*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-AMOUNT DUE: *${balance}*
+    return `📌 *Payment Reminder*
+_${dateStr}_
+Amount due: *${balance}*
 
 Hi *${b.name.split(' ')[0]}*,
 
-We noticed your ${loanType} payment of *${balance}* is now *${odDays} day${odDays===1?'':'s'}* past due. This happens sometimes — no penalty has been applied yet.
+We noticed your ${loanType} payment of *${balance}* is now *${odDays} day${odDays===1?'':'s'}* past due. _This happens sometimes — no penalty has been applied yet._
 
 Please settle this as soon as you can to keep your account in good standing.
 
@@ -14379,19 +14402,15 @@ Thank you,
 
   // Level 4: M2 Stage Entry Notice (Day 6)
   if (level === 4) {
-    return `📋 *ACCOUNT STATUS UPDATE*
+    return _escalHeader('📋', 'Account Status Update', b, caseRef, dateStr, [
+      { label: 'Amount due', value: balance }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-AMOUNT DUE: *${balance}*
+${salute},
 
- ${salute},
+Your ${loanType} account is now *${odDays} days* overdue and has moved into our _enhanced recovery review_ stage.
 
-Your ${loanType} account is now *${odDays} days* overdue and has moved into our *enhanced recovery review* stage.
-
-This means your file is now reviewed daily until the balance is cleared. No further action is required from you beyond making payment as soon as possible to avoid additional recovery steps.
+This means your file is reviewed daily until the balance is cleared. No further action is needed beyond making payment as soon as possible to avoid additional recovery steps.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14403,21 +14422,17 @@ This means your file is now reviewed daily until the balance is cleared. No furt
   // Level 5: Partial Payment Follow-Up
   if (level === 5) {
     const paidAmount = fmtC(b.amountPaid || 0);
-    return `📋 *PARTIAL PAYMENT ACKNOWLEDGMENT*
+    return _escalHeader('📋', 'Partial Payment Acknowledgment', b, caseRef, dateStr, [
+      { label: 'Outstanding balance', value: balance }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
-
- ${salute},
+${salute},
 
 We acknowledge your recent payment of *${paidAmount}* on your ${loanType} account. Thank you.
 
 However, a balance of *${balance}* remains unpaid and is now *${odDays} days* overdue. Daily penalty fees continue to accrue on the remaining amount.
 
-To avoid escalation to formal recovery, you must settle the full outstanding balance by *${deadline}*.
+To avoid escalation to formal recovery, please settle the full outstanding balance by *${deadline}*.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14429,15 +14444,11 @@ To avoid escalation to formal recovery, you must settle the full outstanding bal
     const instalmentAmount = b.instalment?.amount ? fmtC(b.instalment.amount) : 'your agreed amount';
     const instalmentFreq = b.instalment?.freq || 'weekly';
     const instalmentStart = b.instalment?.start || 'the agreed start date';
-    return `📅 *INSTALMENT AGREEMENT CONFIRMATION*
+    return _escalHeader('📅', 'Instalment Agreement Confirmation', b, caseRef, dateStr, [
+      { label: 'Plan', value: instalmentAmount + ' every ' + instalmentFreq }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-PLAN: *${instalmentAmount}* every *${instalmentFreq}* starting *${instalmentStart}*
-
- ${salute},
+${salute},
 
 Thank you for committing to the following repayment plan for your overdue ${loanType} loan:
 
@@ -14445,7 +14456,7 @@ Thank you for committing to the following repayment plan for your overdue ${loan
 • Frequency: *${instalmentFreq}*
 • First payment due: *${instalmentStart}*
 
-Please ensure each payment is made on or before the due date. Missing two consecutive instalments will void this agreement and reactivate full recovery actions.
+Please make each payment on or before its due date. _Missing two consecutive instalments will void this agreement and reactivate full recovery actions._
 
 📌 ${_escalPayGuide(b)} Then select "Instalment Payment".
 
@@ -14454,13 +14465,9 @@ Please ensure each payment is made on or before the due date. Missing two consec
 
   // Level 7: Wrong / Unreachable Number Notice (sent via SMS — WhatsApp already failed)
   if (level === 7) {
-    return `📵 *UNABLE TO REACH YOU — PLEASE CONFIRM YOUR CONTACT*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-AMOUNT DUE: *${balance}*
+    return _escalHeaderLight('📵', 'Unable To Reach You — Please Confirm Your Contact', dateStr, [
+      { label: 'Amount due', value: balance }
+    ]) + `
 
 Hi *${b.name.split(' ')[0]}*,
 
@@ -14477,26 +14484,20 @@ If this number is no longer active or correct, please reply to this SMS or call 
 
   // Level 8: Formal Warning Notice
   if (level === 8) {
-    return `⚠️ *FORMAL RECOVERY WARNING NOTICE*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
+    return _escalHeader('⚠️', 'Formal Recovery Warning Notice', b, caseRef, dateStr, [
+      { label: 'Outstanding balance', value: balance }
+    ]) + `
 
 *${salute},*
 
-This is a formal notice from LoanBase Recovery Management regarding your overdue ${b.loanType} account, now ${odDays} days in default.
+This is a formal notice regarding your overdue ${b.loanType} account, now *${odDays} days* in default.
 
-Your account has been escalated to our *Enforcement Division*. Failure to respond within *24 hours* will trigger the following actions:
+Your account has been escalated to our *Enforcement Division*. Under the terms you agreed to at loan sign-up, non-payment beyond *24 hours* from this notice may result in:
 
-🚫 *Credit Bureau Reporting* — Your Ghana Card ID will be submitted to the National Credit Bureau, resulting in restrictions across all financial platforms.
+🚫 *Credit Bureau reporting* — your details may be submitted to a licensed Credit Reference Bureau, as authorised in your loan agreement.
+📋 *Formal documentation* — your default is now on record.
 
-📋 *Account Documentation* — Your default is now on record and will be reported to relevant financial institutions.
-
-*TO PREVENT ESCALATION:*
-Make your payment of *${balance}* today before *${deadline}*.
+*To prevent this:* pay *${balance}* today before *${deadline}*.
 
 📌 ${_escalPayGuide(b)} Or use the LoanBase App to settle immediately.
 
@@ -14508,26 +14509,22 @@ Your prompt action is required.
   // Level 9: Broken Promise Notice (PTP Missed — first occurrence)
   if (level === 9) {
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
-    return `⚠️ *PROMISE TO PAY — BREACH NOTICE*
+    return _escalHeader('⚠️', 'Promise To Pay — Breach Notice', b, caseRef, dateStr, [
+      { label: 'Promised date', value: promiseDate },
+      { label: 'Amount due', value: balance }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-PROMISED DATE: ${promiseDate}
-AMOUNT DUE: *${balance}*
+${salute},
 
- ${salute},
+You committed to pay *${balance}* on *${promiseDate}*. To date, no payment has been received.
 
-You made a solemn commitment to pay *${balance}* on *${promiseDate}*. To date, no payment has been received.
+This has been recorded in your file and will be considered in future decisions about flexibility on this account. Your account is now under review for *escalation*.
 
-This broken promise has been recorded in your file and will be used as evidence of unwillingness to cooperate. Your account is now being reviewed for *immediate escalation*.
-
-You have *24 hours* to make the payment. Failure to do so will result in:
+You have *24 hours* to make the payment. If not received, next steps may include:
 
 • Field recovery agent dispatch
 • Credit bureau reporting
-• Legal notice of default
+• Formal notice of default
 
 📌 ${_escalPayGuide(b)}
 
@@ -14539,22 +14536,18 @@ You have *24 hours* to make the payment. Failure to do so will result in:
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
     const breakCount = (b.promiseHistory || []).length + 1;
     const ord = _ordinal(breakCount);
-    return `⚠️ *REPEATED BROKEN PROMISE NOTICE*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-BROKEN PROMISES ON FILE: *${breakCount}*
-AMOUNT DUE: *${balance}*
+    return _escalHeader('⚠️', 'Repeated Broken Promise Notice', b, caseRef, dateStr, [
+      { label: 'Broken promises on file', value: String(breakCount) },
+      { label: 'Amount due', value: balance }
+    ]) + `
 
 *${salute},*
 
-This is now the *${ord}* time you have failed to honour a promise to pay on this account. Your most recent promised date of *${promiseDate}* has passed without payment.
+This is the *${ord}* time a promised payment date has passed on this account without payment. Your most recent promised date of *${promiseDate}* has passed.
 
-Repeated broken promises are recorded permanently on your file and significantly reduce our willingness to offer flexible arrangements going forward.
+Repeated broken promises are recorded on your file and reduce our ability to offer flexible arrangements going forward.
 
-We will no longer accept verbal promises alone. Full payment of *${balance}* is required *immediately*, or your account will proceed to field recovery and third-party notification without further warning.
+We can no longer rely on a verbal promise alone. Full payment of *${balance}* is required *immediately*, or your account will proceed to field recovery and third-party notification without further warning.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14565,21 +14558,17 @@ We will no longer accept verbal promises alone. Full payment of *${balance}* is 
   if (level === 11) {
     const instalmentAmount = b.instalment?.amount ? fmtC(b.instalment.amount) : 'your agreed amount';
     const instalmentStart = b.instalment?.start || 'the agreed start date';
-    return `⚠️ *INSTALMENT PLAN BREACH NOTICE*
+    return _escalHeader('⚠️', 'Instalment Plan Breach Notice', b, caseRef, dateStr, [
+      { label: 'Missed instalment', value: instalmentAmount + ' due ' + instalmentStart }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-MISSED INSTALMENT: *${instalmentAmount}* due on *${instalmentStart}*
+${salute},
 
- ${salute},
+You've missed your agreed instalment payment of *${instalmentAmount}* due on *${instalmentStart}*.
 
-You have missed your agreed instalment payment of *${instalmentAmount}* due on *${instalmentStart}*.
+Under your instalment agreement, this is a breach. You have *48 hours* to bring your account current.
 
-Under the terms of your instalment agreement, this constitutes a breach. You have *48 hours* to bring your account current.
-
-If payment is not received by *${deadline}*, your instalment plan will be cancelled and the full outstanding balance of *${balance}* will become due immediately, with escalation proceedings restarted.
+If payment isn't received by *${deadline}*, your instalment plan will be cancelled, the full outstanding balance of *${balance}* becomes due immediately, and escalation proceedings restart.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14592,24 +14581,20 @@ If payment is not received by *${deadline}*, your instalment plan will be cancel
   if (level === 12) {
     const discountRate = (typeof state !== 'undefined' && state.discountRate) ? state.discountRate : 0.30;
     const discounted = Math.round(getRemaining(b) + (_getOdFeeCached(b) * discountRate));
-    return `🎯 *DISCOUNTED SETTLEMENT OFFER – FINAL* 🎯
+    return _escalHeader('🎯', 'Discounted Settlement Offer — Final', b, caseRef, dateStr, [
+      { label: 'Original balance', value: balance, strike: true },
+      { label: 'Offered settlement', value: fmtC(discounted) }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-ORIGINAL BALANCE: *${balance}*
-OFFERED SETTLEMENT: *${fmtC(discounted)}*
+${salute},
 
- ${salute},
+As a gesture of goodwill, we're offering a *one-time discounted settlement* of *${fmtC(discounted)}* to fully close your ${loanType} account.
 
-As a gesture of goodwill, LoanBase is offering you a *one‑time discounted settlement* of *${fmtC(discounted)}* to fully close your ${loanType} account.
+_This offer is valid only until ${deadline} and will be revoked immediately afterward._
 
-This offer is valid only until *${deadline}* and will be revoked immediately afterward.
+Pay ${fmtC(discounted)} and your account is marked *PAID IN FULL* with a positive credit reference.
 
-Upon payment of ${fmtC(discounted)}, your account will be marked *PAID IN FULL* with a positive credit reference.
-
-After ${deadline}, the full balance of ${balance} plus accrued fees will be pursued.
+After ${deadline}, the full balance of ~${balance}~ plus accrued fees will be pursued.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14622,23 +14607,19 @@ After ${deadline}, the full balance of ${balance} plus accrued fees will be purs
     // (loanDue - amountPaid) — NOT the raw disbursed principal, since
     // loanDue may include interest/charges that aren't OD fees but are
     // still owed. Using b.principal alone understated what's actually due.
-    const remaining    = getRemaining(b);
-    const odFeeAmt      = getOdFee(b);
-    return `🤝 *ONE-TIME OFFER: FULL OD FEE WAIVER* 🤝
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-PRINCIPAL REMAINING: *${fmtC(remaining)}*
-OD FEES WAIVED: *${fmtC(odFeeAmt)}*
-*YOU ONLY PAY: ${fmtC(remaining)}*
+    const remaining = getRemaining(b);
+    const odFeeAmt = getOdFee(b);
+    return _escalHeader('🤝', 'One-Time Offer: Full OD Fee Waiver', b, caseRef, dateStr, [
+      { label: 'Principal remaining', value: fmtC(remaining) },
+      { label: 'OD fees waived', value: fmtC(odFeeAmt), strike: true },
+      { label: 'You only pay', value: fmtC(remaining) }
+    ]) + `
 
 *${salute},*
 
-As a final gesture of goodwill, LoanBase is offering you a *one-time exceptional settlement*:
+As a final gesture of goodwill, here's a *one-time exceptional settlement*:
 
-Pay only the outstanding principal of *${fmtC(remaining)}* and we will waive *ALL* accrued overdue fees (*${fmtC(odFeeAmt)}*).
+Pay only the outstanding principal of *${fmtC(remaining)}* and we'll waive ~${fmtC(odFeeAmt)}~ in accrued overdue fees — *in full*.
 
 ✅ No penalties
 ✅ No OD charges
@@ -14646,12 +14627,11 @@ Pay only the outstanding principal of *${fmtC(remaining)}* and we will waive *AL
 
 *⚠️ This offer expires at ${deadline} TODAY. It will not be extended.*
 
-After this deadline, the full balance of *${balance}* (including all fees and legal costs) will be pursued with no further concessions.
+After this deadline, the full balance of *${balance}* (including all fees) will be pursued with no further concessions.
 
 📌 ${_escalPayGuide(b)} Then send your receipt to confirm the waiver.
 
-*LoanBase Recovery Management*
-*Ref: ${caseRef}*`;
+*LoanBase Recovery Management*`;
   }
 
   // Level 14: Day 1 OD Only Waiver
@@ -14659,31 +14639,27 @@ After this deadline, the full balance of *${balance}* (including all fees and le
   // original principal (Day 1 rate only). Every accumulated OD fee after
   // Day 1 is waived. More generous than standard but less than full waiver.
   if (level === 14) {
-    const remaining   = getRemaining(b);                       // loanDue − amountPaid
-    const day1Fee     = Math.round((b.principal || 0) * 0.04); // 4% of principal = Day 1 only
-    const settleAmt   = remaining + day1Fee;
-    const fullOdFee   = getOdFee(b);
-    const waivedAmt   = Math.max(0, fullOdFee - day1Fee);      // everything beyond Day 1
-    return `🟡 *SPECIAL SETTLEMENT OFFER: DAY 1 OD ONLY* 🟡
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-LOAN BALANCE: *${fmtC(remaining)}*
-DAY 1 OD FEE (4%): *${fmtC(day1Fee)}*
-*SETTLEMENT AMOUNT: ${fmtC(settleAmt)}*
-ACCRUED OD WAIVED: *${fmtC(waivedAmt)}*
+    const remaining = getRemaining(b);                       // loanDue − amountPaid
+    const day1Fee = Math.round((b.principal || 0) * 0.04);   // 4% of principal = Day 1 only
+    const settleAmt = remaining + day1Fee;
+    const fullOdFee = getOdFee(b);
+    const waivedAmt = Math.max(0, fullOdFee - day1Fee);      // everything beyond Day 1
+    return _escalHeader('🟡', 'Special Settlement Offer: Day 1 OD Only', b, caseRef, dateStr, [
+      { label: 'Loan balance', value: fmtC(remaining) },
+      { label: 'Day 1 OD fee (4%)', value: fmtC(day1Fee) },
+      { label: 'Settlement amount', value: fmtC(settleAmt) },
+      { label: 'Accrued OD waived', value: fmtC(waivedAmt), strike: true }
+    ]) + `
 
 *${salute},*
 
 We acknowledge your account is overdue and that OD charges have been accumulating.
 
-As a one-time goodwill concession, we are offering you the following settlement:
+As a one-time goodwill concession, here's the offer:
 
 Pay your outstanding loan balance of *${fmtC(remaining)}* plus a reduced OD charge of only *${fmtC(day1Fee)}* (the Day 1 rate of 4%).
 
-All additional OD fees of *${fmtC(waivedAmt)}* accumulated after Day 1 will be *fully waived*.
+All additional OD fees of ~${fmtC(waivedAmt)}~ accumulated after Day 1 will be *fully waived*.
 
 ✅ Total you pay: *${fmtC(settleAmt)}*
 ✅ Amount waived: *${fmtC(waivedAmt)}*
@@ -14695,35 +14671,30 @@ After this deadline, the full outstanding balance of *${balance}* will be pursue
 
 📌 ${_escalPayGuide(b)} Then send your payment receipt to confirm the settlement.
 
-*LoanBase Recovery Management*
-*Ref: ${caseRef}*`;
+*LoanBase Recovery Management*`;
   }
 
   // ══════════════ TIER 4 — Serious escalation / third-party involvement ══════════════
 
   // Level 15: Unreachable / Silent Phone
   if (level === 15) {
-    return `📵 *NOTICE OF ACCOUNT UNREACHABLE — ESCALATION TRIGGERED*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
+    return _escalHeader('📵', 'Notice of Account Unreachable', b, caseRef, dateStr, [
+      { label: 'Outstanding balance', value: balance }
+    ]) + `
 
 *${salute},*
 
-Multiple contact attempts to your registered number have gone unanswered. Your phone appears to be switched off, redirected, or you are actively avoiding contact.
+Multiple contact attempts to your registered number have gone unanswered. Your phone appears to be switched off, redirected, or unreachable.
 
-Under the Borrowers and Lenders Act 2008 (Act 773), deliberate evasion of a creditor constitutes *willful default* and is admissible as evidence in court proceedings.
+Under the Borrowers and Lenders Act, 2020 (Act 1052), sustained non-response to a lender's contact attempts is recorded as part of your default history and may support formal recovery action.
 
-We are now proceeding with *offline escalation*, which includes:
+We are now proceeding to the next stage, which may include:
 
-• Field agent dispatch to your registered address on *${_escalVisitDate()}*
-• Contact with your listed references and emergency contacts
-• Formal filing with the Credit Bureau
+• Field agent visit to your registered address on *${_escalVisitDate()}*
+• Contact with the emergency contact you provided at loan application
+• Formal filing with a licensed Credit Reference Bureau
 
-You may still prevent all of the above by calling *${_escalAgentPhone()}* or paying *${balance}* before *${deadline}*: ${_escalPayGuide(b)}
+You can still prevent all of this — call *${_escalAgentPhone()}* or pay *${balance}* before *${deadline}*: ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
@@ -14732,21 +14703,17 @@ You may still prevent all of the above by calling *${_escalAgentPhone()}* or pay
   if (level === 16) {
     const agentPhone = _escalAgentPhone();
     const visitDate = _escalVisitDate();
-    return `🚪 *FIELD RECOVERY NOTIFICATION*
+    return _escalHeader('🚪', 'Field Recovery Notification', b, caseRef, dateStr, [
+      { label: 'Address', value: 'as registered' }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-ADDRESS: (as registered)
-
- ${salute},
+${salute},
 
 Despite multiple call attempts, we have been unable to reach you regarding your overdue ${loanType} loan of *${balance}* (Day ${odDays}).
 
 A *field recovery agent* has been scheduled to visit your registered address on *${visitDate}* between *9:00 AM – 5:00 PM*.
 
-To avoid an in‑person visit, please call us immediately at *${agentPhone}* or make a payment of *${balance}* before *${visitDate}*.
+To avoid an in-person visit, please call us immediately at *${agentPhone}* or make a payment of *${balance}* before *${visitDate}*.
 
 📌 ${_escalPayGuide(b)}
 
@@ -14754,28 +14721,55 @@ To avoid an in‑person visit, please call us immediately at *${agentPhone}* or 
   }
 
   // Level 17: Guarantor / Emergency Contact Notification
+  // Two distinct messages depending on b.guarantorIsFormal:
+  //  - A signed guarantor genuinely carries repayment liability under
+  //    the guarantee they signed (Borrowers and Lenders Act, 2020 — Act
+  //    1052, s.1 defines a "credit guarantee" as a third party's promise
+  //    to satisfy the borrower's obligation on demand).
+  //  - A plain emergency contact has NO such liability. Telling them
+  //    otherwise would be a false legal claim, and the Bank of Ghana's
+  //    2025 Digital Credit Services directive explicitly treats
+  //    oppressive use of a customer's listed contacts as a prohibited
+  //    collection practice. So this branch only ever asks for help
+  //    reaching the borrower — never implies liability or consequence.
   if (level === 17) {
-    const contactName = b.guarantorName || b.emergencyContact || 'listed contact';
-    const isGuarantor  = !!b.guarantorName;
+    const contactName = b.guarantorName || 'the listed contact';
+    const isFormalGuarantor = !!b.guarantorIsFormal && !!b.guarantorName;
     const agentPhone = _escalAgentPhone();
-    return `📢 *${isGuarantor ? 'GUARANTOR' : 'EMERGENCY CONTACT'} NOTIFICATION OF DEFAULT*
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-BORROWER: *${fullName}*
-LOAN TYPE: *${loanType}*
-${isGuarantor ? 'GUARANTOR' : 'CONTACT'}: *${contactName}*
-AMOUNT DUE: *${balance}*
+    if (isFormalGuarantor) {
+      return _escalHeader('📢', 'Guarantor Notification of Default', b, caseRef, dateStr, [
+        { label: 'Guarantor', value: contactName },
+        { label: 'Amount due', value: balance }
+      ]) + `
 
 Dear *${contactName}*,
 
-This is to inform you that ${b.name} has defaulted on their ${loanType} loan with an outstanding balance of *${balance}*, now *${odDays} days* overdue. All direct contact attempts have been unsuccessful.
+This is to inform you, as the *signed guarantor* on ${b.name}'s ${loanType} loan agreement, that the account is now *${odDays} days* overdue with an outstanding balance of *${balance}*. Direct contact attempts with ${b.name} have been unsuccessful.
 
-${isGuarantor ? `As the guarantor, you are legally liable for this debt. Please contact ${b.name} immediately to arrange payment.` : `Please ask ${b.name} to contact us immediately, or reach out to help arrange payment.`}
+Under the guarantee you signed, and consistent with the Borrowers and Lenders Act, 2020 (Act 1052), a guarantor may be called upon to help settle the borrower's obligation once direct recovery efforts have been exhausted.
 
-If this matter is not resolved within *7 days*, we will pursue recovery${isGuarantor ? ' against you directly, including legal action and credit bureau reporting in your name' : ' and all listed contacts will be involved'}.
+Please reach out to ${b.name} to help arrange payment, or contact us directly to discuss this account.
 
 📌 Contact us at *${agentPhone}* to discuss settlement.
+
+*LoanBase Recovery Management*`;
+    }
+
+    // Plain emergency contact — no liability, no threats. A courteous ask for help only.
+    return _escalHeaderLight('📢', 'Help Us Reach ' + b.name.split(' ')[0], dateStr, [
+      { label: 'Emergency contact', value: contactName }
+    ]) + `
+
+Dear *${contactName}*,
+
+You're listed as the emergency contact on ${b.name}'s ${loanType} loan application. We've been unable to reach ${b.name} directly, and their account is now *${odDays} days* overdue.
+
+_This is not a claim against you — you have no obligation on this loan._ We're simply asking for your help getting in touch with ${b.name} so they're aware and can act.
+
+If you're able to, please ask ${b.name} to contact us at *${agentPhone}* at their earliest convenience.
+
+Thank you for your help.
 
 *LoanBase Recovery Management*`;
   }
@@ -14783,23 +14777,17 @@ If this matter is not resolved within *7 days*, we will pursue recovery${isGuara
   // Level 18: Employer / Workplace Contact Warning
   if (level === 18) {
     const workplace = b.workplace || 'your place of employment as listed in your loan file';
-    return `💼 *WORKPLACE NOTIFICATION WARNING*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
+    return _escalHeader('💼', 'Workplace Notification Warning', b, caseRef, dateStr, [
+      { label: 'Outstanding balance', value: balance }
+    ]) + `
 
 *${salute},*
 
 Your ${loanType} loan account is now *${odDays} days* overdue with a balance of *${balance}*.
 
-Under Ghanaian credit recovery law, a creditor may contact a borrower's employer to verify employment status and facilitate debt recovery where direct contact has failed.
+As part of formal recovery on accounts of this age, LoanBase may verify your employment status with *${workplace}* if payment is not received by *${deadline}* today.
 
-LoanBase is authorised to contact *${workplace}* if payment is not received by *${deadline}* today.
-
-This action is not our preference. Pay *${balance}* now to prevent workplace contact.
+This step is not our preference. Pay *${balance}* now to avoid it.
 
 📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* immediately.
 
@@ -14810,53 +14798,43 @@ This action is not our preference. Pay *${balance}* now to prevent workplace con
 
   // Level 19: Credit Bureau Filed Confirmation
   if (level === 19) {
-    return `🚫 *CREDIT BUREAU SUBMISSION NOTICE*
-
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-OUTSTANDING BALANCE: *${balance}*
+    return _escalHeader('🚫', 'Credit Bureau Submission Notice', b, caseRef, dateStr, [
+      { label: 'Outstanding balance', value: balance }
+    ]) + `
 
 *${salute},*
 
-This is formal notice that your Ghana Card identification and loan default details have been submitted to the *Ghana Credit Bureau* (XDS Data / CRB Africa) as of *${dateStr}*.
+This is formal notice that your loan default details have been submitted to a *licensed Credit Reference Bureau*, as authorised under your loan agreement, as of *${dateStr}*.
 
 *What this means for you:*
 
-• You will be flagged on all credit checks by banks and mobile lenders
-• Future loan and credit applications will be declined
-• Mobile money credit lines (Qwikloan, MTN Xcredit) may be suspended
-• This record remains for *up to 5 years*
+• You will be flagged on credit checks by banks and mobile lenders
+• Future loan and credit applications may be declined
+• This record can remain on file for *up to 5 years*
 
 A reversal is possible — but ONLY upon full payment of *${balance}*.
 
 📌 ${_escalPayGuide(b)} Then send your confirmation to initiate the reversal.
 
-*LoanBase Recovery Management*
-*Ref: ${caseRef}*`;
+*LoanBase Recovery Management*`;
   }
 
   // Level 20: Final Demand Before Legal Handover
   if (level === 20) {
     const agentPhone = _escalAgentPhone();
-    return `⚖️ *FINAL DEMAND BEFORE LEGAL HANDOVER*
+    return _escalHeader('⚖️', 'Final Demand Before Legal Handover', b, caseRef, dateStr, [
+      { label: 'Total outstanding', value: balance }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-TOTAL OUTSTANDING: *${balance}* (including fees)
-
- ${salute},
+${salute},
 
 This is your *FINAL NOTICE* before your file is handed over to our external solicitors for legal action.
 
 If full payment is not received by *${deadline}*, the following will occur WITHOUT further notice:
 
-• Your name will be filed at the *District Court*
+• Your file may be lodged at the *District Court*
 • A *judgment* will be sought against you
-• *Garnishee proceedings* will be initiated on your bank and mobile money accounts
+• *Garnishee proceedings* may be initiated on your bank and mobile money accounts
 • All legal costs will be added to your debt
 
 You can still avoid legal action by paying *${balance}* immediately.
@@ -14870,19 +14848,15 @@ You can still avoid legal action by paying *${balance}* immediately.
 
   // Level 21: Payment Received – Acknowledgment & Release
   if (level === 21) {
-    return `✅ *FULL PAYMENT CONFIRMATION & RELEASE* ✅
+    return _escalHeaderLight('✅', 'Full Payment Confirmation & Release', dateStr, [
+      { label: 'Amount paid', value: balance }
+    ]) + `
 
-DATE: ${dateStr}
-CASE REF: ${caseRef}
-DEBTOR: *${fullName}*
-LOAN TYPE: *${loanType}*
-AMOUNT PAID: *${balance}*
-
- ${salute},
+${salute},
 
 We hereby confirm receipt of *${balance}* as full and final settlement of your ${loanType} loan account.
 
-All escalation actions have been *cancelled*. Your credit reference will be updated to reflect “Paid in Full”.
+All escalation actions have been *cancelled*. Your credit reference will be updated to reflect "Paid in Full".
 
 Thank you for resolving this matter.
 
@@ -15102,7 +15076,7 @@ function escalRenderModal() {
     + '<div style="font-weight:700;font-size:var(--text-lg)">' + escapeHtml(b.name) + '</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">'
     + (useGuarantorPhone
-        ? ('Sending to guarantor/emergency contact: <strong style="color:' + col + '">' + escapeHtml(b.guarantorName || 'Unnamed contact') + '</strong> · ' + b.guarantorPhone)
+        ? ('Sending to ' + (b.guarantorIsFormal ? 'guarantor' : 'emergency contact') + ': <strong style="color:' + col + '">' + escapeHtml(b.guarantorName || 'Unnamed contact') + '</strong> · ' + b.guarantorPhone)
         : (b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b))))
     + '</div>'
     + (level === 17 && !useGuarantorPhone
