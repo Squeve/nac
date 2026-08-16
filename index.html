@@ -10757,6 +10757,12 @@ function borrowerForm(b) {
     + '<input type="text" class="form-input" id="f-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.phone) : '') + '"></div>'
     + '</div>'
     + '<div class="form-row">'
+    + '<div class="form-group"><label>Guarantor / Emergency Contact <span style="font-size:var(--text-sm);color:var(--text3)">optional</span></label>'
+    + '<input type="text" class="form-input" id="f-guarantor-name" placeholder="Name" value="' + (b ? escapeHtml(b.guarantorName || '') : '') + '"></div>'
+    + '<div class="form-group"><label>Guarantor / Emergency Phone</label>'
+    + '<input type="text" class="form-input" id="f-guarantor-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.guarantorPhone || '') : '') + '"></div>'
+    + '</div>'
+    + '<div class="form-row">'
     + '<div class="form-group"><label>Principal (₵)</label>'
     + '<input type="number" class="form-input" id="f-principal" placeholder="0" value="' + (b ? b.principal : '') + '" min="0"></div>'
     + '<div class="form-group"><label>Loan Due (₵)</label>'
@@ -10800,6 +10806,9 @@ phone = normalizePhone(phone);
   const loanType = document.getElementById('f-loantype').value;
   const targetPayment = parseFloat(document.getElementById('f-target')?.value) || 0;
   const notes = document.getElementById('f-notes').value.trim();
+  const guarantorName = document.getElementById('f-guarantor-name')?.value.trim() || '';
+  let guarantorPhone = document.getElementById('f-guarantor-phone')?.value.trim() || '';
+  guarantorPhone = guarantorPhone ? normalizePhone(guarantorPhone) : '';
   const instAmt   = parseFloat(document.getElementById('f-inst-amt')?.value) || 0;
   const instFreq  = document.getElementById('f-inst-freq')?.value || '';
   const instStart = document.getElementById('f-inst-start')?.value || '';
@@ -10814,7 +10823,7 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
 
   if (id) {
     const b = state.borrowers.find(x => x.id === id);
-    if (b) Object.assign(b, { name, phone, principal, loanDue, amountPaid, startDate, loanType, notes, targetPayment, instalment,
+    if (b) Object.assign(b, { name, phone, principal, loanDue, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone,
       // Preserve fields not in the form
       payLog: b.payLog || [], callLog: b.callLog || [],
       promisedToPay: b.promisedToPay, promiseDate: b.promiseDate, promiseNote: b.promiseNote,
@@ -10834,7 +10843,7 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
       if (!confirm('A borrower named "' + dupe.name + '" with a similar name or phone already exists. Add anyway?')) return;
     }
     state.borrowers.push({ id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now()),
-      name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment,
+      name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone,
       promisedToPay: false, isPaid: false, payLog: [], callLog: [] });
     toast('Borrower added', 'success');
   }
@@ -15072,7 +15081,9 @@ function escalRenderModal() {
   const b     = window._escalBorrowers[idx];
   const level = window._escalLevel;
   const msg   = buildEscalationMsg(b, level);
-  const ph    = b.phone.replace(/\D/g,'');
+  const useGuarantorPhone = (level === 17 && !!b.guarantorPhone);
+  const targetPhone = useGuarantorPhone ? b.guarantorPhone : b.phone;
+  const ph    = targetPhone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
   const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e'};
@@ -15089,7 +15100,14 @@ function escalRenderModal() {
     // Contact card
     + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + col + '">'
     + '<div style="font-weight:700;font-size:var(--text-lg)">' + escapeHtml(b.name) + '</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">'
+    + (useGuarantorPhone
+        ? ('Sending to guarantor/emergency contact: <strong style="color:' + col + '">' + escapeHtml(b.guarantorName || 'Unnamed contact') + '</strong> · ' + b.guarantorPhone)
+        : (b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b))))
+    + '</div>'
+    + (level === 17 && !useGuarantorPhone
+        ? '<div style="font-size:var(--text-xs);color:var(--red);margin-top:4px">No guarantor/emergency phone on file — this will send to the borrowers own number instead. Add one in Edit Borrower.</div>'
+        : '')
     + '</div>'
     // Editable message
     + '<textarea id="escal-msg-edit" style="width:100%;max-width:100%;background:var(--surface2);border:1px solid ' + col + '44;border-radius:var(--radius-md);padding:10px;font-size:var(--text-sm);color:var(--text2);line-height:1.6;min-height:140px;max-height:220px;resize:vertical;font-family:var(--font-body);box-sizing:border-box;overflow-wrap:break-word">' + msg + '</textarea>'
@@ -15101,8 +15119,29 @@ function escalRenderModal() {
 
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Stop</button>'
+    + '<button class="btn btn-ghost btn-sm"' + (idx === 0 ? ' disabled style="opacity:0.4;cursor:not-allowed"' : '') + ' onclick="escalGoPrev()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg></span> Previous</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="window._escalIdx++;escalRenderModal()">Skip <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="copyEscalMsg()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span> Copy</button>'
     + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,' + col + ',' + col + 'bb);color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="setTimeout(function(){window._escalIdx++;escalRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Send & Next ▶</a>';
+}
+
+function escalGoPrev() {
+  if (window._escalIdx > 0) {
+    window._escalIdx--;
+    escalRenderModal();
+  }
+}
+
+function copyEscalMsg() {
+  const el = document.getElementById('escal-msg-edit');
+  const text = el ? el.value : '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Message copied', 'success');
+    haptic('light');
+  }).catch(function() {
+    toast('Could not copy — select and copy manually', 'error');
+  });
 }
 
 
