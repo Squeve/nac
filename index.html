@@ -3244,6 +3244,10 @@ tr.overdue-critical .heat-ring {
           <div class="card-body" id="analytics-behaviour-scores"></div>
         </div>
         <div class="card">
+          <div class="card-header"><span class="card-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> PTP Success Rate</span></div>
+          <div class="card-body" id="analytics-ptp-rate"></div>
+        </div>
+        <div class="card">
           <div class="card-header"><span class="card-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> Recovery by Stage</span></div>
           <div class="card-body" id="analytics-recovery-stage"></div>
         </div>
@@ -8043,6 +8047,7 @@ function renderAnalytics() {
   renderRecoveryByStage();
   renderOdExposure();
   renderBehaviourScores(active);
+  renderPtpSuccessRate();
 
   // ── Risk Aging Matrix ─────────────────────────────────────────
   const agBands = [
@@ -14884,8 +14889,30 @@ function openEscalFromBorrower(borrowerId) {
   openEscalationPanel();
 }
 
+// Recommends the escalation level that actually matches this borrower's
+// real state, so the agent isn't picking blind from 21 options every time.
+function _recommendEscalLevel(b) {
+  if (getStatus(b) === 'Paid') return 21;
+  if (b.ptpBreached) return (b.promiseHistory||[]).length >= 1 ? 10 : 9;
+  if (b.promisedToPay && (b.promiseDate||'').split(' ')[0] === new Date(Date.now()+86400000).toISOString().split('T')[0]) return 2;
+  const instStatus = getInstalmentStatus(b);
+  if (instStatus && !instStatus.onTrack) return 11;
+  if ((b.amountPaid||0) > 0 && (b.amountPaid||0) < (b.loanDue||0)) return 5;
+  const od = getOdAge(b.startDate, b);
+  if (od <= 3)  return 3;
+  if (od === 6) return 4;
+  if (od <= 15) return 8;
+  if (od <= 40) return 12;
+  if (od <= 60) return 16;
+  return 20;
+}
+
 function openEscalationPanel() {
-  document.getElementById('modal-title').textContent = 'Escalation Notices';
+  const isSingle = !!window._escalSingleId;
+  const singleB  = isSingle ? state.borrowers.find(b => b.id === window._escalSingleId) : null;
+  document.getElementById('modal-title').textContent = isSingle && singleB
+    ? 'Escalation Notices — ' + singleB.name
+    : 'Escalation Notices';
   
   const escalationOptions = [
     // ── Tier 0: Proactive / no pressure ────────────────────────
@@ -14918,21 +14945,32 @@ function openEscalationPanel() {
     { level:21, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> L21 – Payment Acknowledgment',      color:'#22c55e', desc:'Confirm full payment and release.' },
   ];
 
+  const recommendedLevel = (isSingle && singleB) ? _recommendEscalLevel(singleB) : null;
+  if (recommendedLevel) {
+    const idx = escalationOptions.findIndex(o => o.level === recommendedLevel);
+    if (idx > 0) escalationOptions.unshift(escalationOptions.splice(idx, 1)[0]);
+  }
+
   let html = `<div style="font-size:var(--text-md);color:var(--text2);margin-bottom:16px;line-height:1.6">
-      Select an escalation level to send to the <strong>${_currentDispatchIds ? _currentDispatchIds.length : 0} contacts</strong>
-      currently showing in dispatch.
+      ${isSingle && singleB
+        ? `Select an escalation level to send to <strong>${escapeHtml(singleB.name)}</strong>.`
+        : `Select an escalation level to send to the <strong>${_currentDispatchIds ? _currentDispatchIds.length : 0} contacts</strong> currently showing in dispatch.`}
     </div>
     <div style="display:grid;gap:10px;margin-bottom:16px">`;
 
   escalationOptions.forEach(opt => {
+    const isRec = opt.level === recommendedLevel;
     html += `
-      <div style="background:var(--surface2);border:2px solid ${opt.color}22;border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s"
+      <div style="background:var(--surface2);border:2px solid ${isRec ? opt.color : opt.color+'22'};border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;${isRec ? 'box-shadow:0 0 0 3px '+opt.color+'22' : ''}"
         onclick="previewEscalation(${opt.level})"
         onmouseover="this.style.borderColor='${opt.color}88'"
-        onmouseout="this.style.borderColor='${opt.color}22'">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        onmouseout="this.style.borderColor='${isRec ? opt.color : opt.color+'22'}'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">
           <span style="font-weight:800;font-size:var(--text-md);color:${opt.color}">${opt.label}</span>
-          <span style="font-size:var(--text-sm);color:var(--text3);background:var(--surface);padding:2px 8px;border-radius:var(--radius)">Preview <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+          <span style="display:flex;align-items:center;gap:6px">
+            ${isRec ? `<span style="font-size:var(--text-2xs);background:${opt.color};color:#fff;padding:2px 7px;border-radius:var(--radius);font-weight:800;letter-spacing:0.3px">RECOMMENDED</span>` : ''}
+            <span style="font-size:var(--text-sm);color:var(--text3);background:var(--surface);padding:2px 8px;border-radius:var(--radius)">Preview <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+          </span>
         </div>
         <div style="font-size:var(--text-sm);color:var(--text3)">${opt.desc}</div>
       </div>`;
@@ -18507,131 +18545,6 @@ function renderPtpHistory() { switchPtpHub('history'); }
 function renderPtpStats() { switchPtpHub('stats'); }
 
 
-function buildPtpReportHtml() {
-  const today = new Date().toISOString().split('T')[0];
-  const todayStr = new Date().toLocaleDateString('en-GB', {weekday:'short',day:'numeric',month:'short'});
-  const ptpToday  = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today));
-  const ptpFuture = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate > today)
-                      .sort((a,b) => a.promiseDate.localeCompare(b.promiseDate));
-  const honoured  = ptpToday.filter(b => b.amountPaid > 0);
-  const rate      = ptpToday.length > 0 ? Math.round(honoured.length / ptpToday.length * 100) : 0;
-  const rateCol   = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)';
-  const totalExp  = ptpToday.reduce((s,b) => s + getDueToday(b), 0);
-
-  let html = `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-      <div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px;text-align:center">
-        <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:var(--gold)">${ptpToday.length}</div>
-        <div style="font-size:var(--text-xs);color:var(--text3)">Today</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px;text-align:center">
-        <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:var(--green)">${honoured.length}</div>
-        <div style="font-size:var(--text-xs);color:var(--text3)">Honoured</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px;text-align:center">
-        <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${rateCol}">${rate}%</div>
-        <div style="font-size:var(--text-xs);color:var(--text3)">Conv. Rate</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px;text-align:center">
-        <div style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:800;color:var(--blue)">${fmtC(totalExp)}</div>
-        <div style="font-size:var(--text-xs);color:var(--text3)">Expected</div>
-      </div>
-    </div>`;
-
-  // Today's PTPs
-  html += `<div style="font-size:var(--text-base);font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-    <span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> ${todayStr} Promises</span>
-    <button class="btn btn-gold btn-sm" style="font-size:var(--text-sm);padding:4px 10px" onclick="openPtpShareModal('morning');haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Share</button>
-  </div>`;
-
-  if (ptpToday.length === 0) {
-    html += `<div style="background:var(--surface2);border-radius:var(--radius-md);padding:20px;text-align:center;color:var(--text3);font-size:var(--text-base);margin-bottom:14px">
-      No promises set for today.<br><span style="font-size:var(--text-sm)">Go to Borrowers <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span> <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> to add one.</span></div>`;
-  } else {
-    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">`;
-    ptpToday.forEach(b => {
-      const isHonoured = b.amountPaid > 0;
-      const phone = b.phone.replace(/\s/g,'').replace('+','');
-      html += `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);${isHonoured?'background:rgba(34,197,94,0.04)':''}">
-        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${isHonoured?'var(--green)':'var(--orange)'}"></div>
-        <div style="flex:1;min-width:0;cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
-          <div style="font-size:var(--text-base);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div>
-          <div style="font-size:var(--text-xs);color:var(--text3)">${b.promiseDate||''} · Day ${getOdAge(b.startDate, b)}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;margin-right:8px">
-          <div style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700">${fmtC(getDueToday(b))}</div>
-          <div style="font-size:var(--text-xs);color:${isHonoured?'var(--green)':'var(--text3)'}">${isHonoured?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Honoured':'⏳ Pending'}</div>
-        </div>
-        <button class="btn btn-green btn-xs" style="flex-shrink:0" onclick="openPayModal('${b.id}');haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span></button>
-        <a href="https://wa.me/${phone}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366;flex-shrink:0" onclick="haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></a>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-
-  // EOD outcome picker — inline, no modal needed
-  html += `<div style="font-size:var(--text-base);font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-    <span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 119.5 4 7 7 0 0020 14.5z"/></svg></span> EOD Outcomes</span>
-    <button class="btn btn-ghost btn-sm" style="font-size:var(--text-sm);padding:4px 10px" onclick="openPtpShareModal('eod');haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> EOD Report</button>
-  </div>`;
-  if (ptpToday.length === 0) {
-    html += `<div style="font-size:var(--text-base);color:var(--text3);margin-bottom:14px">No PTPs to log outcomes for today.</div>`;
-  } else {
-    html += `<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">`;
-    ptpToday.forEach(b => {
-      const oc = b.ptpOutcome || '';
-      const outcomes = [
-        { val:'paid',    label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Paid',       col:'var(--green)' },
-        { val:'partial', label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span> Partial',    col:'var(--gold)' },
-        { val:'broken',  label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span> Broken',     col:'var(--red)' },
-        { val:'reschedule', label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Reschedule', col:'var(--blue)' },
-      ];
-      html += `<div style="padding:10px 14px;border-bottom:1px solid var(--border)" data-borrower-id="${b.id}">
-        <div style="font-size:var(--text-base);font-weight:600;margin-bottom:6px">${b.name.split(' ')[0]} <span style="font-size:var(--text-xs);color:var(--text3);font-weight:400">${fmtC(getDueToday(b))}</span></div>
-        <div class="ptp-outcome-row" data-bid="${b.id}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select class="ptp-oc-sel filter-select" data-bid="${b.id}" onchange="setPtpOutcome2(this.dataset.bid,this.value)" style="flex:1;min-width:140px;font-size:var(--text-base);padding:5px 8px;border-radius:var(--radius-md);border:1.5px solid ${oc?'var(--gold)':'var(--border2)'};background:var(--surface2)">
-            <option value="">— Mark outcome —</option>
-            ${PTP_OUTCOMES.filter(o=>o.val!=='custom').map(o=>`<option value="${o.val}" ${oc===o.val?'selected':''}>${o.label}</option>`).join('')}
-          </select>
-          <input type="text" class="ptp-custom-input form-input" data-bid="${b.id}" placeholder="Custom note..." style="flex:1;min-width:120px;font-size:var(--text-base);padding:5px 8px;display:${oc&&!PTP_OUTCOMES.find(o=>o.val===oc)?'block':'none'}" value="${oc&&!PTP_OUTCOMES.find(o=>o.val===oc)?oc:''}" onchange="setPtpOutcome2(this.dataset.bid,this.value||'custom')">
-        </div>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-
-  // Upcoming PTPs
-  if (ptpFuture.length > 0) {
-    html += `<div style="font-size:var(--text-base);font-weight:700;color:var(--text2);margin-bottom:8px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Upcoming (${ptpFuture.length})</div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">`;
-    ptpFuture.slice(0,8).forEach(b => {
-      html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openBorrowerDetail('${b.id}');haptic('light')">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:var(--text-base);font-weight:600">${b.name.split(' ')[0]}</div>
-          <div style="font-size:var(--text-xs);color:var(--text3)">${b.promiseDate}</div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:var(--text-base);color:var(--text2)">${fmtC(getDueToday(b))}</div>
-      </div>`;
-    });
-    if (ptpFuture.length > 8) html += `<div style="padding:8px 14px;font-size:var(--text-sm);color:var(--text3)">+${ptpFuture.length-8} more upcoming</div>`;
-    html += `</div>`;
-  }
-
-  return html;
-}
-
-function buildPtpHistoryHtml() {
-  const snaps = state.ptpSnapshots || [];
-  if (!snaps.length) return `<div style="padding:40px 0;text-align:center;color:var(--text3);font-size:var(--text-base)">
-    No PTP snapshots saved yet.<br><span style="font-size:var(--text-sm)">Share a Morning or EOD report to auto-save a snapshot.</span></div>`;
-  return snaps.slice(-20).reverse().map(s => `
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header"><span class="card-title">${s.date} — ${s.type}</span>
-        <button class="btn btn-ghost btn-xs" onclick="navigator.clipboard.writeText(this.closest('.card').querySelector('pre').textContent).then(()=>{toast('Copied!','success');haptic('light')})"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Copy</button>
-      </div>
-      <div class="card-body"><pre style="font-size:var(--text-sm);white-space:pre-wrap;color:var(--text2);line-height:1.7">${s.text}</pre></div>
-    </div>`).join('');
-}
 
 function buildPtpStatsHtml() {
   const all = state.borrowers;
