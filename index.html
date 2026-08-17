@@ -290,24 +290,32 @@ tr.overdue-critical td:first-child,
 
 /* ── DASHBOARD HERO CARD ── */
 #dash-hero-card {
-  background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+  background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 55%, rgba(240,160,48,0.045) 100%);
   border: 1px solid var(--border2);
-  border-top: 1px solid rgba(240,160,48,0.25);
-  border-radius: 14px;
-  padding: 18px 20px;
+  border-top: 1px solid rgba(240,160,48,0.4);
+  border-radius: 16px;
+  padding: 20px 22px;
   display: flex;
   align-items: center;
   gap: 18px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03);
   position: relative;
   overflow: hidden;
 }
 #dash-hero-card::before {
   content: '';
   position: absolute;
-  top: -40px; right: -40px;
+  top: -60px; right: -60px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(240,160,48,0.13) 0%, transparent 70%);
+  pointer-events: none;
+}
+#dash-hero-card::after {
+  content: '';
+  position: absolute;
+  bottom: -50px; left: -30px;
   width: 140px; height: 140px;
-  background: radial-gradient(circle, rgba(240,160,48,0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(96,165,250,0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 .hero-ring-wrap { position: relative; flex-shrink: 0; width: 72px; height: 72px; }
@@ -798,6 +806,30 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 }
 .page-sub { font-size:var(--text-base); color: var(--text3); margin-top: 2px; }
 
+/* Greeting row — name strip is masked/overflow-clipped so a long agent
+   name never wraps under the wave icon; if it doesn't fit, it marquees. */
+.greet-row { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+.greet-name-wrap {
+  overflow: hidden; white-space: nowrap; min-width: 0; flex: 0 1 auto;
+}
+.greet-name-wrap.marquee {
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 88%, transparent 100%);
+}
+.greet-name-inner { display: inline-block; }
+.greet-name-wrap.marquee .greet-name-inner {
+  animation: greetMarquee 9s linear infinite;
+}
+.greet-name-wrap.marquee .greet-gap { display: inline-block; width: 48px; }
+.greet-wave { flex-shrink: 0; }
+@keyframes greetMarquee {
+  0%, 12%   { transform: translateX(0); }
+  88%, 100% { transform: translateX(-50%); }
+}
+@media (max-width: 640px) {
+  .greet-name-wrap { max-width: 62vw; }
+}
+
 /* BUTTONS */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -859,10 +891,32 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   margin: 6px 0 4px;
   line-height: 1;
 }
-.kpi-value.gold { color: var(--gold); }
-.kpi-value.green { color: var(--green); }
-.kpi-value.red { color: var(--red); }
+.kpi-value.gold, .kpi-value.green, .kpi-value.red, .kpi-value.blue {
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+}
+.kpi-value.gold  { background-image: linear-gradient(135deg, var(--gold2), var(--gold)); }
+.kpi-value.green { background-image: linear-gradient(135deg, #4ade80, var(--green)); }
+.kpi-value.red   { background-image: linear-gradient(135deg, #f87171, var(--red)); }
+.kpi-value.blue  { background-image: linear-gradient(135deg, #93c5fd, var(--blue)); }
 .kpi-sub { font-size:var(--text-sm); color: var(--text3); }
+
+/* ── Consolidated "Needs Attention" panel (replaces stacked alert banners) ── */
+.attn-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: var(--section-gap); overflow: hidden; animation: fadeUp 0.3s ease both; }
+.attn-panel-header { display:flex; align-items:center; gap:7px; padding: 13px 18px; font-weight:700; font-size:var(--text-base); color: var(--text2); text-transform: uppercase; letter-spacing: 0.7px; border-bottom: 1px solid var(--border); }
+.attn-row { display:flex; align-items:flex-start; gap:12px; padding: 13px 18px; border-top: 1px solid var(--border); }
+.attn-row:first-of-type { border-top: none; }
+.attn-icon { flex-shrink:0; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.attn-icon .ico svg { width:15px; height:15px; }
+.attn-body { flex:1; min-width:0; }
+.attn-title { font-weight:700; font-size:var(--text-md); color: var(--text); }
+.attn-desc { font-size:var(--text-sm); color: var(--text3); margin-top:2px; line-height:1.45; }
+.attn-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.attn-chip { background: var(--surface2); border:1px solid var(--border2); border-radius:20px; padding:3px 10px; font-size:var(--text-sm); cursor:pointer; }
+.attn-action { flex-shrink:0; align-self:center; }
+@media (max-width: 640px) {
+  .attn-row { flex-wrap: wrap; }
+  .attn-action { margin-left: 42px; }
+}
 
 /* CARDS */
 .card {
@@ -1192,7 +1246,9 @@ select.form-input option { background: var(--surface2); }
   padding: 16px 20px;
   margin-bottom: var(--section-gap);
 }
-.target-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.target-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; row-gap: 10px; }
+.target-header > div:first-child { flex: 1 1 180px; min-width: 0; }
+.target-header > div:last-child { flex: 0 1 auto; }
 .target-label { font-size:var(--text-base); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 .target-value { font-family: var(--font-mono); font-size:var(--text-md); color: var(--gold); }
 .target-stat-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -1246,6 +1302,11 @@ select.form-input option { background: var(--surface2); }
   border: 1px solid; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 .target-pct-chip .ico svg { width: 13px; height: 13px; }
+.target-input-wrap-pulse { animation: targetPulse 1.8s ease-in-out infinite; }
+@keyframes targetPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240,160,48,0.35); }
+  50%      { box-shadow: 0 0 0 6px rgba(240,160,48,0); }
+}
 .progress-big { background: var(--border); border-radius:var(--radius-sm); height: 12px; overflow: hidden; }
 .progress-big-fill {
   height: 100%; border-radius:var(--radius-sm);
@@ -2807,7 +2868,13 @@ tr.overdue-critical .heat-ring {
 [data-card-style="obsidian"] .kpi-value {
   font-size:var(--text-7xl) !important;
   font-weight: 700 !important;
+}
+[data-card-style="obsidian"] .kpi-value:not(.gold):not(.green):not(.red):not(.blue) {
   color: var(--text) !important;
+}
+[data-card-style="obsidian"] .kpi-value.gold, [data-card-style="obsidian"] .kpi-value.green,
+[data-card-style="obsidian"] .kpi-value.red, [data-card-style="obsidian"] .kpi-value.blue {
+  color: transparent !important; -webkit-text-fill-color: transparent !important;
 }
 [data-card-style="obsidian"] .card {
   background: rgba(255,255,255,0.05) !important;
@@ -3026,15 +3093,6 @@ tr.overdue-critical .heat-ring {
 
     <div id="dash-alerts"></div>
 
-    <!-- Empty state for new agents -->
-    <div id="dash-empty-state" style="display:none"></div>
-
-    <!-- Activity feed -->
-    <div id="dash-activity" style="margin-bottom:var(--section-gap)"></div>
-
-    <!-- Treadmill Alert -->
-    <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:12px 18px;margin-bottom:var(--section-gap)"></div>
-
     <!-- Priority 1: Action lists — most important for daily workflow -->
     <div class="two-col two-col-weighted">
       <div class="card">
@@ -3063,6 +3121,15 @@ tr.overdue-critical .heat-ring {
         <div class="card-body" id="dash-urgency"></div>
       </div>
     </div>
+
+    <!-- Empty state for new agents -->
+    <div id="dash-empty-state" style="display:none"></div>
+
+    <!-- Activity feed -->
+    <div id="dash-activity" style="margin-bottom:var(--section-gap)"></div>
+
+    <!-- Treadmill Alert -->
+    <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:12px 18px;margin-bottom:var(--section-gap)"></div>
   </section>
 
   <!-- LOANS -->
@@ -6989,9 +7056,29 @@ async function renderDashboard() {
   if (greetEl) {
     const h = new Date().getHours();
     const period = h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
-    const firstName = (_activeAgent?.name || state.agentProfile?.name || '').split(' ')[0] || '';
+    const rawName = (_activeAgent?.name || state.agentProfile?.name || '').split(' ')[0] || '';
+    // Clean up raw agent identifiers like "shadrack-agyei-oct25" into "Shadrack Agyei"
+    // (strips a trailing month-code batch suffix, then title-cases the rest).
+    const cleanName = rawName
+      .replace(/[-_]?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
     const today = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
-    greetEl.innerHTML = 'Good ' + period + (firstName ? ', ' + firstName : '') + ' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 013 0V12M11 12V4a1.5 1.5 0 013 0v8M14 12V5.5a1.5 1.5 0 013 0V13M17 9.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-2a6 6 0 01-5-2.7L4 14.5"/></svg></span>'
+    const greetText = 'Good ' + period + (cleanName ? ', ' + cleanName : '');
+    // Name sits in a masked, single-line strip; if it's too long to fit,
+    // greetMarquee (added below) slides it through instead of wrapping
+    // onto a second line and colliding with the wave icon.
+    const needsMarquee = greetText.length > 22;
+    greetEl.innerHTML = '<div class="greet-row">'
+      + '<div class="greet-name-wrap' + (needsMarquee ? ' marquee' : '') + '">'
+      + '<span class="greet-name-inner">' + greetText + (needsMarquee ? '<span class="greet-gap"></span>' + greetText : '') + '</span>'
+      + '</div>'
+      + '<span class="ico greet-wave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 013 0V12M11 12V4a1.5 1.5 0 013 0v8M14 12V5.5a1.5 1.5 0 013 0V13M17 9.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-2a6 6 0 01-5-2.7L4 14.5"/></svg></span>'
+      + '</div>'
       + '<div style="font-size:var(--text-base);font-weight:400;color:var(--text3);margin-top:2px">' + today + '</div>';
   }
   const all = state.borrowers;
@@ -7013,23 +7100,19 @@ async function renderDashboard() {
     '<div class="kpi-card gold" style="cursor:pointer" data-kpi="all" title="View all borrowers">'
     + '<div class="kpi-label">Active Borrowers</div>'
     + '<div class="kpi-value gold kpi-value-animate" data-val="' + active.length + '" data-fmt="num">0</div>'
-    + '<div class="kpi-sub">' + paid.length + ' paid · ' + partial.length + ' partial · ' + unpaid.length + ' unpaid</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span> tap to view all</div></div>'
+    + '<div class="kpi-sub">' + paid.length + ' paid · ' + partial.length + ' partial · ' + unpaid.length + ' unpaid</div></div>'
     + '<div class="kpi-card red" style="cursor:pointer" data-kpi="unpaid" title="View unpaid">'
     + '<div class="kpi-label">Total Balance Owed</div>'
     + '<div class="kpi-value red kpi-value-animate" data-val="' + totalDueToday + '" data-fmt="currency">₵0</div>'
-    + '<div class="kpi-sub">Loan remaining + OD fees</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span> tap to view unpaid</div></div>'
+    + '<div class="kpi-sub">Loan remaining + OD fees</div></div>'
     + '<div class="kpi-card green" style="cursor:pointer" data-kpi="partial" title="View partial">'
     + '<div class="kpi-label">Total Collected</div>'
     + '<div class="kpi-value green kpi-value-animate" data-val="' + totalCollected + '" data-fmt="currency">₵0</div>'
-    + '<div class="kpi-sub">From partial & paid accounts</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span> tap to view partial</div></div>'
+    + '<div class="kpi-sub">From partial & paid accounts</div></div>'
     + '<div class="kpi-card blue" style="cursor:pointer" data-kpi="analytics" title="View analytics">'
     + '<div class="kpi-label">Recovery Rate</div>'
-    + '<div class="kpi-value kpi-value-animate" style="color:var(--blue)" data-val="' + (recoveryRate*100).toFixed(1) + '" data-fmt="pct">0%</div>'
-    + '<div class="kpi-sub">' + fmtC(totalOutstanding) + ' still outstanding</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span> tap for analytics</div></div>';
+    + '<div class="kpi-value blue kpi-value-animate" data-val="' + (recoveryRate*100).toFixed(1) + '" data-fmt="pct">0%</div>'
+    + '<div class="kpi-sub">' + fmtC(totalOutstanding) + ' still outstanding</div></div>';
   kpiGrid.querySelectorAll('[data-kpi]').forEach(function(el) {
     el.addEventListener('click', function() {
       const k = el.dataset.kpi;
@@ -7091,7 +7174,11 @@ async function renderDashboard() {
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7l-10 10M17 7H8M17 7v9"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17L7 7M7 17V8M7 17h9"/></svg>';
 
-  // Build forecast inline
+  // Projected month-end total, at current daily pace — the one genuinely
+  // new number here (everything else pace-related lives in _pacingText's
+  // "Need ₵X/day · N days left", so it isn't repeated in its own boxed
+  // section anymore — that used to restate the same figure three times
+  // across the target section, the gap alert, and the zero-log alert).
   const nowF = new Date();
   const dimF = new Date(nowF.getFullYear(), nowF.getMonth()+1, 0).getDate();
   const dlF = dimF - nowF.getDate();
@@ -7100,39 +7187,17 @@ async function renderDashboard() {
   const projectedF = Math.round(logTotal + avgF * dlF);
   const projPct = monthTarget > 0 ? Math.min(100, projectedF / monthTarget * 100) : 0;
   const projCol = projPct >= 100 ? 'var(--green)' : projPct >= 70 ? 'var(--gold)' : 'var(--red)';
-  const neededPerDay = dlF > 0 ? Math.ceil(Math.max(0, monthTarget - logTotal) / dlF) : 0;
-  const forecastHtml = monthTarget > 0 ? (
-    '<div style="margin-top:14px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.18);border-radius:var(--radius);padding:14px 16px">'
-    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg></span> How to Hit Your Target</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-    + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:8px;text-align:center">'
-    + '<div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:700;color:' + projCol + '">' + fmtC(projectedF) + '</div>'
-    + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">Projected</div></div>'
-    + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:8px;text-align:center">'
-    + '<div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:700;color:var(--gold)">' + fmtC(neededPerDay) + '</div>'
-    + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">Needed/day</div></div>'
-    + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:8px;text-align:center">'
-    + '<div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:700;color:var(--blue)">' + dlF + '</div>'
-    + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">Days left</div></div>'
-    + '</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3);line-height:1.6">'
-    + (projectedF >= monthTarget
-      ? '<span style="color:var(--green);font-weight:700"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> On track!</span> At current pace you\'ll hit ' + fmtC(projectedF) + ' vs target ' + fmtC(monthTarget) + '.'
-      : 'At current pace: <strong style="color:' + projCol + '">' + fmtC(projectedF) + '</strong>. You need <strong style="color:var(--gold)">' + fmtC(neededPerDay) + '/day</strong> for the remaining ' + dlF + ' days to reach ' + fmtC(monthTarget) + '.')
-    + '</div>'
-    + '</div>'
-  ) : '';
 
   document.getElementById('dash-target-section').innerHTML =
     '<div class="target-section">'
     + '<div class="target-header">'
     + '<div><div class="target-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Collection Progress</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:3px">Collected so far vs your target</div></div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:3px">' + (monthTarget > 0 ? 'Collected so far vs your target' : '<span style="color:var(--gold)">No target set yet — tap the amount below to set one</span>') + '</div></div>'
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     + '<div class="target-stat-row">'
     + '<span class="target-collected">' + fmtC(logTotal) + '</span>'
     + '<span class="target-divider">/</span>'
-    + '<label class="target-input-wrap" title="Tap to edit your monthly target">'
+    + '<label class="target-input-wrap' + (monthTarget > 0 ? '' : ' target-input-wrap-pulse') + '" title="Tap to edit your monthly target">'
     + '<span class="target-input-currency">₵</span>'
     + '<input type="number" id="target-input" value="' + monthTarget + '" min="0" onchange="updateMonthlyTarget(this.value)">'
     + '<span class="target-input-edit-ico"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></span>'
@@ -7144,9 +7209,9 @@ async function renderDashboard() {
     + '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:var(--text-base);color:var(--text3);align-items:center">'
     + '<span>Outstanding: <span style="color:var(--gold);font-family:var(--font-mono);font-weight:600">' + fmtC(totalOutstanding) + '</span></span>'
     + '<span>Remaining: <span style="color:' + (logTotal>=monthTarget&&monthTarget>0?'var(--green)':'var(--red)') + ';font-family:var(--font-mono);font-weight:600">' + (logTotal>=monthTarget&&monthTarget>0?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span> Hit!':fmtC(Math.max(0,monthTarget-logTotal))) + '</span></span>'
+    + (monthTarget > 0 ? '<span>Projected: <span style="color:' + projCol + ';font-family:var(--font-mono);font-weight:600">' + fmtC(projectedF) + '</span></span>' : '')
     + '<span style="margin-left:auto">' + _pacingText(logTotal, monthTarget, state.dailyLog) + '</span>'
     + '</div>'
-    + forecastHtml
     + '</div>';
 
   // Animate progress bar after paint
@@ -7159,71 +7224,95 @@ async function renderDashboard() {
   const activeDays = state.dailyLog.filter(e => (e.collected||0) > 0).length;
   document.getElementById('dash-days-label').textContent = loggedDays + ' days logged (' + activeDays + ' with collections)';
 
-  // ── Alert widgets ────────────────────────────────────────
+  // ── "Needs Attention" panel — one consolidated list instead of up to
+  // four separately-bordered banners stacked on top of each other. Each
+  // item is a row: icon, headline, one-line description, action button.
+  // Priority order: time-sensitive/irreversible-today items first, then
+  // pace/logging reminders (which already show "need ₵X/day" once, in
+  // _pacingText above — not restated here).
   const _stageMaxDay = getAgentDayRange()[1];
   const agingTomorrow = active.filter(b => getOdAge(b.startDate, b) === _stageMaxDay); // hits max+1 = aged out tomorrow, for whatever stage this agent is in
   const criticalToday = active.filter(b => getOdAge(b.startDate, b) >= 13);
-  let alertHtml = '';
+  const attnRows = [];
+
   if (agingTomorrow.length) {
-    alertHtml += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:var(--section-gap);animation:fadeUp 0.3s ease both">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
-      + '<div><div style="font-weight:700;color:var(--red);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> ' + agingTomorrow.length + ' account' + (agingTomorrow.length>1?'s':'') + ' aging out tomorrow</div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">' + (function(){var _s=(_activeAgent&&_activeAgent.stage)||'M2';var _b={M0:1,M1:6,M2:16,M3:41,M4:61};var _d=_b[_s]||16;return 'These accounts hit Day '+_d+' tomorrow and will be removed from '+_s+'. Last chance to collect today.';})() + '</div></div>'
-      + '<button class="btn btn-red btn-sm" id="alert-aging-btn">View Now <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span></button>'
-      + '</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px" id="alert-aging-names">'
-      + agingTomorrow.map(b => '<span style="background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:var(--text-sm);cursor:pointer" data-payid="' + b.id + '" title="Record payment">'
-        + escapeHtml(b.name.split(' ')[0]) + ' · ' + fmtC(getDueToday(b)) + '</span>').join('')
-      + '</div></div>';
+    const _stageDay = (function(){var _s=(_activeAgent&&_activeAgent.stage)||'M2';var _b={M0:1,M1:6,M2:16,M3:41,M4:61};return _b[_s]||16;})();
+    const _stageName = (_activeAgent&&_activeAgent.stage)||'M2';
+    attnRows.push({
+      sev: 'red',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg>',
+      title: agingTomorrow.length + ' account' + (agingTomorrow.length>1?'s':'') + ' aging out tomorrow',
+      desc: 'These accounts hit Day ' + _stageDay + ' tomorrow and will be removed from ' + _stageName + '. Last chance to collect today.',
+      btnId: 'alert-aging-btn', btnLabel: 'View Now', btnClass: 'btn-red',
+      chips: agingTomorrow.map(b => '<span class="attn-chip" data-payid="' + b.id + '" title="Record payment">' + escapeHtml(b.name.split(' ')[0]) + ' · ' + fmtC(getDueToday(b)) + '</span>').join('')
+    });
   }
   if (criticalToday.length > 0 && agingTomorrow.length < criticalToday.length) {
-    alertHtml += '<div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.22);border-left:4px solid var(--orange);border-radius:var(--radius-md);padding:12px 18px;margin-bottom:var(--section-gap);animation:fadeUp 0.35s ease both">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
-      + '<div><div style="font-weight:700;color:var(--orange);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span> ' + criticalToday.length + ' critical account' + (criticalToday.length>1?'s':'') + ' (Day 13+)</div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">These accounts are approaching the cut-off. Urgent action required.</div></div>'
-      + '<button class="btn btn-ghost btn-sm" id="alert-critical-btn" style="border-color:var(--orange);color:var(--orange)">View Critical <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span></button>'
-      + '</div></div>';
+    attnRows.push({
+      sev: 'orange',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="currentColor" stroke="none"/></svg>',
+      title: criticalToday.length + ' critical account' + (criticalToday.length>1?'s':'') + ' (Day 13+)',
+      desc: 'These accounts are approaching the cut-off. Urgent action required.',
+      btnId: 'alert-critical-btn', btnLabel: 'View Critical', btnClass: 'btn-ghost'
+    });
   }
-  // Collection gap alert — computed first so we can avoid showing a redundant
-  // "no collection today" banner underneath it (both used to say "need X/day").
-  var gapAlertHtml = '';
+
+  // Collection gap (behind pace) vs. simple "nothing logged yet" — mutually
+  // exclusive, gap takes priority since it's the more specific signal.
+  let gapRow = null;
   if (state.monthlyTarget > 0) {
     var nowG = new Date();
     var dimG = new Date(nowG.getFullYear(),nowG.getMonth()+1,0).getDate();
     var domG = nowG.getDate();
-    var dlG  = dimG - domG;
     var expG = (state.monthlyTarget / dimG) * domG;
     var gapG = expG - logTotal;
     var pctG = expG > 0 ? gapG / expG : 0;
-    var npdG = dlG > 0 ? Math.ceil(Math.max(0, state.monthlyTarget - logTotal) / dlG) : 0;
     if (gapG > 100 && pctG > 0.1) {
-      var sev = pctG >= 0.4 ? 'var(--red)' : 'var(--orange)';
-      var sevBg = pctG >= 0.4 ? 'rgba(239,68,68,0.07)' : 'rgba(249,115,22,0.07)';
-      var sevBd = pctG >= 0.4 ? 'rgba(239,68,68,0.2)' : 'rgba(249,115,22,0.2)';
-      gapAlertHtml = '<div style="background:'+sevBg+';border:1px solid '+sevBd+';border-left:4px solid '+sev+';border-radius:var(--radius-md);padding:12px 18px;margin-bottom:14px;animation:fadeIn 0.3s ease both">'
-        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">'
-        + '<div><div style="font-weight:700;color:'+sev+';font-size:var(--text-md)">' + (pctG>=0.4?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a5 5 0 00-5 5v2c0 2-1 3-1 3h12s-1-1-1-3V8a5 5 0 00-5-5z"/><path d="M9 19a3 3 0 006 0"/></svg></span>':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span>') + ' Behind collection pace</div>'
-        + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:3px">Expected ' + fmtC(Math.round(expG)) + ' by today &middot; collected ' + fmtC(Math.round(logTotal)) + ' &middot; gap ' + fmtC(Math.round(gapG)) + '</div>'
-        + '<div style="font-size:var(--text-sm);font-weight:600;color:'+sev+';margin-top:2px">Need ' + fmtC(npdG) + '/day for remaining ' + dlG + ' days to hit target</div>'
-        + '</div>'
-        + '<button class="btn btn-ghost btn-sm" id="gap-log-btn" style="border-color:'+sev+';color:'+sev+'">Log Now</button>'
-        + '</div></div>';
+      const sevKey = pctG >= 0.4 ? 'red' : 'orange';
+      gapRow = {
+        sev: sevKey,
+        icon: pctG>=0.4
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a5 5 0 00-5 5v2c0 2-1 3-1 3h12s-1-1-1-3V8a5 5 0 00-5-5z"/><path d="M9 19a3 3 0 006 0"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg>',
+        title: 'Behind collection pace',
+        desc: 'Expected ' + fmtC(Math.round(expG)) + ' by today · collected ' + fmtC(Math.round(logTotal)) + ' · gap ' + fmtC(Math.round(gapG)) + '. See pacing above for what\'s needed.',
+        btnId: 'gap-log-btn', btnLabel: 'Log Now', btnClass: 'btn-ghost'
+      };
     }
   }
-
   const todayStr2 = new Date().toISOString().split('T')[0];
   const todayLog2 = state.dailyLog.find(e => e.date === todayStr2);
-  if ((!todayLog2 || !(todayLog2.collected > 0)) && !gapAlertHtml) {
-    const daysLeft2 = (() => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth()+1,0).getDate()-n.getDate(); })();
-    const needed2 = state.monthlyTarget > 0 ? Math.ceil(Math.max(0,state.monthlyTarget-logTotal)/Math.max(1,daysLeft2)) : 0;
-    const zeroHtml = '<div style="background:rgba(96,165,250,0.06);border-radius:var(--radius-md);padding:10px 16px;margin-bottom:var(--section-gap);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;animation:fadeIn 0.3s ease both">'
-      + '<div><div style="font-weight:600;color:var(--text2);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> No collection logged today</div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">'+(needed2>0?'Need '+fmtC(needed2)+'/day to hit monthly target · '+daysLeft2+' days left':'Log today\'s collection in Daily Log')+'</div></div>'
-      + '<button class="btn btn-ghost btn-sm" style="border-color:var(--blue);color:var(--blue)" id="zero-log-btn">Log Now</button>'
-      + '</div>';
-    alertHtml = zeroHtml + alertHtml;
+  if (gapRow) {
+    attnRows.push(gapRow);
+  } else if (!todayLog2 || !(todayLog2.collected > 0)) {
+    attnRows.push({
+      sev: 'blue',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+      title: 'No collection logged today',
+      desc: state.monthlyTarget > 0 ? 'See pacing above for what\'s needed today.' : 'Log today\'s collection in Daily Log.',
+      btnId: 'zero-log-btn', btnLabel: 'Log Now', btnClass: 'btn-ghost'
+    });
   }
-  alertHtml = gapAlertHtml + alertHtml;
+
+  const _sevColorVar = { red: 'var(--red)', orange: 'var(--orange)', blue: 'var(--blue)' };
+  const _sevBg = { red: 'rgba(239,68,68,0.12)', orange: 'rgba(249,115,22,0.12)', blue: 'rgba(96,165,250,0.12)' };
+  let alertHtml = '';
+  if (attnRows.length) {
+    alertHtml = '<div class="attn-panel">'
+      + '<div class="attn-panel-header"><span class="ico" style="width:15px;height:15px;color:var(--gold)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 16.5v.1"/><path d="M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span> Needs Attention</div>'
+      + attnRows.map(r =>
+        '<div class="attn-row">'
+        + '<span class="attn-icon" style="color:' + _sevColorVar[r.sev] + ';background:' + _sevBg[r.sev] + '"><span class="ico">' + r.icon + '</span></span>'
+        + '<div class="attn-body">'
+        + '<div class="attn-title">' + r.title + '</div>'
+        + '<div class="attn-desc">' + r.desc + '</div>'
+        + (r.chips ? '<div class="attn-chips">' + r.chips + '</div>' : '')
+        + '</div>'
+        + '<button class="btn ' + r.btnClass + ' btn-sm attn-action" id="' + r.btnId + '"' + (r.btnClass==='btn-ghost' ? ' style="border-color:' + _sevColorVar[r.sev] + ';color:' + _sevColorVar[r.sev] + '"' : '') + '>' + r.btnLabel + '</button>'
+        + '</div>'
+      ).join('')
+      + '</div>';
+  }
   document.getElementById('dash-alerts').innerHTML = alertHtml;
   renderDashActionStrip(active);
   renderDashHero();
