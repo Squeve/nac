@@ -1657,6 +1657,150 @@ tbody tr:hover td { background: rgba(255,255,255,0.025) !important; }
 
 /* Status bar meta tag handled via JS */
 
+/* ══════════════════════════════════════════════════════════════
+   REDESIGN LAYER — glass, gradient, snappy, accessible
+   Sits after the base rules above so it wins on equal specificity;
+   themes/[data-theme] blocks below still override per-theme colours.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  /* Softer, deeper glass surfaces */
+  --surface:  rgba(19,23,34,0.6);
+  --surface2: rgba(28,34,50,0.65);
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.11);
+  --border-hi: rgba(255,255,255,0.14);
+  /* Richer 3-stop gold */
+  --gold-grad: linear-gradient(135deg, #ffcf6b 0%, #f0a030 55%, #d9820f 100%);
+  /* Cool accent used only in ambient mesh + a couple of gradient blends,
+     never replaces gold as the interactive/brand colour */
+  --mesh-a: rgba(240,160,48,0.16);
+  --mesh-b: rgba(56,120,246,0.10);
+  --mesh-c: rgba(167,139,250,0.08);
+  --radius:    14px;
+  --radius-sm: 9px;
+  --radius-md: 11px;
+  --radius-lg: 18px;
+  --glass-blur: 18px;
+}
+
+/* Ambient mesh backdrop — fixed, sits behind sidebar+main, never scrolls */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 12% -6%,  var(--mesh-a) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 38% at 100% 8%,  var(--mesh-b) 0%, transparent 55%),
+    radial-gradient(ellipse 46% 40% at 30% 105%, var(--mesh-c) 0%, transparent 55%),
+    var(--bg);
+}
+#sidebar, #main { position: relative; z-index: 1; background: transparent !important; }
+
+/* Glass sidebar */
+#sidebar {
+  background: rgba(9,11,18,0.55) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-right: 1px solid var(--border);
+}
+.sidebar-logo, .sidebar-month, .nav-section-label, .sidebar-footer { border-color: var(--border) !important; }
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(240,160,48,0.14), rgba(240,160,48,0.02)) !important;
+  border-radius: var(--radius-md);
+}
+
+/* Glass cards, everywhere — one rule, cascades to every JS-rendered card */
+.card, .kpi-card, .attn-panel, .ract-panel, .hit-list-panel {
+  background: var(--surface) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 var(--border-hi), 0 8px 30px rgba(0,0,0,0.35);
+  transition: transform 0.15s cubic-bezier(0.22,1,0.36,1), box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.card:hover {
+  border-color: var(--border2);
+  box-shadow: inset 0 1px 0 var(--border-hi), 0 12px 36px rgba(0,0,0,0.42);
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border2);
+  box-shadow: inset 0 1px 0 var(--border-hi), 0 14px 34px rgba(0,0,0,0.4);
+}
+.card-header { border-bottom: 1px solid var(--border); padding: 16px 20px; }
+.card-body { padding: 20px; }
+.kpi-card::before { height: 3px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; opacity: 0.9; }
+.kpi-card.gold::before  { background: var(--gold-grad); }
+.kpi-card.green::before { background: linear-gradient(135deg,#4ade80,var(--green)); }
+.kpi-card.red::before   { background: linear-gradient(135deg,#f87171,var(--red)); }
+.kpi-card.blue::before  { background: linear-gradient(135deg,#93c5fd,var(--blue)); }
+
+/* Glass buttons */
+.btn { border-radius: var(--radius-sm); transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease; }
+.btn-gold {
+  background: var(--gold-grad) !important;
+  box-shadow: 0 3px 14px rgba(240,160,48,0.32);
+}
+.btn-gold:hover { box-shadow: 0 5px 22px rgba(240,160,48,0.48); filter: brightness(1.04); }
+.btn-ghost {
+  background: rgba(255,255,255,0.04) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border2) !important;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.08) !important; border-color: var(--gold) !important; }
+
+/* Page header — more air, subtle gradient title */
+.page { padding: 32px 36px 64px; }
+.page-title {
+  background: linear-gradient(135deg, var(--text) 40%, var(--text2));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.two-col, .two-col-weighted { gap: 16px; }
+
+/* Modal — deeper glass */
+.modal, #modal-overlay .modal {
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  background: rgba(14,17,26,0.82) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: var(--radius-lg) !important;
+}
+#modal-overlay { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+
+/* Inputs — glassy */
+.form-input, .filter-select, .search-input, .ptp-field {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Slimmer, unobtrusive scrollbar */
+::-webkit-scrollbar-thumb { background: var(--border2); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Accessibility: visible keyboard focus everywhere ── */
+.btn:focus-visible, .nav-item:focus-visible, a:focus-visible,
+.form-input:focus-visible, .search-input:focus-visible, .filter-select:focus-visible,
+select:focus-visible, input:focus-visible, textarea:focus-visible,
+[tabindex]:focus-visible, .action-pill:focus-visible, .call-outcome-btn:focus-visible {
+  outline: 2px solid var(--gold) !important;
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* ── Accessibility: respect reduced-motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .kpi-card:hover, .card:hover { transform: none !important; }
+}
+
 </style>
 <style>
 /* ═══ PREMIUM OVERRIDES ═══════════════════════════════════ */
