@@ -806,28 +806,6 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 }
 .page-sub { font-size:var(--text-base); color: var(--text3); margin-top: 2px; }
 
-/* Greeting — name strip is masked/overflow-clipped so a long agent
-   name never wraps to a second line; if it doesn't fit, it marquees. */
-.greet-name-wrap {
-  overflow: hidden; white-space: nowrap; min-width: 0; max-width: 100%;
-}
-.greet-name-wrap.marquee {
-  -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 92%, transparent 100%);
-}
-.greet-name-inner { display: inline-block; }
-.greet-name-wrap.marquee .greet-name-inner {
-  animation: greetMarquee 9s linear infinite;
-}
-.greet-name-wrap.marquee .greet-gap { display: inline-block; width: 48px; }
-@keyframes greetMarquee {
-  0%, 12%   { transform: translateX(0); }
-  88%, 100% { transform: translateX(-50%); }
-}
-@media (max-width: 640px) {
-  .greet-name-wrap { max-width: 88vw; }
-}
-
 /* BUTTONS */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -7147,26 +7125,17 @@ async function renderDashboard() {
   if (greetEl) {
     const h = new Date().getHours();
     const period = h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
-    const rawName = (_activeAgent?.name || state.agentProfile?.name || '').split(' ')[0] || '';
-    // Clean up raw agent identifiers like "shadrack-agyei-oct25" into "Shadrack Agyei"
-    // (strips a trailing month-code batch suffix, then title-cases the rest).
-    const cleanName = rawName
+    const rawName = _activeAgent?.name || state.agentProfile?.name || '';
+    // Clean up raw agent identifiers like "shadrack-agyei-oct25" into "Shadrack",
+    // or a normal "Shadrack Agyei Arthur" into just "Shadrack" — first name only,
+    // so the greeting is always short and never needs to wrap or scroll.
+    const firstName = rawName
       .replace(/[-_]?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}$/i, '')
-      .replace(/[-_]+/g, ' ')
-      .trim()
-      .split(' ')
-      .filter(Boolean)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ');
+      .split(/[-_\s]+/)
+      .filter(Boolean)[0] || '';
+    const cleanName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase() : '';
     const today = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
-    const greetText = 'Good ' + period + (cleanName ? ', ' + cleanName : '');
-    // Name sits in a masked, single-line strip; if it's too long to fit,
-    // greetMarquee (added below) slides it through instead of wrapping
-    // onto a second line.
-    const needsMarquee = greetText.length > 26;
-    greetEl.innerHTML = '<div class="greet-name-wrap' + (needsMarquee ? ' marquee' : '') + '">'
-      + '<span class="greet-name-inner">' + greetText + (needsMarquee ? '<span class="greet-gap"></span>' + greetText : '') + '</span>'
-      + '</div>'
+    greetEl.innerHTML = '<div>Good ' + period + (cleanName ? ', ' + cleanName : '') + '</div>'
       + '<div style="font-size:var(--text-base);font-weight:400;color:var(--text3);margin-top:2px">' + today + '</div>';
   }
   const all = state.borrowers;
@@ -21395,21 +21364,18 @@ function renderLockAgentList() {
     }
 
     const avatarHtml = avatar
-      ? '<img src="'+avatar+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 0 0 2px '+col+'55,0 0 0 4px '+col+'18">'
-      : '<div class="lock-agent-avatar" style="background:linear-gradient(135deg,'+col+'33,'+col+'18);color:'+col+';border:1.5px solid '+col+'44;font-size:var(--text-2xl)">'+initials+'</div>';
+      ? '<img src="'+avatar+'" style="width:62px;height:62px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 0 0 2px '+col+'4d,0 0 0 5px '+col+'14,0 6px 18px rgba(0,0,0,0.5)">'
+      : '<div class="lock-agent-avatar" style="background:linear-gradient(135deg,'+col+'33,'+col+'18);color:'+col+';border:1.5px solid '+col+'44">'+initials+'</div>';
 
     return '<div style="margin-bottom:10px">'
       + '<button class="lock-agent-card" data-agentid="'+a.id+'" style="--lac-color:'+col+';width:100%">'
       + avatarHtml
       + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
-      + '<div style="font-weight:700;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff">'+displayName+'</div>'
-      + (isActive ? '<span style="background:rgba(34,197,94,0.2);color:#22c55e;font-size:var(--text-2xs);font-weight:700;padding:1px 6px;border-radius:var(--radius);flex-shrink:0;letter-spacing:0.3px">ACTIVE</span>' : '')
-      + '</div>'
-      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px">'+displayName+'</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px">'
       + '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+col+';flex-shrink:0;opacity:0.8"></span>'
-      + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.45)">'+(a.stage||'M2')+' · '+stageName+'</span>'
-      + (lastSeenStr ? '<span style="font-size:var(--text-xs);color:rgba(255,255,255,0.28);margin-left:auto">'+lastSeenStr+'</span>' : '')
+      + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.45);white-space:nowrap">'+(a.stage||'M2')+' · '+stageName+'</span>'
+      + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:rgba(255,255,255,0.28);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
       + '</div>'
       + '</div>'
       + '<div class="lock-agent-arrow"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" style="width:12px;height:12px"><path d="M7 5l5 5-5 5"/></svg></div>'
@@ -24141,7 +24107,14 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   <!-- Layered cinematic background -->
   <div class="ls-bg">
     <div class="ls-bg-mesh"></div>
-    <div class="ls-bg-grid"></div>
+    <div class="ls-bg-sparkle">
+      <span style="width:3px;height:3px;top:8%;left:18%;opacity:0.8"></span>
+      <span style="width:2px;height:2px;top:14%;left:78%;opacity:0.6"></span>
+      <span style="width:2.5px;height:2.5px;top:32%;left:88%;opacity:0.5"></span>
+      <span style="width:2px;height:2px;top:60%;left:10%;opacity:0.5"></span>
+      <span style="width:3px;height:3px;top:72%;left:85%;opacity:0.7"></span>
+      <span style="width:2px;height:2px;top:88%;left:22%;opacity:0.4"></span>
+    </div>
     <div class="ls-bg-vignette"></div>
   </div>
 
@@ -24153,6 +24126,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
         <div class="ls-logo-ring"></div>
         <div class="ls-logo-letters"></div>
       </div>
+      <div class="ls-logo-grounding-shadow"></div>
       <div class="ls-logo-name">SqueveTrack</div>
       <div class="ls-logo-sub">LoanBase Recovery Suite</div>
     </div>
@@ -24179,8 +24153,11 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
       <!-- Code input card -->
       <div class="ls-card ls-anim-4">
-        <input type="text" id="auth-code-input" class="ls-input" placeholder="e.g. Shadrack Agyei OCT25"
-          onkeydown="if(event.key==='Enter')authSignInWithCode()">
+        <div class="ls-input-wrap">
+          <span class="ls-input-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></span>
+          <input type="text" id="auth-code-input" class="ls-input" placeholder="e.g. Shadrack Agyei OCT25"
+            onkeydown="if(event.key==='Enter')authSignInWithCode()">
+        </div>
         <button class="ls-btn-primary" onclick="authSignInWithCode()">
           Find My Account
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><line x1="4" y1="10" x2="16" y2="10"/><polyline points="11,5 16,10 11,15"/></svg>
@@ -24256,7 +24233,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       <div class="ls-card" style="border-color:rgba(239,68,68,0.3)">
         <div style="font-size:var(--text-base);color:var(--ls-muted);margin-bottom:10px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:1px">Developer Override</div>
         <input type="text" class="ls-input" id="dev-override-input" placeholder="SQV-XXX-XXXX"
-          style="text-align:center;font-family:var(--font-mono);letter-spacing:3px;font-size:var(--text-lg);margin-bottom:10px"
+          style="text-align:center;font-family:var(--font-mono);letter-spacing:3px;font-size:var(--text-lg);margin-bottom:10px;padding-left:20px"
           onkeydown="if(event.key==='Enter')checkDevOverride()">
         <div style="display:flex;gap:8px">
           <button class="ls-btn-ghost" style="flex:1" onclick="document.getElementById('lock-dev-override').style.display='none'">Cancel</button>
@@ -24302,68 +24279,24 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-bg {
   position: fixed; inset: 0; z-index: 0;
   background:
-    radial-gradient(ellipse at 50% 28%, rgba(14,165,233,0.14) 0%, transparent 55%),
-    radial-gradient(ellipse at 20% 80%, rgba(240,160,48,0.07) 0%, transparent 50%),
-    linear-gradient(160deg, #06080f 0%, #080c18 100%);
+    radial-gradient(ellipse 70% 40% at 50% 16%, rgba(240,160,48,0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 8% 85%, rgba(14,165,233,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 75%, rgba(240,160,48,0.08) 0%, transparent 55%),
+    linear-gradient(160deg, #060810 0%, #04050a 100%);
 }
 .ls-bg-mesh {
   position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 90% 55% at 50% 10%, rgba(240,160,48,0.18) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 35% at 15% 85%, rgba(56,189,248,0.07) 0%, transparent 50%),
-    radial-gradient(ellipse 40% 30% at 85% 75%, rgba(240,160,48,0.05) 0%, transparent 50%);
+  background: radial-gradient(circle 340px at 50% 12%, rgba(252,192,68,0.16) 0%, transparent 70%);
 }
-.ls-bg-grid {
-  position: absolute; inset: 0;
-}
-/* Carbon fibre layer 1 — forward diagonal with gold glow */
-.ls-bg-grid::before {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 9px,
-      rgba(240,160,48,0.13) 9px,
-      rgba(240,160,48,0.13) 10px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      transparent 0px,
-      transparent 9px,
-      rgba(240,160,48,0.06) 9px,
-      rgba(240,160,48,0.06) 10px
-    );
-  filter: drop-shadow(0 0 2px rgba(240,160,48,0.25));
-  mask-image: radial-gradient(ellipse 110% 90% at 50% 50%, rgba(0,0,0,1) 20%, transparent 85%);
-  -webkit-mask-image: radial-gradient(ellipse 110% 90% at 50% 50%, rgba(0,0,0,1) 20%, transparent 85%);
-}
-/* Carbon fibre layer 2 — tighter cross for depth */
-.ls-bg-grid::after {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 4px,
-      rgba(255,255,255,0.025) 4px,
-      rgba(255,255,255,0.025) 5px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      transparent 0px,
-      transparent 4px,
-      rgba(255,255,255,0.018) 4px,
-      rgba(255,255,255,0.018) 5px
-    );
-  mask-image: radial-gradient(ellipse 100% 80% at 50% 50%, rgba(0,0,0,0.8) 0%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 50%, rgba(0,0,0,0.8) 0%, transparent 80%);
+/* Sparse ambient sparkle points — replaces the carbon-fibre texture */
+.ls-bg-sparkle { position: absolute; inset: 0; }
+.ls-bg-sparkle span {
+  position: absolute; border-radius: 50%; background: #fde68a;
+  box-shadow: 0 0 6px 1px rgba(252,192,68,0.7);
 }
 .ls-bg-vignette {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse 120% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%);
+  background: radial-gradient(ellipse 110% 90% at 50% 42%, transparent 35%, rgba(0,0,0,0.78) 100%);
 }
 
 /* ── Wrapper ── */
@@ -24393,23 +24326,23 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-anim-in { animation: lsScaleIn 0.32s cubic-bezier(0.34,1.4,0.64,1) both; }
 
 /* ── Logo block ── Card Spotlight style ── */
-.ls-logo-block { text-align: center; margin-bottom: 28px; }
+.ls-logo-block { text-align: center; margin-bottom: 26px; }
 
 /* ── Premium icon shell ── */
 .ls-logo-icon {
   position: relative;
-  width: 90px; height: 90px;
+  width: 128px; height: 128px;
   margin: 0 auto 20px;
 }
 
 /* Outer ambient bloom */
 .ls-logo-icon::after {
   content: '';
-  position: absolute; inset: -24px;
+  position: absolute; inset: -32px;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(240,160,48,0.28) 0%,
-    rgba(240,160,48,0.10) 40%,
+    rgba(240,160,48,0.35) 0%,
+    rgba(240,160,48,0.12) 40%,
     transparent 70%);
   z-index: 0;
   pointer-events: none;
@@ -24452,16 +24385,23 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   position: absolute; inset: 4px;
   border-radius: 50%;
   background: radial-gradient(circle at 38% 32%,
-    #1e1506 0%,
-    #0e0c06 50%,
+    #241a08 0%,
+    #120e05 50%,
     #050400 100%);
   box-shadow:
-    0 0 0 1px rgba(240,160,48,0.35),
-    0 8px 40px rgba(0,0,0,0.8),
-    0 0 60px rgba(240,160,48,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    inset 0 -1px 0 rgba(0,0,0,0.6);
+    0 0 0 1px rgba(240,160,48,0.4),
+    0 14px 34px rgba(0,0,0,0.85),
+    0 0 60px rgba(240,160,48,0.18),
+    inset 0 2px 3px rgba(255,255,255,0.16),
+    inset 0 -4px 8px rgba(0,0,0,0.55);
   z-index: 1;
+}
+
+/* Soft contact shadow grounding the badge, like a floating 3D object */
+.ls-logo-grounding-shadow {
+  width: 56px; height: 10px; margin: 6px auto 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 70%);
 }
 
 /* Gloss highlight on top of icon face */
@@ -24481,7 +24421,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 }
 .ls-logo-letters::after {
   content: 'ST';
-  font-family: var(--font-head); font-size: 30px; font-weight: 800;
+  font-family: var(--font-head); font-size: 42px; font-weight: 800;
   background: linear-gradient(160deg, #fde68a 0%, #f0a030 40%, #c47a10 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -24511,65 +24451,72 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 /* ── Tabs ── */
 .ls-tabs {
   display: flex;
-  background: rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.25);
   border: 1px solid var(--ls-border);
-  border-radius: 14px; padding: 4px;
-  width: 100%; margin-bottom: 24px; gap: 3px;
+  border-radius: 16px; padding: 5px;
+  width: 100%; margin-bottom: 22px; gap: 4px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
 }
 .ls-tab {
-  flex: 1; padding: 10px 16px; border: none; cursor: pointer;
-  border-radius: 11px; font-size:var(--text-md); font-weight: 600;
+  flex: 1; padding: 10px 10px; border: none; cursor: pointer;
+  border-radius: 11px; font-size: 13px; font-weight: 600;
   font-family: var(--font-body); color: var(--ls-muted);
-  background: transparent; transition: all 0.2s ease;
+  background: transparent; transition: all 0.2s ease; white-space: nowrap;
 }
 .ls-tab-active {
-  background: var(--ls-gold-g) !important; color: #000 !important;
-  font-weight: 700 !important;
-  box-shadow: 0 2px 12px rgba(240,160,48,0.4);
+  background: linear-gradient(180deg, var(--ls-gold2), var(--ls-gold)) !important; color: #000 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(240,160,48,0.5), inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -2px 3px rgba(0,0,0,0.15);
 }
 
 /* ── Glass card (sign-in) ── */
 .ls-card {
   width: 100%;
-  background: rgba(255,255,255,0.07);
+  background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--ls-border2);
-  border-top-color: rgba(240,160,48,0.25);
-  border-radius: 20px; padding: 20px;
-  box-shadow: 0 16px 56px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1);
+  border-top-color: rgba(255,255,255,0.22);
+  border-radius: 28px; padding: 24px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.6), 0 2px 0 rgba(255,255,255,0.03), inset 0 1.5px 0 rgba(255,255,255,0.14);
   margin-bottom: 12px;
 }
 
 /* ── Input ── */
+.ls-input-wrap { position: relative; margin-bottom: 12px; }
+.ls-input-icon {
+  position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+  color: rgba(240,160,48,0.55); display: flex; pointer-events: none;
+}
 .ls-input {
   width: 100%;
-  background: rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius:var(--radius-lg); color: var(--ls-text);
-  padding: 13px 16px; font-size:var(--text-lg); font-weight: 500;
+  border-top-color: rgba(0,0,0,0.4);
+  border-radius: 999px; color: var(--ls-text);
+  padding: 15px 20px 15px 46px; font-size:var(--text-lg); font-weight: 500;
   font-family: var(--font-body); outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  margin-bottom: 12px; box-sizing: border-box;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+  box-sizing: border-box;
+  box-shadow: inset 0 3px 10px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.05);
 }
 .ls-input:focus {
   border-color: rgba(240,160,48,0.55);
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2), 0 0 0 3px rgba(240,160,48,0.12);
-  background: rgba(255,255,255,0.07);
+  box-shadow: inset 0 3px 10px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.05), 0 0 0 3px rgba(240,160,48,0.12);
+  background: rgba(0,0,0,0.28);
 }
 .ls-input::placeholder { color: var(--ls-muted); }
 
 /* ── Primary button ── */
 .ls-btn-primary {
-  width: 100%; padding: 14px; border: none; border-radius:var(--radius-lg); cursor: pointer;
-  background: var(--ls-gold-g); color: #000; font-size:var(--text-lg); font-weight: 700;
+  width: 100%; padding: 17px; border: 1.5px solid rgba(240,160,48,0.55); border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, #241c0e, #0a0805); color: var(--ls-gold2); font-size:var(--text-lg); font-weight: 800;
   font-family: var(--font-body);
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 4px 24px rgba(240,160,48,0.45);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.6), 0 4px 20px rgba(240,160,48,0.3), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5);
   transition: all 0.15s ease;
 }
-.ls-btn-primary:hover { box-shadow: 0 6px 32px rgba(240,160,48,0.6); }
-.ls-btn-primary:active { transform: scale(0.97); box-shadow: 0 2px 12px rgba(240,160,48,0.3); }
+.ls-btn-primary:hover { box-shadow: 0 12px 30px rgba(0,0,0,0.65), 0 4px 24px rgba(240,160,48,0.4), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5); }
+.ls-btn-primary:active { transform: scale(0.97); box-shadow: 0 4px 14px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.5); }
 
 /* ── Ghost + Danger ── */
 .ls-btn-ghost {
@@ -24735,39 +24682,44 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
 /* ── Agent cards ── */
 .lock-agent-card {
-  display: flex; align-items: center; gap: 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 16px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(160deg, rgba(240,160,48,0.14), rgba(255,255,255,0.02) 55%);
+  border: 1.5px solid rgba(240,160,48,0.4);
+  border-radius: 22px; padding: 18px 20px;
   cursor: pointer; width: 100%;
   transition: all 0.2s ease; text-align: left;
   position: relative; overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 4px 14px rgba(240,160,48,0.15), 0 0 0 1px rgba(240,160,48,0.1), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.3);
 }
 .lock-agent-card::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  border-radius: 16px 0 0 16px;
-  background: var(--lac-color, var(--gold));
-  opacity: 0.85;
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  border-radius: 22px 0 0 22px;
+  background: linear-gradient(180deg, var(--ls-gold2), var(--lac-color, var(--gold)));
+  box-shadow: 0 0 12px rgba(240,160,48,0.6);
 }
 .lock-agent-card:hover {
-  border-color: var(--lac-color, rgba(240,160,48,0.5));
-  background: rgba(255,255,255,0.07);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: var(--lac-color, rgba(240,160,48,0.65));
+  box-shadow: 0 20px 46px rgba(0,0,0,0.6), 0 4px 16px rgba(240,160,48,0.22), 0 0 0 1px rgba(240,160,48,0.14), inset 0 1.5px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3);
   transform: translateY(-2px) scale(1.005);
 }
 .lock-agent-card:active { transform: translateY(0) scale(0.99); }
 .lock-agent-card.selected {
   border-color: var(--lac-color, var(--ls-gold));
-  background: rgba(240,160,48,0.08);
-  box-shadow: 0 8px 32px rgba(240,160,48,0.2);
+  background: linear-gradient(160deg, rgba(240,160,48,0.2), rgba(255,255,255,0.02) 55%);
+  box-shadow: 0 8px 32px rgba(240,160,48,0.25);
 }
 .lock-agent-avatar {
-  width: 48px; height: 48px; border-radius: 50%;
+  position: relative;
+  width: 62px; height: 62px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-head); font-size: 17px; font-weight: 800;
+  font-family: var(--font-head); font-size: 21px; font-weight: 800;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.08), 0 0 0 4px rgba(255,255,255,0.03);
+  box-shadow: 0 0 0 2px rgba(240,160,48,0.3), 0 0 0 5px rgba(240,160,48,0.08), 0 6px 18px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.18), inset 0 -3px 6px rgba(0,0,0,0.4);
+}
+.lock-agent-avatar::after {
+  content: ''; position: absolute; top: 8%; left: 14%; width: 55%; height: 40%; border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.35), transparent);
+  filter: blur(1px); pointer-events: none;
 }
 .lock-agent-name {
   font-family: var(--font-head); font-size:var(--text-lg); font-weight: 700;
