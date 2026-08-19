@@ -8633,6 +8633,9 @@ function renderDispatch() {
     + '<button class="btn btn-ghost btn-xs" onclick="toggleDispatchCustomMsg()" id="dispatch-custom-toggle"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4 11-11 3 3-11 11z"/><path d="M14 6l3 3"/></svg></span> Custom</button>'
     + '<button class="btn btn-ghost btn-xs" style="color:#25d366;border-color:rgba(37,211,102,0.4)" onclick="openWaCheckPanel()" title="Detect which numbers are active on WhatsApp"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="20" y1="20" x2="15.5" y2="15.5"/></svg></span> WA Check</button>'
     + '<button class="btn btn-xs" style="background:linear-gradient(135deg,#7c3aed,#dc2626);color:#fff;border:none;border-radius:var(--radius-sm);padding:4px 10px;font-size:var(--text-sm);font-weight:700;cursor:pointer" onclick="window._escalSingleId=null;openEscalationPanel()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Escalate</button>'
+    + (list.some(b => _recommendDunningTier(b))
+        ? '<button class="btn btn-xs" style="background:linear-gradient(135deg,#f0a030,#dc2626);color:#fff;border:none;border-radius:var(--radius-sm);padding:4px 10px;font-size:var(--text-sm);font-weight:700;cursor:pointer" onclick="launchDunningQueue()" title="Auto-picks each borrower\'s tier by their OD day"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span> Dunning Ladder (' + list.filter(b => _recommendDunningTier(b)).length + ')</button>'
+        : '')
     + '</div>'
 
   if (!list.length) {
@@ -8687,6 +8690,7 @@ function renderDispatch() {
         + '<div class="dispatch-actions">'
         + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"> WA</a>'
         + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"> SMS</a>'
+        + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder — Tier ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
         + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"></button>'
         + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')"></button>'
         + '</div></div>';
@@ -15313,6 +15317,252 @@ function copyEscalMsg() {
   }).catch(function() {
     toast('Could not copy — select and copy manually', 'error');
   });
+}
+
+// ══════════════════════════════════════════════════════════════
+// DUNNING LADDER — M2-specific escalation (Day 6–15)
+// A tighter, 4-tier sequence that visibly hardens day-by-day within
+// the M2 window specifically, distinct from the general 21-level
+// escalation menu above (where M2 is only a single entry point).
+// Every consequence named here is one already established elsewhere
+// in this file (Credit Bureau / Act 726, formal recovery / Act 1052,
+// 5-year retention per Level 19/20) — nothing new is asserted.
+// Guarantor contact is only ever stated as a real consequence when
+// b.guarantorIsFormal is true, matching the Level 17 guardrail above:
+// a plain emergency contact carries no liability, and implying
+// otherwise would be a false claim and a prohibited practice under
+// the Bank of Ghana's 2025 Digital Credit Services directive.
+// ══════════════════════════════════════════════════════════════
+const DUNNING_TIERS = [
+  { tier:1, dayMin:6,  dayMax:8,  title:'Formal Notice',      color:'#f0a030' },
+  { tier:2, dayMin:9,  dayMax:11, title:'Escalation Warning', color:'#f97316' },
+  { tier:3, dayMin:12, dayMax:13, title:'Pre-Final Notice',   color:'#ef4444' },
+  { tier:4, dayMin:14, dayMax:15, title:'Final Notice',       color:'#dc2626' },
+];
+
+// Returns the tier (1–4) matching this borrower's current OD day, or
+// null if they're outside the M2 Day 6–15 window entirely.
+function _recommendDunningTier(b) {
+  const od = getOdAge(b.startDate, b);
+  const hit = DUNNING_TIERS.find(t => od >= t.dayMin && od <= t.dayMax);
+  return hit ? hit.tier : null;
+}
+
+function buildDunningMsg(b, tier) {
+  const caseRef = _escalCaseRef(b);
+  const dateStr = _escalDate();
+  const balance = fmtC(getDueToday(b));
+  const odDays  = getOdAge(b.startDate, b);
+  const hasGuarantor = !!b.guarantorIsFormal && !!b.guarantorName;
+  const fields = [
+    { label: 'AMOUNT DUE', value: balance },
+    { label: 'DAYS OVERDUE', value: String(odDays) }
+  ];
+
+  if (tier === 1) {
+    return _escalHeader('📋', 'ACCOUNT STATUS — ACTIVE DEFAULT', b, caseRef, dateStr, fields) + `
+
+This account has entered active default review under Act 1052.
+
+From today, this file is reviewed daily. Every day it stays unpaid moves it one step closer to:
+• Credit Bureau submission
+• ${hasGuarantor ? 'Guarantor notification' : 'Further formal notice'}
+• Legal handover
+
+None of this has happened yet. All of it is now in motion.
+
+Pay before end of day. ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 2) {
+    return _escalHeader('⚠️', 'ESCALATION WARNING', b, caseRef, dateStr, fields) + `
+
+Multiple reminders on this account have gone unanswered. This file is now being prepared for formal escalation.
+
+Starting today:
+• Daily penalty fees continue to accrue
+• Your file is flagged for Credit Bureau review${hasGuarantor ? '\n• Guarantor contact is being prepared' : ''}
+${hasGuarantor ? '\nNothing has been sent to your guarantor yet. Pay today and it stays that way.\n' : ''}
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 3) {
+    const bullets = [
+      hasGuarantor ? '• Your guarantor will be contacted directly' : '• This file proceeds without further reminder',
+      '• Your employer may be contacted to verify your status',
+      '• Your file moves into formal recovery at Day 16 — no exceptions'
+    ].join('\n');
+    return _escalHeader('🔴', 'PRE-FINAL NOTICE', b, caseRef, dateStr, fields) + `
+
+Two days remain at this stage.
+
+If this balance is not cleared:
+${bullets}
+
+This is the second-to-last notice you will receive at this stage.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // tier 4
+  const bullets = [
+    '• This file moves to formal recovery',
+    hasGuarantor ? '• Your guarantor is contacted directly' : '• Formal recovery proceeds without further reminder',
+    '• Your file is prepared for Credit Bureau submission — a record that stays on file for up to 5 years',
+    '• Legal handover review begins'
+  ].join('\n');
+  return _escalHeader('🔴', 'FINAL NOTICE — LAST DAY OF STAGE', b, caseRef, dateStr, fields) + `
+
+This is the last day of this stage. No further reminder will be sent.
+
+At midnight, WITHOUT further notice:
+${bullets}
+
+This is not a warning. This is what happens next if this balance is not cleared today.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+}
+
+// Single-borrower picker — opened from the ladder icon on a dispatch row.
+// Auto-highlights the tier matching the borrower's current OD day.
+function openDunningPanel(borrowerId) {
+  const b = state.borrowers.find(x => x.id === borrowerId);
+  if (!b) return;
+  const recTier = _recommendDunningTier(b);
+  window._dunningSingleId = borrowerId;
+
+  _pushModal();
+  document.getElementById('modal-title').textContent = 'Dunning Ladder — ' + b.name;
+
+  let html = '<div style="font-size:var(--text-md);color:var(--text2);margin-bottom:16px;line-height:1.6">'
+    + 'Day <strong>' + getOdAge(b.startDate, b) + '</strong>. Select a tier to send to <strong>' + escapeHtml(b.name) + '</strong>.'
+    + '</div><div style="display:grid;gap:10px">';
+
+  DUNNING_TIERS.forEach(function(t) {
+    const isRec = t.tier === recTier;
+    const dayLabel = t.dayMin === t.dayMax ? ('Day ' + t.dayMin) : ('Day ' + t.dayMin + '–' + t.dayMax);
+    html += '<div style="background:var(--surface2);border:2px solid ' + (isRec ? t.color : t.color + '22') + ';border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;' + (isRec ? 'box-shadow:0 0 0 3px ' + t.color + '22' : '') + '"'
+      + ' onclick="previewDunning(' + t.tier + ')"'
+      + ' onmouseover="this.style.borderColor=\'' + t.color + '88\'"'
+      + ' onmouseout="this.style.borderColor=\'' + (isRec ? t.color : t.color + '22') + '\'">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
+      + '<span style="font-weight:800;font-size:var(--text-md);color:' + t.color + '">Tier ' + t.tier + ' — ' + t.title + '</span>'
+      + (isRec ? '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 7px;border-radius:var(--radius);font-weight:800;letter-spacing:0.3px">RECOMMENDED</span>' : '')
+      + '</div>'
+      + '<div style="font-size:var(--text-sm);color:var(--text3)">' + dayLabel + '</div>'
+      + '</div>';
+  });
+
+  html += '</div>';
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="window._dunningSingleId=null;closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light');
+}
+
+function previewDunning(tier) {
+  const b = state.borrowers.find(x => x.id === window._dunningSingleId);
+  if (!b) { closeModal(); return; }
+  const msg = buildDunningMsg(b, tier);
+  const t = DUNNING_TIERS.find(function(x) { return x.tier === tier; });
+
+  _pushModal();
+  document.getElementById('modal-title').textContent = 'Tier ' + tier + ' — ' + t.title;
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">Preview for <strong>' + escapeHtml(b.name) + '</strong>.</div>'
+    + '<div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.8;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;max-height:320px;overflow-y:auto;overflow-x:hidden;font-family:var(--font-body)">'
+    + escapeHtml(msg) + '</div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg></span> Back</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="copyDunningMsg()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span> Copy</button>'
+    + '<button class="btn btn-ghost btn-sm" style="color:#25d366;border-color:#25d366" onclick="sendDunningMsg(' + tier + ')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> Send</button>';
+}
+
+function copyDunningMsg() {
+  const b = state.borrowers.find(function(x) { return x.id === window._dunningSingleId; });
+  if (!b) return;
+  const el = document.getElementById('modal-body');
+  const text = el ? el.innerText.split('\n').slice(2).join('\n').trim() : '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Message copied', 'success');
+    haptic('light');
+  }).catch(function() {
+    toast('Could not copy — select and copy manually', 'error');
+  });
+}
+
+function sendDunningMsg(tier) {
+  const b = state.borrowers.find(function(x) { return x.id === window._dunningSingleId; });
+  if (!b) { closeAllModals(); return; }
+  const msg = buildDunningMsg(b, tier);
+  const ph = b.phone.replace(/\D/g, '');
+  const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
+  window.open(waLink, '_blank');
+  markDispatchContacted(b.id);
+  window._dunningSingleId = null;
+  closeAllModals();
+  toast('Dunning notice sent — Tier ' + tier, 'success');
+  haptic('pay');
+}
+
+// Bulk queue — steps through every M2 (Day 6–15) borrower currently in
+// the dispatch list, auto-picking EACH borrower's own tier as it goes
+// (unlike the general Escalate queue, which applies one fixed level
+// to everyone). Triggered from the "Dunning Ladder" toolbar button.
+function launchDunningQueue() {
+  const pool = (_currentDispatchIds || [])
+    .map(function(id) { return state.borrowers.find(function(b) { return b.id === id; }); })
+    .filter(function(b) { return b && _recommendDunningTier(b); });
+  if (!pool.length) { toast('No Day 6–15 accounts in current filter', 'error'); return; }
+  window._dunningQueue = pool;
+  window._dunningQueueIdx = 0;
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light');
+  dunningQueueRenderModal();
+}
+
+function dunningQueueRenderModal() {
+  const tot = window._dunningQueue.length;
+  const idx = window._dunningQueueIdx;
+  if (idx >= tot) {
+    closeModal();
+    toast('Dunning Ladder complete — ' + tot + ' notices sent', 'success');
+    haptic('pay');
+    return;
+  }
+  const b = window._dunningQueue[idx];
+  const tier = _recommendDunningTier(b);
+  const t = DUNNING_TIERS.find(function(x) { return x.tier === tier; });
+  const msg = buildDunningMsg(b, tier);
+  const ph = b.phone.replace(/\D/g, '');
+  const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
+  const pct = Math.round((idx / tot) * 100);
+
+  document.getElementById('modal-title').textContent = 'Dunning Ladder (' + (idx + 1) + '/' + tot + ')';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="height:4px;background:var(--border);border-radius:4px;margin-bottom:14px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + t.color + ';transition:width 0.3s"></div></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">'
+    + '<strong style="font-size:var(--text-lg)">' + escapeHtml(b.name) + '</strong>'
+    + '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 8px;border-radius:var(--radius);font-weight:800">TIER ' + tier + ' — ' + t.title + '</span>'
+    + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
+    + '<div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.8;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;max-height:260px;overflow-y:auto;font-family:var(--font-body)">'
+    + escapeHtml(msg) + '</div>'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:6px;text-align:center">' + idx + ' of ' + tot + ' sent</div>';
+
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="window._dunningQueue=null;closeModal()">Stop</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="window._dunningQueueIdx++;dunningQueueRenderModal()">Skip <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
+    + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,' + t.color + ',' + t.color + 'bb);color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="markDispatchContacted(\'' + b.id + '\');setTimeout(function(){window._dunningQueueIdx++;dunningQueueRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Send & Next ▶</a>';
 }
 
 
