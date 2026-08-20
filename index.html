@@ -91,6 +91,17 @@
   --sidebar-w: 224px;
   --border-hi: rgba(255,255,255,0.07);
   --section-gap: 16px;
+  /* ── Elevation system — consistent depth language app-wide ──
+     el-1: chips, small pills, subtle lift
+     el-2: cards, standard buttons — the everyday "raised surface"
+     el-3: modals, popovers — floating well above the page
+     el-bevel: top-highlight + bottom-shade, for a physical raised edge
+     el-pressed: inset shadow, for "carved-in" surfaces (inputs, tracks) */
+  --el-1: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.22);
+  --el-2: 0 2px 6px rgba(0,0,0,0.35), 0 8px 20px rgba(0,0,0,0.28);
+  --el-3: 0 10px 30px rgba(0,0,0,0.5), 0 3px 10px rgba(0,0,0,0.35);
+  --el-bevel: inset 0 1.5px 0 rgba(255,255,255,0.08), inset 0 -1.5px 0 rgba(0,0,0,0.25);
+  --el-pressed: inset 0 2px 6px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.03);
 }
 
 /* SWIPE ACTIONS ON TABLE ROWS */
@@ -268,7 +279,7 @@ tr.overdue-critical td:first-child,
 #sync-dot.red   { background: var(--red);  box-shadow: 0 0 6px rgba(239,68,68,0.5); }
 
 /* Sidebar surface */
-.sidebar { background: rgba(7,9,14,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.sidebar { background: rgba(7,9,14,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--el-3), 1px 0 0 rgba(255,255,255,0.04) inset; }
 
 /* Nav SVG icons */
 .nav-svg { width:16px; height:16px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -667,6 +678,12 @@ body, nav, main, #sidebar, .card, .kpi-card, .modal, .btn,
 .progress-big-fill, .progress-bar, .log-bar, .urgency-bar { transition: width 0.5s ease !important; }
 .btn { transition: background-color 0.15s ease, transform 0.1s ease; }
 html, body { height: 100%; }
+/* Remove the gray tap-flash + 300ms tap delay app-wide — was only
+   applied to a couple of one-off components before, not globally. */
+a, button, .btn, .nav-item, .card, [onclick], [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 
 /* Lock to portrait — hide content in landscape */
 @media screen and (orientation: landscape) and (max-height: 500px) {
@@ -816,19 +833,23 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   font-family: var(--font-body);
   font-size:var(--text-md);
   font-weight: 600;
-  transition: all 0.15s;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.12s ease, transform 0.1s ease, box-shadow 0.15s ease;
   white-space: nowrap;
+  box-shadow: var(--el-2), var(--el-bevel);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.btn-gold { background: var(--gold); color: #000; }
-.btn-gold:hover { background: var(--gold2); }
-.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+.btn:active { transform: translateY(1px) scale(0.98); box-shadow: var(--el-1); }
+.btn-gold { background: linear-gradient(180deg, var(--gold2), var(--gold)); color: #000; }
+.btn-gold:hover { background: linear-gradient(180deg, var(--gold2), var(--gold2)); box-shadow: var(--el-2), var(--el-bevel), 0 0 0 1px rgba(240,160,48,0.3); }
+.btn-ghost { background: linear-gradient(180deg, var(--surface2), var(--surface)); color: var(--text2); border: 1px solid var(--border2); }
 .btn-ghost:hover { color: var(--text); border-color: var(--border2); background: var(--border); }
-.btn-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+.btn-green { background: linear-gradient(180deg, rgba(34,197,94,0.2), rgba(34,197,94,0.12)); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
 .btn-green:hover { background: rgba(34,197,94,0.25); }
-.btn-red { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+.btn-red { background: linear-gradient(180deg, rgba(239,68,68,0.18), rgba(239,68,68,0.1)); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
 .btn-red:hover { background: rgba(239,68,68,0.22); }
-.btn-sm { padding: 5px 10px; font-size:var(--text-base); }
-.btn-xs { padding: 3px 8px; font-size:var(--text-sm); }
+.btn-sm { padding: 5px 10px; font-size:var(--text-base); box-shadow: var(--el-1), var(--el-bevel); }
+.btn-xs { padding: 3px 8px; font-size:var(--text-sm); box-shadow: var(--el-1); }
 
 /* KPI CARDS */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; contain: layout; }
@@ -995,6 +1016,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
   font-size:var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
+  box-shadow: var(--el-1);
 }
 .badge-paid { background: var(--paid-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
 .badge-partial { background: var(--partial-bg); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
@@ -1034,6 +1056,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
   display: flex;
   flex-direction: column;
   animation: modalSpring 0.24s cubic-bezier(0.34,1.4,0.64,1) both;
+  will-change: transform, opacity;
 }
 @keyframes modalSpring {
   from { opacity:0; transform:scale(0.93) translateY(10px); }
@@ -1555,9 +1578,10 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
   background: var(--gold-grad) !important;
   color: #0a0c12 !important;
   font-weight: 700;
-  box-shadow: 0 2px 12px var(--gold-glow);
+  box-shadow: 0 3px 14px var(--gold-glow), var(--el-bevel);
 }
-.btn-gold:hover { filter: brightness(1.08); box-shadow: 0 4px 20px var(--gold-glow); }
+.btn-gold:hover { filter: brightness(1.08); box-shadow: 0 5px 22px var(--gold-glow), var(--el-bevel); }
+.btn-gold:active { filter: brightness(0.96); transform: translateY(1px) scale(0.98); box-shadow: 0 1px 6px var(--gold-glow); }
 
 /* Gold gradient on gold text elements */
 .kpi-value.gold, .logo-mark, .sync-gold {
@@ -1567,10 +1591,10 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
   background-clip: text;
 }
 
-/* Micro-border glow — 1px top highlight on cards */
+/* Micro-border glow — 1px top highlight on cards, plus real elevation */
 .card {
   border-top: 1px solid rgba(255,255,255,0.07) !important;
-  box-shadow: 0 1px 0 0 rgba(255,255,255,0.04) inset;
+  box-shadow: var(--el-2), inset 0 1px 0 0 rgba(255,255,255,0.04);
 }
 
 /* Glassmorphism on KPI cards */
@@ -1580,7 +1604,7 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255,255,255,0.07) !important;
   border-top: 1px solid rgba(255,255,255,0.12) !important;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: var(--el-2), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 /* Glassmorphism on modals */
@@ -1589,8 +1613,8 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255,255,255,0.08) !important;
-  border-top: 1px solid rgba(255,255,255,0.14) !important;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6) !important;
+  border-top: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: var(--el-3), 0 1px 0 rgba(255,255,255,0.05) inset !important;
 }
 
 /* Spring bounce modal animation */
@@ -1775,21 +1799,28 @@ tr.overdue-critical .heat-ring {
 }
 
 /* Search input premium */
-.search-input {
+.search-input, .filter-select {
   background: rgba(255,255,255,0.04) !important;
   border: 1px solid var(--border) !important;
+  border-top-color: rgba(0,0,0,0.3) !important;
+  box-shadow: var(--el-pressed);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .search-input:focus {
   border-color: var(--gold) !important;
-  box-shadow: 0 0 0 3px rgba(240,160,48,0.12) !important;
+  box-shadow: var(--el-pressed), 0 0 0 3px rgba(240,160,48,0.12) !important;
   background: rgba(255,255,255,0.06) !important;
 }
 
-/* Form inputs */
+/* Form inputs — carved-in resting state, not just a focus reaction */
+.form-input {
+  background: rgba(255,255,255,0.035) !important;
+  border-top-color: rgba(0,0,0,0.3) !important;
+  box-shadow: var(--el-pressed);
+}
 .form-input:focus {
   border-color: var(--gold) !important;
-  box-shadow: 0 0 0 3px rgba(240,160,48,0.12) !important;
+  box-shadow: var(--el-pressed), 0 0 0 3px rgba(240,160,48,0.12) !important;
 }
 
 /* Mobile header glass */
@@ -3293,9 +3324,9 @@ tr.overdue-critical .heat-ring {
         <option value="custom">Custom…</option>
       </select>
       <span id="loan-amount-custom" style="display:none;align-items:center;gap:4px">
-        <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="renderLoansTable()" style="width:68px" min="0">
+        <input type="number" class="bl-chip-sel" id="loan-amt-min" placeholder="₵ Min" oninput="debouncedRenderLoans()" style="width:68px" min="0">
         <span style="font-size:var(--text-sm);color:var(--text3)">–</span>
-        <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="renderLoansTable()" style="width:68px" min="0">
+        <input type="number" class="bl-chip-sel" id="loan-amt-max" placeholder="₵ Max" oninput="debouncedRenderLoans()" style="width:68px" min="0">
       </span>
       <button class="btn btn-ghost btn-xs" onclick="clearBlFilters()" style="margin-left:auto">Clear all</button>
     </div>
