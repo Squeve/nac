@@ -1988,6 +1988,11 @@ tr.overdue-critical .heat-ring {
   border-color: var(--gold); color: var(--text);
 }
 .bl-chip-sel option { background: var(--surface2); }
+/* Hide number-input spin arrows in filter chips — they steal width from
+   already-tight placeholder text like "OD Min" on narrow screens */
+input.bl-chip-sel::-webkit-outer-spin-button,
+input.bl-chip-sel::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 .bl-chips {
   background: var(--surface); border: 1px solid var(--border2); border-radius:var(--radius-lg);
   padding: 12px 14px; margin-bottom: var(--section-gap);
@@ -3586,8 +3591,15 @@ tr.overdue-critical .heat-ring {
         </select>
         <input type="number" class="bl-chip-sel" id="dispatch-min-amount" placeholder="₵ Min" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
         <input type="number" class="bl-chip-sel" id="dispatch-max-amount" placeholder="₵ Max" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
-        <input type="number" class="bl-chip-sel" id="dispatch-od-min" placeholder="Day Min" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
-        <input type="number" class="bl-chip-sel" id="dispatch-od-max" placeholder="Day Max" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-min" placeholder="OD Min" oninput="_dispatchSearchDebounce()" style="width:66px" min="0">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-max" placeholder="OD Max" oninput="_dispatchSearchDebounce()" style="width:66px" min="0">
+        <select class="bl-chip-sel" id="dispatch-promise-day" onchange="renderDispatch()" title="Filter by promised payment day">
+          <option value="">Any Promise Day</option>
+          <option value="today">Promised Today</option>
+          <option value="tomorrow">Promised Tomorrow</option>
+          <option value="week">Promised This Week</option>
+          <option value="overdue">Promise Overdue</option>
+        </select>
         <button class="btn btn-ghost btn-xs" onclick="clearDispatchFilters()" style="margin-left:auto">Clear all</button>
       </div>
       <!-- Discount -->
@@ -7131,8 +7143,8 @@ function renderDashActivityFeed() {
         color: isPaid ? 'green' : 'gold',
         icon: isPaid ? '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/></svg></span>' : '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span>',
         text: isPaid
-          ? `${firstName} fully paid! ${fmtC(p.amount)}`
-          : `${firstName} paid ${fmtC(p.amount)}`
+          ? `${firstName} fully paid! ${fmtC(p.delta || p.amount)}`
+          : `${firstName} paid ${fmtC(p.delta || p.amount)}`
       });
     });
 
@@ -8291,8 +8303,11 @@ function renderAnalytics() {
   const totalOdFees      = active.reduce((s,b) => s + getOdFee(b), 0);
   const avgOwed          = active.length ? Math.round(totalOutstanding / active.length) : 0;
 
+  // payLog.amount is the borrower's cumulative total, not the transaction
+  // amount — sum delta (actual cash per transaction) to avoid overcounting
+  // borrowers with more than one payment on record.
   let payLogTotal = 0;
-  all.forEach(b => (b.payLog||[]).forEach(p => { payLogTotal += Number(p.amount)||0; }));
+  all.forEach(b => (b.payLog||[]).forEach(p => { if ((Number(p.delta)||0) > 0) payLogTotal += Number(p.delta)||0; }));
   const logTotal = Math.max(payLogTotal, (state.dailyLog||[]).reduce((s,e) => s+(Number(e.collected)||0), 0));
   const collectionRate = (logTotal + totalOutstanding) > 0
     ? (logTotal / (logTotal + totalOutstanding) * 100).toFixed(1) : '0.0';
@@ -8679,6 +8694,8 @@ function clearDispatchFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const dayEl = document.getElementById('dispatch-promise-day');
+  if (dayEl) dayEl.value = '';
   renderDispatch();
   haptic('light');
 }
@@ -8701,7 +8718,8 @@ function renderDispatch() {
   const _dMaxAmt = document.getElementById('dispatch-max-amount')?.value;
   const _dMinOd  = document.getElementById('dispatch-od-min')?.value;
   const _dMaxOd  = document.getElementById('dispatch-od-max')?.value;
-  const _dActiveCount = [filter, _dMinAmt, _dMaxAmt, _dMinOd, _dMaxOd].filter(v => v !== '' && v != null).length;
+  const _dPromiseDay = document.getElementById('dispatch-promise-day')?.value;
+  const _dActiveCount = [filter, _dMinAmt, _dMaxAmt, _dMinOd, _dMaxOd, _dPromiseDay].filter(v => v !== '' && v != null).length;
   const _dCountEl = document.getElementById('dispatch-filters-count');
   if (_dCountEl) {
     _dCountEl.textContent = _dActiveCount;
@@ -8736,6 +8754,22 @@ function renderDispatch() {
     if (!odMinV && !odMaxV) return true;
     const od = getOdAge(b.startDate, b);
     return od >= (odMinV ? parseInt(odMinV) : 0) && od <= (odMaxV ? parseInt(odMaxV) : Infinity);
+  })
+  .filter(b => {
+    const dayFilter = document.getElementById('dispatch-promise-day')?.value;
+    if (!dayFilter) return true;
+    if (!b.promisedToPay || !b.promiseDate) return false;
+    const promiseDateStr = b.promiseDate.split(' ')[0];
+    const promiseDate = new Date(promiseDateStr + 'T00:00:00');
+    if (isNaN(promiseDate.getTime())) return false;
+    const now = new Date();
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.round((promiseDate - todayMid) / 86400000);
+    if (dayFilter === 'today')    return diffDays === 0;
+    if (dayFilter === 'tomorrow') return diffDays === 1;
+    if (dayFilter === 'week')     return diffDays >= 0 && diffDays <= 7;
+    if (dayFilter === 'overdue')  return diffDays < 0;
+    return true;
   })
   .map(b => ({...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     generous: getGenerous(b), dueToday: getDueToday(b) }))
@@ -8816,11 +8850,11 @@ function renderDispatch() {
         + '<div class="dispatch-msg" style="font-size:var(--text-sm);color:var(--text2);background:var(--surface2);padding:6px 10px;border-radius:var(--radius-sm);margin-top:5px;line-height:1.5">' + msg + '</div>'
         + '</div>'
         + '<div class="dispatch-actions">'
-        + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"> WA</a>'
-        + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"> SMS</a>'
+        + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</a>'
+        + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> SMS</a>'
         + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder — Tier ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
-        + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"></button>'
-        + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')"></button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')" title="Mark as contacted"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')" title="Copy message"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></button>'
         + '</div></div>';
     });
   });
@@ -20774,13 +20808,18 @@ function updateDailyPill() {
   const dim   = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   const todayStr = now.toISOString().split('T')[0];
 
-  // Pull from both dailyLog and payLog
+  // Pull from both dailyLog and payLog. payLog entries store `amount` as the
+  // borrower's cumulative running total (not that transaction's cash), so we
+  // must sum `delta` — the actual incremental cash collected — or repeat
+  // payers get double/triple counted. Negative deltas (corrections) are
+  // skipped here, matching the convention used elsewhere (importLogFromPayments),
+  // since dailyLog is already adjusted for corrections separately.
   const todayEntry = (state.dailyLog||[]).find(e => e.date === todayStr);
   const logCollected = todayEntry ? (todayEntry.collected||0) : 0;
   let payCollected = 0;
   (state.borrowers||[]).forEach(b => {
     (b.payLog||[]).forEach(p => {
-      if ((p.date||'').startsWith(todayStr)) payCollected += Number(p.amount)||0;
+      if ((p.date||'').startsWith(todayStr) && (Number(p.delta)||0) > 0) payCollected += Number(p.delta)||0;
     });
   });
   const todayCollected = Math.max(logCollected, payCollected);
@@ -20994,7 +21033,9 @@ function renderMonthComparison() {
     const logTotal   = logEntries.reduce((s,e) => s+(Number(e.collected)||0), 0);
     const logDaysSet = new Set(logEntries.filter(e=>(e.collected||0)>0).map(e=>e.date));
 
-    // From borrower payLog — sum all individual payment amounts in this date range
+    // From borrower payLog — sum delta (actual cash per transaction), not
+    // amount (the borrower's cumulative running total), or repeat payers
+    // get counted multiple times over.
     let payTotal = 0;
     const payDaysSet = new Set();
     let payBest = 0;
@@ -21004,7 +21045,8 @@ function renderMonthComparison() {
         if (!p.date) return;
         const d = (p.date||'').split('T')[0];
         if (d < start || d > end) return;
-        const amt = Number(p.amount)||0;
+        const amt = Number(p.delta)||0;
+        if (amt <= 0) return;
         payTotal += amt;
         payDaysSet.add(d);
         payDayMap[d] = (payDayMap[d]||0) + amt;
