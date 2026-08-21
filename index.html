@@ -2034,9 +2034,6 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   box-shadow: inset 0 1px 0 var(--border-hi), 0 4px 16px rgba(0,0,0,0.3);
 }
 .bl-card.overdue-critical .bl-heat { animation: pulseRing 2.2s ease infinite; }
-.bl-card-inner {
-  display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer;
-}
 /* Heat strip — left edge */
 .bl-heat {
   position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px;
@@ -2047,67 +2044,9 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 .bl-heat.d12 { background: var(--orange); }
 .bl-heat.d13 { background: #f44; }
 .bl-heat.d15 { background: var(--red); box-shadow: 0 0 8px rgba(239,68,68,0.6); }
-/* Avatar initials */
-.bl-avatar {
-  width: 38px; height: 38px; border-radius:var(--radius); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-head); font-size:var(--text-md); font-weight: 800;
-  letter-spacing: -0.5px; color: #fff;
-}
-/* Main content area */
-.bl-content { flex: 1; min-width: 0; }
-.bl-name {
-  font-size:var(--text-md); font-weight: 600; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  display: flex; align-items: center; gap: 5px; margin-bottom: 2px;
-}
-.bl-meta-row {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.bl-phone {
-  font-size:var(--text-sm); color: var(--text3); font-family: var(--font-mono);
-}
-.bl-day {
-  font-size:var(--text-sm); font-weight: 700; font-family: var(--font-mono);
-  padding: 1px 7px; border-radius:var(--radius);
-}
-.bl-day.d6  { background: rgba(96,165,250,0.15); color: var(--blue); }
-.bl-day.d8  { background: rgba(20,184,166,0.15); color: #14b8a6; }
-.bl-day.d10 { background: rgba(240,160,48,0.15); color: var(--gold); }
-.bl-day.d12 { background: rgba(249,115,22,0.15); color: var(--orange); }
-.bl-day.d13 { background: rgba(244,68,68,0.15); color: #f44; }
-.bl-day.d15 { background: rgba(239,68,68,0.2); color: var(--red); }
-/* Right side amounts */
-.bl-amounts {
-  text-align: right; flex-shrink: 0; min-width: 90px;
-}
-.bl-due {
-  font-family: var(--font-mono); font-size:var(--text-lg); font-weight: 700;
-}
-.bl-paid-label { font-size:var(--text-xs); color: var(--text3); margin-top: 1px; }
-/* Priority badge */
-.bl-priority {
-  width: 22px; height: 22px; border-radius:var(--radius-sm); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size:var(--text-xs); font-weight: 800; font-family: var(--font-mono);
-}
-.bl-priority.p-high { background: rgba(239,68,68,0.15); color: var(--red); }
-.bl-priority.p-mid  { background: rgba(240,160,48,0.15); color: var(--gold); }
-.bl-priority.p-low  { background: rgba(34,197,94,0.12); color: var(--green); }
-/* Status pill */
-.bl-status {
-  font-size:var(--text-xs); font-weight: 700; padding: 2px 8px;
-  border-radius: 20px; flex-shrink: 0;
-}
-.bl-status.s-paid    { background: rgba(34,197,94,0.15); color: var(--green); }
-.bl-status.s-partial { background: rgba(249,115,22,0.15); color: var(--orange); }
-.bl-status.s-unpaid  { background: rgba(239,68,68,0.12); color: var(--red); }
-/* Action tray */
-.bl-actions {
-  display: flex; align-items: center; gap: 4px;
-  padding: 8px 14px 10px 62px; border-top: 1px solid var(--border);
-  flex-wrap: wrap;
-}
+/* Generic action-button style — reused by Daily Log quick-notes and SMS Blast
+   controls (not just the borrower card), so this stays even after the
+   borrower-card redesign below. */
 .bl-action-btn {
   display: flex; align-items: center; gap: 4px;
   padding: 5px 10px; border-radius:var(--radius-md); font-size:var(--text-sm); font-weight: 600;
@@ -2117,12 +2056,134 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 }
 .bl-action-btn:hover { background: rgba(255,255,255,0.07); border-color: var(--text3); color: var(--text); }
 .bl-action-btn:active { transform: scale(0.96); }
-.bl-action-btn.pay { border-color: rgba(34,197,94,0.4); color: var(--green); background: rgba(34,197,94,0.08); }
-.bl-action-btn.pay:hover { background: rgba(34,197,94,0.14); }
-.bl-action-btn.ptp.active { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.1); }
-.bl-action-btn.danger { border-color: rgba(239,68,68,0.3); color: var(--red); }
-.bl-action-btn.danger:hover { background: rgba(239,68,68,0.08); }
 .bl-action-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ═══ BORROWER CARD — redesigned ═══════════════════════════
+   Layout: avatar+priority badge → name/meta/progress → amount,
+   with a lean 3-button + overflow footer instead of 8 always-on
+   buttons. Prefixed bc- to stay isolated from .bl-card, .bl-heat,
+   .bl-cb*, .bl-pay-bar and .bl-action-btn, which other pages reuse. */
+.bc-body { padding: 13px 14px 12px; cursor: pointer; }
+.bc-top { display: flex; align-items: flex-start; gap: 11px; }
+.bc-avatar-wrap { position: relative; flex-shrink: 0; }
+.bc-avatar {
+  width: 40px; height: 40px; border-radius: var(--radius); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: var(--text-md); font-weight: 800;
+  letter-spacing: -0.5px; color: #fff;
+}
+.bc-priority-badge {
+  position: absolute; bottom: -4px; right: -4px;
+  width: 17px; height: 17px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 800;
+  border: 2px solid var(--surface);
+}
+.bc-priority-badge.p-high { background: var(--red); color: #fff; }
+.bc-priority-badge.p-mid  { background: var(--gold); color: #1a1200; }
+.bc-priority-badge.p-low  { background: var(--green); color: #06210f; }
+.bc-info { flex: 1; min-width: 0; }
+.bc-name-row {
+  display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;
+  margin-bottom: 3px; min-width: 0; overflow: hidden;
+}
+.bc-name-row > * { flex-shrink: 0; }
+.bc-name {
+  font-size: var(--text-md); font-weight: 700; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1 1 auto; min-width: 44px;
+}
+.bc-note-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+.bc-pro-chip {
+  font-size: var(--text-2xs); font-weight: 700; padding: 1px 6px; border-radius: var(--radius);
+  background: rgba(167,139,250,0.15); color: var(--purple); flex-shrink: 0;
+}
+.bc-meta-row {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  font-size: var(--text-sm); color: var(--text3); min-height: 18px;
+}
+.bc-phone { font-family: var(--font-mono); color: var(--text3); }
+.bc-day {
+  font-size: var(--text-sm); font-weight: 700; font-family: var(--font-mono);
+  padding: 1px 7px; border-radius: var(--radius);
+}
+.bc-day.d6  { background: rgba(96,165,250,0.15); color: var(--blue); }
+.bc-day.d8  { background: rgba(20,184,166,0.15); color: #14b8a6; }
+.bc-day.d10 { background: rgba(240,160,48,0.15); color: var(--gold); }
+.bc-day.d12 { background: rgba(249,115,22,0.15); color: var(--orange); }
+.bc-day.d13 { background: rgba(244,68,68,0.15); color: #f44; }
+.bc-day.d15 { background: rgba(239,68,68,0.2); color: var(--red); }
+.bc-promise-chip { display: inline-flex; align-items: center; gap: 3px; color: var(--purple); font-weight: 600; }
+.bc-promise-chip .ico svg { width: 11px; height: 11px; }
+.bc-amount { text-align: right; flex-shrink: 0; min-width: 84px; }
+.bc-due { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 700; line-height: 1.2; }
+.bc-status {
+  display: inline-block; font-size: var(--text-xs); font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; margin-top: 3px;
+}
+.bc-status.s-paid    { background: rgba(34,197,94,0.15); color: var(--green); }
+.bc-status.s-partial { background: rgba(249,115,22,0.15); color: var(--orange); }
+.bc-status.s-unpaid  { background: rgba(239,68,68,0.12); color: var(--red); }
+/* Progress bar with an actual label — old bar was decorative only */
+.bc-progress { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
+.bc-progress-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.bc-progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.34,1.2,0.64,1); }
+.bc-progress-label {
+  font-size: var(--text-2xs); color: var(--text3); font-family: var(--font-mono);
+  white-space: nowrap; flex-shrink: 0;
+}
+/* Footer — 3 primary actions + overflow, instead of 8 buttons */
+.bc-footer { display: flex; align-items: center; gap: 6px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); }
+.bc-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 6px; border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 700;
+  border: 1px solid var(--border2); background: rgba(255,255,255,0.03);
+  color: var(--text2); cursor: pointer; font-family: var(--font-body);
+  transition: all 0.12s; white-space: nowrap; min-width: 0;
+}
+.bc-btn .ico svg { width: 13px; height: 13px; flex-shrink: 0; }
+.bc-btn:hover { background: rgba(255,255,255,0.07); border-color: var(--text3); color: var(--text); }
+.bc-btn:active { transform: scale(0.96); }
+.bc-btn.pay { border-color: rgba(34,197,94,0.4); color: var(--green); background: rgba(34,197,94,0.08); }
+.bc-btn.pay:hover { background: rgba(34,197,94,0.14); }
+.bc-btn.wa { border-color: rgba(37,211,102,0.3); color: #25d366; background: rgba(37,211,102,0.06); }
+.bc-btn.wa:hover { background: rgba(37,211,102,0.14); }
+.bc-btn.ptp.active { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,0.1); }
+.bc-more-btn {
+  flex-shrink: 0; width: 32px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md); border: 1px solid var(--border2); background: rgba(255,255,255,0.03);
+  color: var(--text3); cursor: pointer; transition: all 0.12s;
+}
+.bc-more-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: var(--text3); }
+.bc-more-btn svg { width: 15px; height: 15px; }
+/* Shared floating overflow menu — one DOM node reused by every card, so
+   rendering hundreds of rows never means hundreds of hidden menus */
+#bc-more-menu {
+  position: fixed; z-index: 3000; display: none;
+  min-width: 178px; padding: 5px; background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: var(--radius-md);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+}
+#bc-more-menu.open { display: block; animation: fadeUp 0.12s ease both; }
+.bc-more-item {
+  display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+  border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: background 0.1s; white-space: nowrap;
+}
+.bc-more-item:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.bc-more-item .ico svg { width: 14px; height: 14px; flex-shrink: 0; }
+.bc-more-item.active { color: var(--purple); }
+.bc-more-item.danger { color: var(--red); }
+.bc-more-item-badge {
+  margin-left: auto; font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text3);
+}
+.bc-more-divider { height: 1px; background: var(--border); margin: 4px 2px; }
+/* Mobile: tighten padding slightly, keep 3 buttons on one row */
+@media (max-width: 400px) {
+  .bc-amount { min-width: 68px; }
+  .bc-due { font-size: var(--text-base); }
+  .bc-btn { padding: 7px 4px; font-size: var(--text-xs); }
+}
 /* Load more */
 .bl-load-more {
   text-align: center; padding: 14px; margin-top: 4px;
@@ -8078,53 +8139,63 @@ function renderLoansTable() {
     const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
     const [ac1,ac2] = avatarColors[hue];
     const initials = r.name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
-    const ptpDateStr = r.promiseDate ? r.promiseDate.split(' ')[0] : '';
-    const notesDot = r.notes ? '<span style="width:5px;height:5px;background:var(--gold);border-radius:50%;display:inline-block;flex-shrink:0"></span>' : '';
+    const ptpDateStr = r.promiseDate ? _ptpWhenLabel(r.promiseDate) : '';
+    const notesDot = r.notes ? '<span class="bc-note-dot" title="Has a note"></span>' : '';
     const callCount = (r.callLog||[]).length;
     const badges = getBorrowerBadges(r);
 
-    // Payment progress bar
+    // Payment progress — now with an actual label, not just a bare bar
     const payRatio   = r.loanDue > 0 ? Math.min(1, r.amountPaid / r.loanDue) : 0;
     const barColor   = payRatio >= 1 ? 'var(--green)' : payRatio >= 0.75 ? 'var(--green)' : payRatio >= 0.5 ? 'var(--gold)' : payRatio >= 0.25 ? 'var(--orange)' : 'var(--red)';
-    const payBarHtml = r.loanDue > 0 ? `<div class="bl-pay-bar"><div class="bl-pay-bar-fill" style="width:${(payRatio*100).toFixed(1)}%;background:${barColor}"></div></div>` : '';
+    const progressHtml = r.loanDue > 0
+      ? '<div class="bc-progress">'
+        + '<div class="bc-progress-bar"><div class="bc-progress-fill" style="width:' + (payRatio*100).toFixed(1) + '%;background:' + barColor + '"></div></div>'
+        + '<span class="bc-progress-label">' + (r.status === 'Paid' ? 'Fully paid' : Math.round(payRatio*100) + '% · ' + fmtC(r.amountPaid) + ' of ' + fmtC(r.loanDue)) + '</span>'
+        + '</div>'
+      : '';
     // Quick-win badge
     const quickWinBadge = (!r.isPaid && payRatio >= 0.75 && r.status !== 'Paid')
       ? ' <span class="badge-quickwin"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span> Close</span>' : '';
-    // No-contact warning removed
+    const instalHtml = (r.instalment && r.instalment.freq) ? (function(){ var s=getInstalmentStatus(r); return s ? '<div style="font-size:var(--text-2xs);margin-top:3px;font-weight:700;color:' + (s.onTrack?'var(--green)':'var(--red)') + '">' + (s.onTrack?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> On plan':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Behind') + '</div>' : ''; })() : '';
+
     const d = document.createElement('div');
     d.className = 'bl-card' + critCls;
     d.dataset.bid = r.id;
     d.innerHTML = '<div class="bl-heat ' + heatCls + '"></div>'
       + '<label class="bl-cb-wrap" onclick="event.stopPropagation()" title="Select"><input type="checkbox" class="bl-cb row-cb" data-id="' + r.id + '" onchange="updateBulkBar()"></label>'
-      + '<div class="bl-card-inner">'
-        + '<div class="bl-avatar" style="background:linear-gradient(135deg,' + ac1 + ',' + ac2 + ')" title="Priority ' + pScore + '/10">' + initials + '</div>'
-        + '<div class="bl-content">'
-          + '<div class="bl-name">' + escapeHtml(r.name) + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + buildTagHtml(r, true) + '</div>'
-          + '<div class="bl-meta-row">'
-            + '<span class="bl-phone">' + formatPhoneDisplay(r.phone) + '</span>'
-            + '<span class="bl-day ' + heatCls + '">Day ' + r.odAge + '</span>'
-            + (r.loanType==='LoanBase Pro' ? '<span style="font-size:var(--text-2xs);font-weight:700;padding:1px 6px;border-radius:var(--radius);background:rgba(167,139,250,0.15);color:var(--purple)">PRO</span>' : '')
-            + (r.promisedToPay ? '<span style="font-size:var(--text-2xs);color:var(--purple)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>' + ptpDateStr + '</span>' : '')
-            + getBestCallIndicator(r)
+      + '<div class="bc-body">'
+        + '<div class="bc-top">'
+          + '<div class="bc-avatar-wrap">'
+            + '<div class="bc-avatar" style="background:linear-gradient(135deg,' + ac1 + ',' + ac2 + ')">' + initials + '</div>'
+            + '<div class="bc-priority-badge ' + pCls + '" title="Priority ' + pScore + '/10">' + pScore + '</div>'
           + '</div>'
-          + payBarHtml
+          + '<div class="bc-info">'
+            + '<div class="bc-name-row">'
+              + '<span class="bc-name">' + escapeHtml(r.name) + '</span>'
+              + notesDot
+              + (r.loanType==='LoanBase Pro' ? '<span class="bc-pro-chip">PRO</span>' : '')
+              + badges + quickWinBadge + ' ' + getStageBadgeHtml(r) + buildTagHtml(r, true)
+            + '</div>'
+            + '<div class="bc-meta-row">'
+              + '<span class="bc-phone">' + formatPhoneDisplay(r.phone) + '</span>'
+              + '<span class="bc-day ' + heatCls + '">Day ' + r.odAge + '</span>'
+              + (r.promisedToPay ? '<span class="bc-promise-chip"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>' + ptpDateStr + '</span>' : '')
+              + getBestCallIndicator(r)
+            + '</div>'
+            + progressHtml
+          + '</div>'
+          + '<div class="bc-amount">'
+            + '<div class="bc-due" style="color:' + (r.dueToday>0?'var(--red)':'var(--green)') + '">' + (r.dueToday>0?fmtC(r.dueToday):'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>') + '</div>'
+            + '<span class="bc-status ' + statusCls + '">' + r.status + '</span>'
+            + instalHtml
+          + '</div>'
         + '</div>'
-        + '<div class="bl-amounts">'
-          + '<div class="bl-due" style="color:' + (r.dueToday>0?'var(--red)':'var(--green)') + '">' + (r.dueToday>0?fmtC(r.dueToday):'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>') + '</div>'
-          + '<div class="bl-paid-label"><span class="bl-status ' + statusCls + '">' + r.status + '</span></div>'
-          + (r.instalment && r.instalment.freq ? (function(){ var s=getInstalmentStatus(r); return s ? '<div style="font-size:var(--text-2xs);margin-top:2px;font-weight:700;color:' + (s.onTrack?'var(--green)':'var(--red)') + '">' + (s.onTrack?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> On plan':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Behind') + '</div>' : ''; })() : '')
+        + '<div class="bc-footer">'
+          + '<button class="bc-btn pay" data-action="pay" aria-label="Record payment"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> Pay</button>'
+          + '<button class="bc-btn ptp' + (r.promisedToPay?' active':'') + '" data-action="ptp" aria-label="Promise to pay"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> ' + (r.promisedToPay?'PTP Set':'PTP') + '</button>'
+          + '<button class="bc-btn wa" data-action="wa" aria-label="Send WhatsApp"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</button>'
+          + '<button class="bc-more-btn" data-action="more" aria-label="More actions" title="More actions"><svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>'
         + '</div>'
-      + '</div>'
-      + '<div class="bl-actions">'
-        + '<div class="bl-priority ' + pCls + '" title="Priority ' + pScore + '/10">' + pScore + '</div>'
-        + '<button class="bl-action-btn pay" data-action="pay" aria-label="Record payment"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> Pay</button>'
-        + '<button class="bl-action-btn ptp' + (r.promisedToPay?' active':'') + '" data-action="ptp" aria-label="Promise to pay"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> ' + (r.promisedToPay?'PTP Set':'PTP') + '</button>'
-        + '<button class="bl-action-btn" id="note-' + r.id + '" data-action="note" aria-label="Add note"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span> ' + notesDot + '</button>'
-        + '<button class="bl-action-btn" id="hist-' + r.id + '" data-action="hist"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,13"/></svg>' + (callCount>0?'<span style="font-size:var(--text-2xs);color:var(--blue);font-family:var(--font-mono)">' + callCount + '</span>':'') + '</button>'
-        + '<button class="bl-action-btn" data-action="hitlist" style="' + (inHitList?'border-color:var(--gold);color:var(--gold)':'') + '"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><path d="M10 2l2.47 5h5.53l-4.5 3.27L15 16l-5-3.27L5 16l1.5-5.73L2 7h5.53z"/></svg></button>'
-        + '<button class="bl-action-btn" data-action="edit"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><path d="M4 16l9-9 3 3-9 9H4z"/><path d="M14 5l1-1a1 1 0 011.41 0l.59.59a1 1 0 010 1.41L16 7"/></svg></button>'
-        + '<button class="bl-action-btn wa" data-action="wa"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><path d="M3 5h14a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1z"/><polyline points="2,5 10,11 18,5"/></svg>WA</button>'
-        + '<button class="bl-action-btn danger" data-action="delete"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:13px;height:13px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/></svg></button>'
       + '</div>';
     // Wire card events via delegation on the element
     d.addEventListener('click', function(e) {
@@ -8132,6 +8203,7 @@ function renderLoansTable() {
       if (!btn) { if (e.target.classList.contains('bl-cb') || e.target.closest('.bl-cb')) return; openBorrowerDetail(r.id); return; }
       e.stopPropagation();
       const a = btn.dataset.action;
+      if (a !== 'more') closeBorrowerMoreMenu();
       if (a === 'pay')     toggleQuickPayBar(r.id);
       else if (a === 'ptp')     { togglePromise(r.id); haptic('ptp'); }
       else if (a === 'note')    openQuickNote(r.id);
@@ -8139,6 +8211,7 @@ function renderLoansTable() {
       else if (a === 'hitlist') addToHitList(r.id);
       else if (a === 'edit')    openEditModal(r.id);
       else if (a === 'delete')  deleteBorrower(r.id);
+      else if (a === 'more')    openBorrowerMoreMenu(r.id, btn);
       else if (a === 'wa') { const ph = r.phone.replace(/\D/g,''); const _customMsg = getDispatchCustomMsg(r); const msg = encodeURIComponent(_customMsg || getSmsMessage(r, dispatchMode==='generous')); window.open('https://wa.me/'+ph+'?text='+msg,'_blank'); }
       haptic('light');
     });
@@ -8213,8 +8286,95 @@ function renderLoansTable() {
   }
 
   loadPage(); // start loading
-  _renderLoanChunk(0, false);
 }
+
+// ── Borrower card overflow menu ────────────────────────
+// One shared floating menu reused by every card (instead of one hidden
+// dropdown per row) — appended directly to <body> so it isn't trapped by
+// any .page ancestor's `contain: layout` (position:fixed would otherwise
+// get confined to that page's box instead of the real viewport).
+let _bcMoreMenuId = null;
+function _ensureBcMoreMenu() {
+  let el = document.getElementById('bc-more-menu');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'bc-more-menu';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function openBorrowerMoreMenu(id, anchorEl) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  const menu = _ensureBcMoreMenu();
+  if (_bcMoreMenuId === id && menu.classList.contains('open')) { closeBorrowerMoreMenu(); return; }
+  const inHitList = (state.hitList||[]).includes(id);
+  const callCount = (b.callLog||[]).length;
+  menu.innerHTML =
+      '<div class="bc-more-item" data-maction="note">'
+        + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span>'
+        + (b.notes ? 'Edit note' : 'Add note')
+        + (b.notes ? '<span class="bc-more-item-badge">●</span>' : '')
+      + '</div>'
+      + '<div class="bc-more-item" data-maction="hist">'
+        + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 16,15"/></svg></span>'
+        + 'Call history'
+        + (callCount>0 ? '<span class="bc-more-item-badge">'+callCount+'</span>' : '')
+      + '</div>'
+      + '<div class="bc-more-item' + (inHitList?' active':'') + '" data-maction="hitlist">'
+        + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2l2.47 5h5.53l-4.5 3.27L15 16l-5-3.27L5 16l1.5-5.73L2 7h5.53z"/></svg></span>'
+        + (inHitList ? 'On hit list' : 'Add to hit list')
+      + '</div>'
+      + '<div class="bc-more-item" data-maction="edit">'
+        + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l9-9 3 3-9 9H4z"/><path d="M14 5l1-1a1 1 0 011.41 0l.59.59a1 1 0 010 1.41L16 7"/></svg></span>'
+        + 'Edit details'
+      + '</div>'
+      + '<div class="bc-more-divider"></div>'
+      + '<div class="bc-more-item danger" data-maction="delete">'
+        + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></span>'
+        + 'Delete borrower'
+      + '</div>';
+
+  menu.querySelectorAll('[data-maction]').forEach(function(item) {
+    item.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const ma = item.dataset.maction;
+      closeBorrowerMoreMenu();
+      if (ma === 'note') openQuickNote(id);
+      else if (ma === 'hist') openHistoryModal(id);
+      else if (ma === 'hitlist') addToHitList(id);
+      else if (ma === 'edit') openEditModal(id);
+      else if (ma === 'delete') deleteBorrower(id);
+      haptic('light');
+    });
+  });
+
+  menu.classList.add('open');
+  _bcMoreMenuId = id;
+  const r = anchorEl.getBoundingClientRect();
+  const menuW = menu.offsetWidth || 180;
+  const menuH = menu.offsetHeight || 220;
+  let top = r.bottom + 6;
+  let left = r.right - menuW;
+  if (left < 8) left = 8;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  if (top + menuH > window.innerHeight - 8) top = r.top - menuH - 6;
+  menu.style.top = Math.max(8, top) + 'px';
+  menu.style.left = left + 'px';
+}
+function closeBorrowerMoreMenu() {
+  const menu = document.getElementById('bc-more-menu');
+  if (menu) menu.classList.remove('open');
+  _bcMoreMenuId = null;
+}
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('bc-more-menu');
+  if (!menu || !menu.classList.contains('open')) return;
+  if (e.target.closest('#bc-more-menu') || e.target.closest('[data-action="more"]')) return;
+  closeBorrowerMoreMenu();
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeBorrowerMoreMenu(); });
+window.addEventListener('scroll', function() { closeBorrowerMoreMenu(); }, true);
 
 function blSortChange(val) {
   const [col, dir] = val.split('_');
@@ -16352,7 +16512,9 @@ function getBorrowerBadges(b) {
   const payRatio = b.loanDue > 0 ? b.amountPaid / b.loanDue : 0;
   const status = getStatus(b);
   if (status === 'Paid') badges.push('<span class="badge-star" title="Fully paid" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></span>');
-  else if (payRatio >= 0.5 && b.amountPaid > 0) badges.push('<span class="badge-star" title="Good progress — 50%+ paid"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3L3 9.4l6.4-.6z"/></svg></span></span>');
+  // "Good progress" star and the quick-win "Close" badge both fire at 75%+,
+  // which doubled up on cards — cap this one at 50–74% so each signal is shown once.
+  else if (payRatio >= 0.5 && payRatio < 0.75 && b.amountPaid > 0) badges.push('<span class="badge-star" title="Good progress — 50%+ paid"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3L3 9.4l6.4-.6z"/></svg></span></span>');
   if (b.promisedToPay && b.amountPaid === 0 && !b.ptpBreached) badges.push('<span class="badge-warn" title="Promise not yet honoured"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span></span>');
   if ((b.callLog||[]).some(cl => cl.outcome === 'Fraud')) badges.push('<span title="Fraud suspected" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a5 5 0 00-5 5v2c0 2-1 3-1 3h12s-1-1-1-3V8a5 5 0 00-5-5z"/><path d="M9 19a3 3 0 006 0"/></svg></span></span>');
   if (b.ptpBreached && b.amountPaid === 0) badges.push('<span title="PTP Breached" style="font-size:var(--text-xs)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span></span>');
