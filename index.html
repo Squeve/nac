@@ -2359,7 +2359,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 [data-theme="amoled"] {
   --bg:#000;--surface:#0a0a0a;--surface2:#111;--border:#1a1a1a;
   --border2:#222;--border-hi:rgba(255,255,255,0.05);
-  --text:#f0f0f0;--text2:#9aa3b8;--text3:#6a7590;
+  --text:#f0f0f0;--text2:#9aa3b8;--text3:#6f7a95;
 }
 [data-theme="amoled"] .card,[data-theme="amoled"] .kpi-card {
   background:#0d0d0d!important;border-color:#1e1e1e!important;
@@ -2558,7 +2558,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   --purple:     #a78bfa;
   --text:       #f0f6ff;
   --text2:      #8aafd4;
-  --text3:      #4d6e96;
+  --text3:      #6789b1;
   --paid-bg:    rgba(16,185,129,0.14);
   --partial-bg: rgba(245,158,11,0.14);
   --unpaid-bg:  rgba(239,68,68,0.12);
@@ -2692,7 +2692,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 
 /* Page titles */
 [data-theme="navy"] .page-title { color: #f0f6ff !important; }
-[data-theme="navy"] .page-sub { color: #4d6e96 !important; }
+[data-theme="navy"] .page-sub { color: var(--text3) !important; }
 
 /* Filter bar */
 [data-theme="navy"] .bl-filter-bar { background: rgba(6,14,26,0.6) !important; border-color: #1e3350 !important; backdrop-filter: blur(8px) !important; }
@@ -2747,7 +2747,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   --purple:     #c084fc;
   --text:       #f4f0ff;
   --text2:      #9b8fd0;
-  --text3:      #5e4e96;
+  --text3:      #8a7cbb;
   --paid-bg:    rgba(52,211,153,0.14);
   --partial-bg: rgba(245,200,66,0.16);
   --unpaid-bg:  rgba(248,113,113,0.14);
@@ -2901,7 +2901,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 [data-theme="indigo"] .ls-num { background: rgba(255,255,255,0.05); border-color: rgba(61,54,138,0.5); }
 [data-theme="indigo"] .ls-num:hover { background: rgba(245,200,66,0.14); border-color: rgba(245,200,66,0.35); }
 [data-theme="indigo"] .page-title { color: #f4f0ff !important; }
-[data-theme="indigo"] .page-sub { color: #5e4e96 !important; }
+[data-theme="indigo"] .page-sub { color: var(--text3) !important; }
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -2933,7 +2933,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   --purple:     #a78bfa;
   --text:       #eef6ff;
   --text2:      #7fb4d4;
-  --text3:      #3d6882;
+  --text3:      #578fb0;
   --paid-bg:    rgba(52,211,153,0.12);
   --partial-bg: rgba(56,189,248,0.13);
   --unpaid-bg:  rgba(248,113,113,0.11);
@@ -3108,7 +3108,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   border-color: rgba(255,255,255,0.09) !important;
 }
 [data-theme="glacier"] .page-title { color: #eef6ff !important; }
-[data-theme="glacier"] .page-sub { color: #3d6882 !important; }
+[data-theme="glacier"] .page-sub { color: var(--text3) !important; }
 
 /* Lock screen */
 [data-theme="glacier"] .ls-bg {
@@ -21515,7 +21515,7 @@ function renderStageFunnel() {
             <div style="position:relative;height:18px;background:var(--surface2);border-radius:4px;overflow:hidden">
               <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:${colors[s]}33;border-radius:4px;transition:width 0.5s cubic-bezier(0.34,1.2,0.64,1)"></div>
               <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:${colors[s]}88;border-left:3px solid ${colors[s]};border-radius:4px"></div>
-              <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:var(--text-xs);color:var(--text2);font-weight:600">${labels[s]}</span>
+              <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:var(--text-xs);color:var(--text);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.7)">${labels[s]}</span>
             </div>
             <span style="font-size:var(--text-sm);font-family:var(--font-mono);font-weight:700;color:${c > 0 ? 'var(--text)' : 'var(--text3)'};text-align:right">${c}<span style="font-size:var(--text-2xs);color:var(--text3);font-weight:400"> (${pct}%)</span></span>
             <span style="font-size:var(--text-xs);color:var(--text3);text-align:right;font-family:var(--font-mono)">${c > 0 ? fmtC(amounts[s]) : '—'}</span>
@@ -22933,7 +22933,7 @@ function renderSettingsPage() {
   if (typeof _updateThemeDropdownUI === 'function') _updateThemeDropdownUI(savedThemeNow);
 
   // Card style dropdown — sync active state
-  const savedCardStyleNow = localStorage.getItem('sq_card_style') || 'default';
+  const savedCardStyleNow = localStorage.getItem('sq_card_style') || 'obsidian';
   if (typeof _updateCardStyleDropdownUI === 'function') _updateCardStyleDropdownUI(savedCardStyleNow);
 
   // Haptic toggle
@@ -24486,8 +24486,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   const validThemes = ['dark','light','amoled','navy','indigo','glacier'];
   applyTheme(validThemes.includes(savedTheme) ? savedTheme : 'dark');
 
-  // Apply saved card style
-  const savedCardStyle = localStorage.getItem('sq_card_style') || 'default';
+  // Apply saved card style — Obsidian is the default look for KPI/analytics cards
+  const savedCardStyle = localStorage.getItem('sq_card_style') || 'obsidian';
   applyCardStyle(savedCardStyle);
 
   // Set month label dynamically from state
