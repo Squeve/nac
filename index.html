@@ -904,6 +904,69 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 .page.active { display: block; }
 
 /* ── Ranking Log panel — lives outside .page on purpose, see comment in HTML ── */
+/* ═══ Ranking — Momentum & Achievements ═══════════════════ */
+.rank-streak-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(240,160,48,0.14), rgba(240,160,48,0.04));
+  border: 1px solid rgba(240,160,48,0.3); border-radius: var(--radius-lg);
+  padding: 11px 14px; margin-bottom: 10px;
+  animation: fadeUp 0.3s ease both;
+}
+.rank-streak-banner .ico { color: var(--gold); flex-shrink: 0; }
+.rank-streak-banner .ico svg { width: 22px; height: 22px; }
+.rank-streak-banner strong { display: block; font-size: var(--text-md); color: var(--gold); font-weight: 800; }
+.rank-streak-banner span { display: block; font-size: var(--text-sm); color: var(--text3); margin-top: 1px; }
+.rank-records-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
+.rank-record-chip {
+  background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-lg);
+  padding: 10px 8px; text-align: center; box-shadow: var(--el-1), var(--el-bevel);
+}
+.rank-record-label {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: var(--text-2xs); color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;
+}
+.rank-record-label .ico svg { width: 11px; height: 11px; }
+.rank-record-val { font-family: var(--font-mono); font-size: var(--text-2xl); font-weight: 800; color: var(--text); }
+.rank-record-sub { font-size: var(--text-2xs); color: var(--text3); margin-top: 2px; }
+.rank-badges-row {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.rank-badges-row::-webkit-scrollbar { display: none; }
+.rank-badge {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  width: 76px; padding: 10px 6px; border-radius: var(--radius-lg);
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text3); opacity: 0.5; text-align: center; cursor: pointer;
+}
+.rank-badge .ico svg { width: 20px; height: 20px; }
+.rank-badge span:last-child { font-size: var(--text-2xs); font-weight: 700; line-height: 1.2; }
+.rank-badge.unlocked {
+  opacity: 1; color: var(--gold); background: linear-gradient(145deg, rgba(240,160,48,0.14), rgba(240,160,48,0.04));
+  border-color: rgba(240,160,48,0.35); box-shadow: 0 0 12px rgba(240,160,48,0.15);
+}
+/* Rival comparison card — Team Board tab */
+.rank-rival-card {
+  background: linear-gradient(135deg, rgba(167,139,250,0.1), rgba(96,165,250,0.05));
+  border: 1px solid rgba(167,139,250,0.3); border-radius: var(--radius-lg);
+  padding: 12px 14px; margin-bottom: 10px; animation: fadeUp 0.25s ease both;
+}
+.rank-rival-close { background:none; border:none; color:var(--text3); cursor:pointer; padding:2px; }
+.rank-rival-pin {
+  background: none; border: none; cursor: pointer; color: var(--text3); padding: 4px;
+  border-radius: var(--radius-sm); flex-shrink: 0; display: flex; align-items: center; transition: color 0.15s;
+}
+.rank-rival-pin:hover { color: var(--purple); }
+.rank-rival-pin.pinned { color: var(--purple); }
+/* Calendar heatmap — Trend tab */
+.rank-cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
+.rank-cal-day {
+  aspect-ratio: 1; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; cursor: default;
+}
+.rank-cal-day.has-data { cursor: pointer; }
+.rank-cal-day.has-data:hover { outline: 1.5px solid var(--text3); }
+
 .rlog-overlay {
   display: none; position: fixed; inset: 0; z-index: 9500;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -17014,6 +17077,7 @@ function scanRanking() {
   const today = now.toISOString().split('T')[0];
   const time  = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   if (!state.rankingHistory) state.rankingHistory = [];
+  const _historyBeforeSave = JSON.parse(JSON.stringify(state.rankingHistory));
 
   const entry = { date: today, time, type: _rankType, isEOD: _rankType === 'daily' ? isEOD : false, agents };
 
@@ -17041,6 +17105,7 @@ function scanRanking() {
 
   saveState();
   haptic('pay');
+  _celebrateRankingProgress(_historyBeforeSave, state.rankingHistory, myName.toLowerCase());
 
   if (btn) btn.disabled = false;
 
@@ -17058,6 +17123,100 @@ function scanRanking() {
     renderRanking();
     toast('Ranking saved', 'success');
   }, 900);
+}
+
+// ── Ranking analytics: streaks, personal records, achievements ──
+// All derived purely from state.rankingHistory — no new state fields needed
+// except a small "seen achievements" set so we only celebrate an unlock once.
+function _rankMyPos(scan, myName) {
+  if (!scan || !myName) return null;
+  const me = scan.agents.find(a => a.name.toLowerCase().includes(myName));
+  return me ? scan.agents.indexOf(me) + 1 : null;
+}
+function _rankMyPct(scan, myName) {
+  if (!scan || !myName) return null;
+  const me = scan.agents.find(a => a.name.toLowerCase().includes(myName));
+  return me ? parseFloat(me.pct) : null;
+}
+
+function getRankingStreak(history, myName) {
+  const daily = [...history].filter(s => s.type==='daily' && _rankMyPos(s,myName)!=null)
+    .sort((a,b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  if (daily.length < 2) return { improving: 0, top3: 0 };
+  let top3 = 0;
+  for (let i=0; i<daily.length; i++) { if (_rankMyPos(daily[i],myName) <= 3) top3++; else break; }
+  let improving = 1;
+  for (let i=0; i<daily.length-1; i++) {
+    const cur = _rankMyPos(daily[i],myName), nxt = _rankMyPos(daily[i+1],myName);
+    if (cur <= nxt) improving++; else break;
+  }
+  return { improving, top3 };
+}
+
+function getRankingRecords(history, myName) {
+  let bestDaily = null, bestMonthly = null;
+  history.forEach(s => {
+    if (s.type!=='daily' && s.type!=='monthly') return;
+    const pos = _rankMyPos(s, myName);
+    if (pos == null) return;
+    const rec = { pos, pct: _rankMyPct(s,myName), date: s.date };
+    if (s.type==='daily')   { if (!bestDaily   || pos < bestDaily.pos)   bestDaily   = rec; }
+    else                    { if (!bestMonthly || pos < bestMonthly.pos) bestMonthly = rec; }
+  });
+  return { bestDaily, bestMonthly };
+}
+
+const RANKING_ACHIEVEMENTS = [
+  { id:'first_place', label:'First Place', desc:'Reach #1 in any ranking',
+    icon:'<path d="M8 4h8v3a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 11v3M14 11v3"/><path d="M8 19h8"/><path d="M12 14v5"/>',
+    check: (h,n) => h.some(s => _rankMyPos(s,n)===1) },
+  { id:'top3_club', label:'Top 3 Club', desc:'Break into the top 3',
+    icon:'<circle cx="12" cy="9" r="6"/><path d="M9 14.5L7 21l5-3 5 3-2-6.5"/>',
+    check: (h,n) => h.some(s => { const p=_rankMyPos(s,n); return p!=null && p<=3; }) },
+  { id:'on_a_roll', label:'On a Roll', desc:'3-day improving streak',
+    icon:'<path d="M12 2s5 5 5 10a5 5 0 01-10 0c0-2 1-3 1-3s.5 2 2 2c-1-3 1-5 1-7 0 2 1 3 1 3s0-3-1-5z"/>',
+    check: (h,n) => {
+      const daily=[...h].filter(s=>s.type==='daily'&&_rankMyPos(s,n)!=null).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+      let streak=1;
+      for (let i=1;i<daily.length;i++){ const prev=_rankMyPos(daily[i-1],n), cur=_rankMyPos(daily[i],n); if (cur<=prev){streak++; if(streak>=3) return true;} else streak=1; }
+      return false;
+    }},
+  { id:'consistent', label:'Consistent', desc:'Log rankings on 5+ different days',
+    icon:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><path d="M8 13.5l2 2 4-4"/>',
+    check: (h,n) => new Set(h.filter(s=>_rankMyPos(s,n)!=null).map(s=>s.date)).size >= 5 },
+  { id:'champion', label:'Champion', desc:'Hold #1 three times',
+    icon:'<path d="M4 8l3 2 5-6 5 6 3-2-2 10H6z"/><line x1="6" y1="21" x2="18" y2="21"/>',
+    check: (h,n) => h.filter(s => _rankMyPos(s,n)===1).length >= 3 },
+];
+
+function getUnlockedAchievements(history, myName) {
+  return RANKING_ACHIEVEMENTS.filter(a => a.check(history, myName));
+}
+
+// Called right after a new scan is saved — celebrates any achievement that
+// wasn't unlocked before this scan but is now, and any new personal best.
+function _celebrateRankingProgress(historyBefore, historyAfter, myName) {
+  if (!myName) return;
+  const before = new Set(getUnlockedAchievements(historyBefore, myName).map(a=>a.id));
+  const after  = getUnlockedAchievements(historyAfter, myName);
+  const newlyUnlocked = after.filter(a => !before.has(a.id));
+  const recBefore = getRankingRecords(historyBefore, myName);
+  const recAfter  = getRankingRecords(historyAfter, myName);
+  const newDailyPR   = recAfter.bestDaily   && (!recBefore.bestDaily   || recAfter.bestDaily.pos   < recBefore.bestDaily.pos);
+  const newMonthlyPR = recAfter.bestMonthly && (!recBefore.bestMonthly || recAfter.bestMonthly.pos < recBefore.bestMonthly.pos);
+
+  if (newlyUnlocked.length || newDailyPR || newMonthlyPR) {
+    setTimeout(() => {
+      fireConfetti();
+      if (newlyUnlocked.length) {
+        toast('Achievement unlocked: ' + newlyUnlocked.map(a=>a.label).join(', '), 'success');
+      } else if (newDailyPR) {
+        toast('New personal best — #' + recAfter.bestDaily.pos + ' daily!', 'success');
+      } else if (newMonthlyPR) {
+        toast('New personal best — #' + recAfter.bestMonthly.pos + ' monthly!', 'success');
+      }
+    }, 1100); // after the existing "Ranking saved" toast/panel-close sequence
+  }
 }
 
 function renderRanking() {
@@ -17100,6 +17259,7 @@ function closeRankingLogPanel() {
 
 function switchRankingTab(tab) {
   _rankingTab = tab;
+  if (tab === 'trend') _rankCalMonthOffset = 0;
   ['overview','board','trend','history'].forEach(t => {
     const btn  = document.getElementById('rtab-' + t);
     const pane = document.getElementById('rpane-' + t);
@@ -17228,6 +17388,58 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     }
   }
 
+  // ── Momentum & Personal Records ──────────────────────────────
+  // Streak + best-ever ranks give the agent something to protect/chase,
+  // independent of today's specific scan — this is what makes the page
+  // motivating day-to-day rather than just a static leaderboard mirror.
+  if (myName) {
+    const fullHistory = state.rankingHistory || [];
+    const streak = getRankingStreak(fullHistory, myName);
+    const records = getRankingRecords(fullHistory, myName);
+    const unlocked = getUnlockedAchievements(fullHistory, myName);
+
+    let streakHtml = '';
+    if (streak.top3 >= 2) {
+      streakHtml = `<div class="rank-streak-banner">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s5 5 5 10a5 5 0 01-10 0c0-2 1-3 1-3s.5 2 2 2c-1-3 1-5 1-7 0 2 1 3 1 3s0-3-1-5z"/></svg></span>
+        <div><strong>${streak.top3}-scan Top 3 streak</strong><span>Stay in the top 3 to keep it alive</span></div>
+      </div>`;
+    } else if (streak.improving >= 2) {
+      streakHtml = `<div class="rank-streak-banner">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M6 11l6-6 6 6"/></svg></span>
+        <div><strong>${streak.improving}-scan improving streak</strong><span>Your rank has held or climbed every scan</span></div>
+      </div>`;
+    }
+    html += streakHtml;
+
+    html += `<div class="rank-records-row">
+      <div class="rank-record-chip">
+        <div class="rank-record-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Best Daily</div>
+        <div class="rank-record-val">${records.bestDaily ? '#'+records.bestDaily.pos : '—'}</div>
+        <div class="rank-record-sub">${records.bestDaily ? records.bestDaily.date : 'Not logged yet'}</div>
+      </div>
+      <div class="rank-record-chip">
+        <div class="rank-record-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Best Monthly</div>
+        <div class="rank-record-val">${records.bestMonthly ? '#'+records.bestMonthly.pos : '—'}</div>
+        <div class="rank-record-sub">${records.bestMonthly ? records.bestMonthly.date : 'Not logged yet'}</div>
+      </div>
+      <div class="rank-record-chip">
+        <div class="rank-record-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l3 2 5-6 5 6 3-2-2 10H6z"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Achievements</div>
+        <div class="rank-record-val">${unlocked.length}<span style="font-size:var(--text-md);color:var(--text3)">/${RANKING_ACHIEVEMENTS.length}</span></div>
+        <div class="rank-record-sub">tap to view</div>
+      </div>
+    </div>`;
+
+    // Achievement badge strip — unlocked ones glow gold, locked ones sit dim
+    html += `<div class="rank-badges-row">` + RANKING_ACHIEVEMENTS.map(a => {
+      const isUnlocked = unlocked.some(u=>u.id===a.id);
+      return `<div class="rank-badge${isUnlocked?' unlocked':''}" onclick="toast('${escapeHtml(a.label)}: ${escapeHtml(a.desc)}${isUnlocked?' — Unlocked':' — Locked'}','${isUnlocked?'success':'info'}')" title="${escapeHtml(a.desc)}">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${a.icon}</svg></span>
+        <span>${a.label}</span>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
   // Quick mini trend (last 7 daily scans)
   const last7 = [...(state.rankingHistory||[])].filter(s=>s.type==='daily')
     .sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)).slice(-7);
@@ -17301,12 +17513,16 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         const maxPct   = parseFloat(scan.agents[0]?.pct||100);
         const barW     = Math.round(pctVal/maxPct*100);
         const medal    = i===0?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#d4af37" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':i===1?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b0b8c1" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':i===2?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b5652f" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':'';
-        return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':''}">
+        const rivalName = (localStorage.getItem('ranking_rival_name')||'').toLowerCase();
+        const isRival = !isMe && rivalName && a.name.toLowerCase() === rivalName;
+        const pinBtn = !isMe ? `<button class="rank-rival-pin${isRival?' pinned':''}" onclick="event.stopPropagation();toggleRankingRival('${escapeHtml(a.name).replace(/'/g,"\\'")}')" title="${isRival?'Stop tracking as rival':'Track as rival'}"><svg viewBox="0 0 24 24" fill="${isRival?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></button>` : '';
+        return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':isRival?'background:rgba(167,139,250,0.06);border-left:3px solid var(--purple)':''}">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
             <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:${isMe?'var(--gold)':'var(--text3)'};min-width:24px;font-weight:${isMe?700:400}">${medal||'#'+(i+1)}</div>
-            <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
+            <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':isRival?'var(--purple)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
             <div style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:${isMe?'var(--gold)':'var(--text2)'}">${a.pct}%</div>
             <div style="min-width:28px;text-align:right">${trendIco}</div>
+            ${pinBtn}
           </div>
           <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-left:32px">
             <div class="rank-bar-fill" style="height:100%;width:${barW}%;background:${isMe?'var(--gold)':i===0?'#22c55e':i===1?'#a78bfa':i===2?'#60a5fa':'var(--border)'};border-radius:2px"></div>
@@ -17315,7 +17531,45 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
       }).join('');
   }
 
+  function buildRivalCard(tabType) {
+    const rivalName = localStorage.getItem('ranking_rival_name');
+    if (!rivalName || !myName) return '';
+    const scan = scans[tabType];
+    if (!scan) return '';
+    const me    = scan.agents.find(a => a.name.toLowerCase().includes(myName));
+    const rival = scan.agents.find(a => a.name.toLowerCase() === rivalName.toLowerCase());
+    if (!me || !rival) return `<div class="rank-rival-card" style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:var(--text-sm);color:var(--text3)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> Tracking <strong style="color:var(--purple)">${escapeHtml(rivalName)}</strong> — not in this list</span>
+      <button class="rank-rival-close" onclick="toggleRankingRival('${escapeHtml(rivalName).replace(/'/g,"\\'")}')">✕</button>
+    </div>`;
+    const mePos = scan.agents.indexOf(me)+1, rivalPos = scan.agents.indexOf(rival)+1;
+    const gap = (parseFloat(me.pct) - parseFloat(rival.pct)).toFixed(2);
+    const gapN = parseFloat(gap);
+    const ahead = gapN >= 0;
+    return `<div class="rank-rival-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:var(--text-sm);font-weight:700;color:var(--purple)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> You vs ${escapeHtml(rival.name.split(' ')[0])}</span>
+        <button class="rank-rival-close" onclick="toggleRankingRival('${escapeHtml(rivalName).replace(/'/g,"\\'")}')" title="Stop tracking">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="text-align:center;flex:1">
+          <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:var(--gold)">#${mePos}</div>
+          <div style="font-size:var(--text-xs);color:var(--text3)">You · ${me.pct}%</div>
+        </div>
+        <div style="text-align:center;flex-shrink:0;padding:0 10px">
+          <div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:800;color:${ahead?'var(--green)':'var(--red)'}">${ahead?'+':''}${gap}%</div>
+          <div style="font-size:var(--text-2xs);color:var(--text3)">${ahead?'ahead':'behind'}</div>
+        </div>
+        <div style="text-align:center;flex:1">
+          <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:var(--purple)">#${rivalPos}</div>
+          <div style="font-size:var(--text-xs);color:var(--text3)">${escapeHtml(rival.name.split(' ')[0])} · ${rival.pct}%</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   pane.innerHTML = `
+    <div id="rank-rival-slot">${buildRivalCard(tab)}</div>
     <div style="position:relative;margin-bottom:8px">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" class="bl-search-icon" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text3)">
         <circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/>
@@ -17342,7 +17596,22 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     });
     const bc = document.getElementById('board-content');
     if (bc) bc.innerHTML = buildBoard(tab, currentQuery);
+    const rc = document.getElementById('rank-rival-slot');
+    if (rc) rc.innerHTML = buildRivalCard(tab);
     if (t !== undefined) haptic('light');
+  };
+
+  window.toggleRankingRival = function(name) {
+    const current = localStorage.getItem('ranking_rival_name');
+    if (current && current.toLowerCase() === name.toLowerCase()) {
+      localStorage.removeItem('ranking_rival_name');
+      toast('Stopped tracking ' + name.split(' ')[0], 'info');
+    } else {
+      localStorage.setItem('ranking_rival_name', name);
+      toast('Tracking ' + name.split(' ')[0] + ' as rival', 'success');
+      haptic('medium');
+    }
+    window._switchBoard();
   };
 }
 
@@ -17368,7 +17637,8 @@ function _renderRankingTrend(pane, {history, myName}) {
     <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:var(--el-2), var(--el-bevel)">
       <div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Position Over Time</div>
       <div style="height:160px"><canvas id="chart-ranking-pos"></canvas></div>
-    </div>`;
+    </div>
+    <div id="rank-cal-wrap"></div>`;
 
   loadChartJS().then(() => {
     const myPct = scan => { const me=scan.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?parseFloat(me.pct):null; };
@@ -17401,6 +17671,73 @@ function _renderRankingTrend(pane, {history, myName}) {
       });
     }
   }).catch(()=>{});
+
+  window._rankCalDaily = daily;
+  window._rankCalMyName = myName;
+  _renderRankingCalendar(document.getElementById('rank-cal-wrap'), daily, myName);
+}
+
+// ── Calendar heatmap — one glance at the whole month's daily standing ──
+let _rankCalMonthOffset = 0;
+function _renderRankingCalendar(el, dailyScans, myName) {
+  if (!el) return;
+  dailyScans = dailyScans || window._rankCalDaily || [];
+  myName = myName || window._rankCalMyName || '';
+  const now = new Date();
+  const viewDate = new Date(now.getFullYear(), now.getMonth() + _rankCalMonthOffset, 1);
+  const year = viewDate.getFullYear(), month = viewDate.getMonth();
+  const monthLabel = viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+
+  // Best (lowest) position per calendar day, from daily scans that month
+  const byDate = {};
+  dailyScans.forEach(s => {
+    const d = s.date;
+    if (!d.startsWith(String(year) + '-' + String(month+1).padStart(2,'0'))) return;
+    const me = s.agents.find(a=>a.name.toLowerCase().includes(myName));
+    if (!me) return;
+    const pos = s.agents.indexOf(me)+1;
+    if (!byDate[d] || pos < byDate[d].pos) byDate[d] = { pos, pct: me.pct };
+  });
+
+  function cellStyle(pos) {
+    if (pos == null) return { bg: 'var(--surface2)', color: 'var(--text3)', border: 'var(--border2)' };
+    if (pos <= 3)  return { bg: 'rgba(34,197,94,0.18)',  color: 'var(--green)',  border: 'rgba(34,197,94,0.4)' };
+    return { bg: 'rgba(240,160,48,0.14)', color: 'var(--gold)', border: 'rgba(240,160,48,0.35)' };
+  }
+
+  let cells = '';
+  for (let i=0;i<firstDow;i++) cells += '<div></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const rec = byDate[dateStr];
+    const s = cellStyle(rec ? rec.pos : null);
+    const isToday = dateStr === now.toISOString().split('T')[0];
+    cells += `<div class="rank-cal-day${rec?' has-data':''}" style="background:${s.bg};color:${s.color};border:1.5px solid ${rec?s.border:'transparent'};${isToday?'box-shadow:0 0 0 1.5px var(--gold)':''}"
+      ${rec ? `onclick="toast('${dateStr}: #${rec.pos} (${rec.pct}%)','info')"` : ''}>${d}</div>`;
+  }
+
+  const loggedDays = Object.keys(byDate).length;
+  const top3Days = Object.values(byDate).filter(r=>r.pos<=3).length;
+
+  el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:var(--el-2), var(--el-bevel)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button class="btn btn-ghost btn-xs" onclick="_rankCalMonthOffset--;_renderRankingCalendar(document.getElementById('rank-cal-wrap'))" style="padding:4px 8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px">${monthLabel}</span>
+        <button class="btn btn-ghost btn-xs" onclick="_rankCalMonthOffset++;_renderRankingCalendar(document.getElementById('rank-cal-wrap'))" style="padding:4px 8px" ${_rankCalMonthOffset>=0?'disabled':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="rank-cal-grid" style="margin-bottom:6px">
+        ${['S','M','T','W','T','F','S'].map(d=>`<div style="text-align:center;font-size:var(--text-2xs);color:var(--text3);font-weight:700">${d}</div>`).join('')}
+      </div>
+      <div class="rank-cal-grid">${cells}</div>
+      <div style="display:flex;gap:14px;margin-top:12px;font-size:var(--text-xs);color:var(--text3);flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(34,197,94,0.35);display:inline-block"></span>Top 3</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(240,160,48,0.3);display:inline-block"></span>Logged</span>
+        <span style="margin-left:auto">${loggedDays} days logged · ${top3Days} in top 3</span>
+      </div>
+    </div>`;
 }
 
 // ── History tab ───────────────────────────────────────────────
