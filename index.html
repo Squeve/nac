@@ -933,6 +933,15 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .rank-badges-row::-webkit-scrollbar { display: none; }
+.rank-badges-row.rank-badges-highlight {
+  animation: rankBadgesPulse 1.3s ease;
+  border-radius: var(--radius-lg);
+}
+@keyframes rankBadgesPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(240,160,48,0.5); }
+  30%  { box-shadow: 0 0 0 6px rgba(240,160,48,0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(240,160,48,0); }
+}
 .rank-badge {
   flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 5px;
   width: 76px; padding: 10px 6px; border-radius: var(--radius-lg);
@@ -17193,6 +17202,19 @@ function getUnlockedAchievements(history, myName) {
   return RANKING_ACHIEVEMENTS.filter(a => a.check(history, myName));
 }
 
+// The "Achievements X/5 · tap to view" record chip scrolls down to the badge
+// strip and gives it a brief highlight ring — the badges themselves are
+// already individually tappable (each shows its own unlock description),
+// so this just makes sure "tap to view" actually takes you somewhere.
+function scrollToRankBadges() {
+  const el = document.getElementById('rank-badges-strip');
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('rank-badges-highlight');
+  haptic('light');
+  setTimeout(() => el.classList.remove('rank-badges-highlight'), 1300);
+}
+
 // Called right after a new scan is saved — celebrates any achievement that
 // wasn't unlocked before this scan but is now, and any new personal best.
 function _celebrateRankingProgress(historyBefore, historyAfter, myName) {
@@ -17309,10 +17331,14 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
 
   let html = '';
 
-  // Hero position card
+  // Hero position card — anchored to Daily first. Projected is a same-day
+  // speculative extrapolation (only exists after an EOD scan), so leading
+  // with it made the whole Overview feel like it was about tomorrow's guess
+  // rather than today's actual, confirmed standing. It still gets its own
+  // mini-card below — just not top billing.
   if (meD || meM || meP) {
-    const mainScan   = latestProj || latestMonthly || latestDaily;
-    const meMain     = meP || meM || meD;
+    const mainScan   = latestDaily || latestMonthly || latestProj;
+    const meMain     = meD || meM || meP;
     const posMain    = myPos(mainScan);
     const totalAgents= mainScan?.agents?.length || 0;
     const topHalf    = posMain && posMain <= Math.ceil(totalAgents/2);
@@ -17322,7 +17348,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
 
     html += `
     <div style="background:linear-gradient(135deg,${heroCol}14,${heroCol}06);border:1px solid ${heroCol}33;border-radius:16px;padding:20px;margin-bottom:14px;text-align:center;box-shadow:var(--el-2), var(--el-bevel), 0 0 32px ${heroCol}14">
-      <div style="font-size:var(--text-sm);color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${meP?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected Tomorrow':meM?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Standing':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily Position'}</div>
+      <div style="font-size:var(--text-sm);color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${meD?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily Position':meM?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Standing':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected Tomorrow'}</div>
       <div style="font-size:56px;font-weight:900;color:${heroCol};line-height:1;font-family:var(--font-mono)">#${posMain||'?'}${medal}</div>
       <div style="font-size:var(--text-5xl);font-weight:800;color:${heroCol};margin-top:4px">${meMain?.pct||'—'}%</div>
       <div style="font-size:var(--text-sm);color:var(--text3);margin-top:6px">of ${totalAgents} agents · ${mainScan?.date||''}</div>
@@ -17354,8 +17380,9 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     });
     html += `</div>`;
 
-    // Gap cards
-    const gapScan = latestProj || latestMonthly || latestDaily;
+    // Gap cards — same Daily-first priority as the hero, so the gap shown
+    // here always matches what the hero card is describing.
+    const gapScan = latestDaily || latestMonthly || latestProj;
     const meGap   = findMe(gapScan);
     const posGap  = myPos(gapScan);
     if (meGap && posGap && gapScan.agents.length > 1) {
@@ -17423,7 +17450,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
         <div class="rank-record-val">${records.bestMonthly ? '#'+records.bestMonthly.pos : '—'}</div>
         <div class="rank-record-sub">${records.bestMonthly ? records.bestMonthly.date : 'Not logged yet'}</div>
       </div>
-      <div class="rank-record-chip">
+      <div class="rank-record-chip" style="cursor:pointer" onclick="scrollToRankBadges()">
         <div class="rank-record-label"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l3 2 5-6 5 6 3-2-2 10H6z"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Achievements</div>
         <div class="rank-record-val">${unlocked.length}<span style="font-size:var(--text-md);color:var(--text3)">/${RANKING_ACHIEVEMENTS.length}</span></div>
         <div class="rank-record-sub">tap to view</div>
@@ -17431,7 +17458,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     </div>`;
 
     // Achievement badge strip — unlocked ones glow gold, locked ones sit dim
-    html += `<div class="rank-badges-row">` + RANKING_ACHIEVEMENTS.map(a => {
+    html += `<div class="rank-badges-row" id="rank-badges-strip">` + RANKING_ACHIEVEMENTS.map(a => {
       const isUnlocked = unlocked.some(u=>u.id===a.id);
       return `<div class="rank-badge${isUnlocked?' unlocked':''}" onclick="toast('${escapeHtml(a.label)}: ${escapeHtml(a.desc)}${isUnlocked?' — Unlocked':' — Locked'}','${isUnlocked?'success':'info'}')" title="${escapeHtml(a.desc)}">
         <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${a.icon}</svg></span>
@@ -17476,7 +17503,9 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
 function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}) {
   const history = state.rankingHistory || [];
 
-  let tab = latestProj ? 'proj' : latestMonthly ? 'monthly' : 'daily';
+  // Default to Daily — the real, confirmed standing — rather than the
+  // speculative same-day Projected extrapolation.
+  let tab = latestDaily ? 'daily' : latestMonthly ? 'monthly' : 'proj';
   const scans = {
     proj:    latestProj,
     monthly: latestMonthly,
@@ -17578,7 +17607,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     </div>
     <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:var(--el-2), var(--el-bevel)">
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
-        ${['proj','monthly','daily'].map(t => scans[t] ? `<button id="bboard-${t}" onclick="_switchBoard('${t}')" style="flex:1;padding:10px 4px;border:none;background:${t===tab?'rgba(240,160,48,0.1)':'transparent'};color:${t===tab?'var(--gold)':'var(--text3)'};font-size:var(--text-sm);font-weight:${t===tab?700:500};cursor:pointer;font-family:var(--font-body);border-bottom:2px solid ${t===tab?'var(--gold)':'transparent'};transition:all 0.15s">${t==='proj'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected':t==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}</button>` : '').join('')}
+        ${['daily','monthly','proj'].map(t => scans[t] ? `<button id="bboard-${t}" onclick="_switchBoard('${t}')" style="flex:1;padding:10px 4px;border:none;background:${t===tab?'rgba(240,160,48,0.1)':'transparent'};color:${t===tab?'var(--gold)':'var(--text3)'};font-size:var(--text-sm);font-weight:${t===tab?700:500};cursor:pointer;font-family:var(--font-body);border-bottom:2px solid ${t===tab?'var(--gold)':'transparent'};transition:all 0.15s">${t==='proj'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected':t==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}</button>` : '').join('')}
       </div>
       <div id="board-content">${buildBoard(tab, '')}</div>
     </div>`;
@@ -20479,18 +20508,30 @@ function checkRankingGapAlert() {
   const meLatest = latest.agents.find(a=>a.name.toLowerCase().includes(myName));
   const mePrev   = prev.agents.find(a=>a.name.toLowerCase().includes(myName));
   if (!meLatest || !mePrev) return;
-  const drop = parseFloat(mePrev.pct) - parseFloat(meLatest.pct);
-  if (drop <= 0) return;
-  const myPos = latest.agents.indexOf(meLatest) + 1;
-  // Estimate ₵ needed — rough: 0.1% ≈ needs ~₵500 based on portfolio
-  const totalOutstanding = state.borrowers.reduce((s,b)=>s+getRemaining(b),0);
-  const needed = Math.round((drop / 100) * totalOutstanding * 2);
+  const posLatest = latest.agents.indexOf(meLatest) + 1;
+  const posPrev   = prev.agents.indexOf(mePrev) + 1;
+  // Only alert on an actual rank slip (position got numerically worse) — a
+  // raw % dip alone is noisy and doesn't necessarily mean you lost ground,
+  // since everyone's numbers move. A slipped position is the real signal.
+  if (posLatest <= posPrev) return;
   const lastDismissed = localStorage.getItem('ranking_gap_dismissed');
   if (lastDismissed === latest.date) return;
   const targets = ['ranking-gap-alert', 'ranking-page-gap-alert']
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!targets.length) return;
-  const html = `<div style="flex:1;font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 9"/><path d="M15 18h6v-6"/></svg></span> Your rate dropped <strong>${drop.toFixed(1)}%</strong> since last scan. You need ~<strong style="color:var(--gold)">${fmtC(needed)}</strong> today to hold #${myPos}.</div>
+
+  // Real gap to the rank immediately above — same number already shown in
+  // the "Gap to #N" card (me.pct - above.pct), so the alert and the card
+  // can never disagree or show opposite signs for the same comparison.
+  const above = posLatest > 1 ? latest.agents[posLatest-2] : null;
+  const meLatestPct = parseFloat(meLatest.pct);
+  const gapVal = above ? (meLatestPct - parseFloat(above.pct)) : null;
+  const gapHtml = above
+    ? (gapVal < 0
+        ? `Now <strong style="color:var(--red)">${Math.abs(gapVal).toFixed(2)}%</strong> behind <strong>${escapeHtml(above.name.split(' ')[0])}</strong> at #${posLatest-1}.`
+        : `Ahead of <strong>${escapeHtml(above.name.split(' ')[0])}</strong> at #${posLatest-1} by ${gapVal.toFixed(2)}% on rate — worth a second look.`)
+    : '';
+  const html = `<div style="flex:1;font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 9"/><path d="M15 18h6v-6"/></svg></span> You slipped from <strong>#${posPrev}</strong> to <strong style="color:var(--red)">#${posLatest}</strong> since your last scan. ${gapHtml}</div>
     <button class="btn btn-ghost btn-xs" onclick="dismissRankingAlert('${latest.date}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>`;
   targets.forEach(el => { el.style.display = 'flex'; el.innerHTML = html; });
 }
