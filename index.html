@@ -401,6 +401,49 @@ tr.overdue-critical td:first-child,
 .bd-btn-active-gold { border-color: var(--gold) !important; color: var(--gold) !important; background: rgba(240,160,48,0.1) !important; }
 .btn.bd-btn-active-purple { border-color: var(--purple) !important; color: var(--purple) !important; background: rgba(167,139,250,0.1) !important; }
 
+/* ═══ Message Blast — redesigned ═══════════════════════════
+   Was a stack of generic .settings-row list items borrowed from the
+   Settings page — functional but felt like a form, not a messaging tool.
+   .mb-card gives it its own light, premium surface treatment; contact rows
+   and send actions reuse .bd-btn (from the borrower detail redesign) and
+   the avatar-card language (from the borrower card redesign) for
+   consistency across the app instead of inventing a third visual style. */
+.mb-card {
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 16px;
+  padding: 16px; box-shadow: var(--el-2), var(--el-bevel);
+}
+.mb-card-label {
+  font-size: var(--text-xs); font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 7px;
+}
+.mb-preview-bubble {
+  flex: 1; min-width: 0; background: rgba(37,211,102,0.07); border: 1px solid rgba(37,211,102,0.2);
+  border-radius: 14px 14px 14px 3px; padding: 10px 13px;
+  font-size: var(--text-base); color: var(--text2); line-height: 1.6; min-height: 20px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.mb-contact-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
+}
+.mb-contact-row:last-child { border-bottom: none; }
+.mb-contact-row:hover { background: var(--surface2); }
+.mb-contact-row.selected { background: rgba(240,160,48,0.06); }
+.mb-contact-avatar {
+  width: 32px; height: 32px; border-radius: var(--radius); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: var(--text-xs); font-weight: 800; color: #fff;
+}
+.mb-contact-info { flex: 1; min-width: 0; }
+.mb-contact-name { font-size: var(--text-md); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mb-contact-meta { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text3); margin-top: 1px; }
+.mb-contact-badge { font-size: var(--text-2xs); font-weight: 700; padding: 1px 6px; border-radius: var(--radius); flex-shrink: 0; }
+.mb-contact-amount { text-align: right; flex-shrink: 0; font-family: var(--font-mono); font-weight: 700; font-size: var(--text-md); }
+.mb-cb {
+  width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--border2);
+  flex-shrink: 0; cursor: pointer; accent-color: var(--gold); margin: 0;
+}
+
 /* ═══ Admin Panel — redesigned ═══════════════════════════
    Was a raw password prompt into a flat list of inline-styled cards.
    Now: a proper gate screen, a fleet-wide stats strip, a search box, and
@@ -3980,53 +4023,48 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
       </div>
     </div>
 
-    <!-- ── Template + Preview ─────────────────────────── -->
-    <div class="settings-group" style="margin-bottom:12px">
-      <!-- Template select -->
-      <div class="settings-row" style="cursor:default;flex-wrap:wrap;row-gap:10px">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="7" y1="8" x2="13" y2="8"/><line x1="7" y1="11" x2="10" y2="11"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">Template</div></div>
-        <select class="filter-select" id="sms-tmpl-select" onchange="setSmsTemplate(this.value)" style="width:100%;margin-left:44px;font-size:var(--text-md);border-radius:var(--radius)">
-          <optgroup label="── Gentle ──">
-            <option value="gentle_1">Polite Reminder</option>
-            <option value="gentle_2">Soft Follow-Up</option>
-          </optgroup>
-          <optgroup label="── Standard ──">
-            <option value="standard_1">Standard Overdue</option>
-            <option value="standard_2">Firm Notice</option>
-          </optgroup>
-          <optgroup label="── Escalated ──">
-            <option value="escalated_1">Final Warning</option>
-            <option value="escalated_2">Pre-Legal Notice</option>
-          </optgroup>
-          <optgroup label="── Legal-Backed ──">
-            <option value="legal_1">Formal Demand</option>
-            <option value="legal_2">Legal Action Notice</option>
-          </optgroup>
-          <optgroup label="── Discount Offer ──">
-            <option value="generous_1">Discount Offer</option>
-            <option value="generous_2">Last Chance Offer</option>
-          </optgroup>
-          <optgroup label="── Custom ──">
-            <option value="custom">Write My Own</option>
-          </optgroup>
-        </select>
-      </div>
+    <!-- ── Compose ─────────────────────────────────────── -->
+    <div class="mb-card" style="margin-bottom:12px">
+      <div class="mb-card-label">Message</div>
+      <select class="form-input" id="sms-tmpl-select" onchange="setSmsTemplate(this.value)" style="font-size:var(--text-md);margin-bottom:10px">
+        <optgroup label="── Gentle ──">
+          <option value="gentle_1">Polite Reminder</option>
+          <option value="gentle_2">Soft Follow-Up</option>
+        </optgroup>
+        <optgroup label="── Standard ──">
+          <option value="standard_1">Standard Overdue</option>
+          <option value="standard_2">Firm Notice</option>
+        </optgroup>
+        <optgroup label="── Escalated ──">
+          <option value="escalated_1">Final Warning</option>
+          <option value="escalated_2">Pre-Legal Notice</option>
+        </optgroup>
+        <optgroup label="── Legal-Backed ──">
+          <option value="legal_1">Formal Demand</option>
+          <option value="legal_2">Legal Action Notice</option>
+        </optgroup>
+        <optgroup label="── Discount Offer ──">
+          <option value="generous_1">Discount Offer</option>
+          <option value="generous_2">Last Chance Offer</option>
+        </optgroup>
+        <optgroup label="── Custom ──">
+          <option value="custom">Write My Own</option>
+        </optgroup>
+      </select>
+
       <!-- Discount slider (shown for generous) -->
-      <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(252,192,68,0.12);color:var(--gold2)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="14" r="3"/><line x1="3" y1="17" x2="17" y2="3"/></svg>
+      <div id="sms-discount-row" style="display:none;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);margin-bottom:10px">
+        <span class="ico" style="color:var(--gold2);flex-shrink:0"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:16px;height:16px"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="14" r="3"/><line x1="3" y1="17" x2="17" y2="3"/></svg></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:var(--text-sm);font-weight:600">OD Discount</div>
+          <div style="font-size:var(--text-xs);color:var(--text3)" id="sms-discount-desc">30% of OD fee</div>
         </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">OD Discount</div><div class="settings-row-label-sub" id="sms-discount-desc">30% of OD fee</div></div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="range" class="discount-slider" id="sms-discount-slider" min="0" max="100" value="30" oninput="updateSmsDiscount(this.value)" style="width:80px">
-          <span style="font-family:var(--font-mono);color:var(--gold);font-size:var(--text-md);font-weight:700;min-width:36px;text-align:right" id="sms-discount-label">30%</span>
-        </div>
+        <input type="range" class="discount-slider" id="sms-discount-slider" min="0" max="100" value="30" oninput="updateSmsDiscount(this.value)" style="width:80px">
+        <span style="font-family:var(--font-mono);color:var(--gold);font-size:var(--text-md);font-weight:700;min-width:36px;text-align:right" id="sms-discount-label">30%</span>
       </div>
+
       <!-- Custom textarea (hidden until custom selected) -->
-      <div id="sms-vars" style="display:none;padding:10px 18px;border-top:1px solid var(--border);flex-wrap:wrap;gap:6px;align-items:center">
+      <div id="sms-vars" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
         <select id="sms-name-format" class="filter-select" style="font-size:var(--text-sm);padding:3px 8px" onchange="insertNameVar()">
           <option value="{name}">Full Name</option><option value="{firstname}">First Name</option>
           <option value="{lastname}">Last Name</option><option value="{firstname} {lastname}">First + Last</option>
@@ -4036,90 +4074,80 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         <button class="btn btn-ghost btn-xs" data-var="{generous}">+ Discount</button>
         <button class="btn btn-ghost btn-xs" data-var="{odday}">+ OD Day</button>
       </div>
-      <textarea class="form-input" id="sms-custom-msg" rows="3" style="display:none;width:calc(100% - 36px);margin:0 18px 14px;font-size:var(--text-base);resize:vertical;border-radius:var(--radius)" placeholder="e.g. {name}, please pay {amount} to clear your loan." oninput="updateSmsPreview()"></textarea>
-      <!-- Preview -->
-      <div style="margin:0 18px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px 14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:var(--text-xs);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px">Preview</span>
-          <div id="sms-char-ring"></div>
-        </div>
-        <div id="sms-preview-text" style="font-size:var(--text-base);color:var(--text2);line-height:1.7;min-height:36px">Select a contact to preview</div>
+      <textarea class="form-input" id="sms-custom-msg" rows="3" style="display:none;width:100%;box-sizing:border-box;font-size:var(--text-base);resize:vertical;margin-bottom:10px" placeholder="e.g. {name}, please pay {amount} to clear your loan." oninput="updateSmsPreview()"></textarea>
+
+      <!-- Preview — styled like an actual message bubble -->
+      <div class="mb-card-label" style="margin-top:2px">Preview</div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <div class="mb-preview-bubble" id="sms-preview-text">Select a contact to preview</div>
+        <div id="sms-char-ring" style="flex-shrink:0;margin-bottom:2px"></div>
       </div>
     </div>
 
     <!-- ── Contacts ────────────────────────────────────── -->
-    <div class="settings-group" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
-        <div style="font-size:var(--text-lg);font-weight:600">Contacts</div>
+    <div class="mb-card" style="margin-bottom:12px;padding:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
+        <div style="font-size:var(--text-lg);font-weight:700">Contacts <span id="sms-contact-total" style="font-size:var(--text-sm);color:var(--text3);font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="bl-search-wrap" style="max-width:160px">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" class="bl-search-icon" style="left:9px"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="13" y1="13" x2="17" y2="17"/></svg>
             <input class="bl-search" id="sms-search" placeholder="Search…" oninput="_smsSearchDebounce()" style="padding-left:30px;padding-right:28px;font-size:var(--text-base);height:34px">
             <button onclick="clearSearch('sms-search',renderSmsBlast)" class="bl-clear-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
           </div>
-          <select class="bl-chip-sel" id="sms-filter" onchange="renderSmsBlast()">
-            <option value="">All Active</option>
-            <option value="Unpaid">Unpaid</option>
-            <option value="Partial">Partial</option>
-            <option value="high">₵1000+</option>
-            <option value="medium">₵400–999</option>
-            <option value="low">Below ₵400</option>
-            <option value="critical">Day 13+</option>
-            <option value="promised">Promised</option>
-          </select>
+          <button class="btn btn-ghost btn-sm" id="sms-filters-toggle" onclick="smsToggleFiltersPanel()" style="position:relative"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2" fill="var(--bg)"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2" fill="var(--bg)"/></svg></span> Filters<span id="sms-filter-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--gold);color:#000;font-size:9px;font-weight:800;border-radius:20px;min-width:15px;height:15px;align-items:center;justify-content:center;font-family:var(--font-mono)"></span></button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--border)">
+
+      <!-- Collapsible multi-filter panel -->
+      <div id="sms-filter-panel" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface2)">
+        <select class="bl-chip-sel" id="sms-status-filter" onchange="renderSmsBlast()">
+          <option value="">All Active</option>
+          <option value="Unpaid">Unpaid</option>
+          <option value="Partial">Partial</option>
+        </select>
+        <input type="number" class="bl-chip-sel" id="sms-min-amount" placeholder="₵ Min" oninput="_smsSearchDebounce()" style="width:66px" min="0">
+        <input type="number" class="bl-chip-sel" id="sms-max-amount" placeholder="₵ Max" oninput="_smsSearchDebounce()" style="width:66px" min="0">
+        <input type="number" class="bl-chip-sel" id="sms-od-min" placeholder="OD Min" oninput="_smsSearchDebounce()" style="width:66px" min="0">
+        <input type="number" class="bl-chip-sel" id="sms-od-max" placeholder="OD Max" oninput="_smsSearchDebounce()" style="width:66px" min="0">
+        <select class="bl-chip-sel" id="sms-promised-filter" onchange="renderSmsBlast()">
+          <option value="">Any Promise</option>
+          <option value="promised">Promised</option>
+        </select>
+        <select class="bl-chip-sel" id="sms-contacted-filter" onchange="renderSmsBlast()" title="Avoid double-messaging">
+          <option value="">Any Contact Status</option>
+          <option value="not_today">Not Messaged Today</option>
+        </select>
+        <label class="bl-chip-sel" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="sms-valid-phone" onchange="renderSmsBlast()" style="accent-color:var(--gold);margin:0"> Valid phone only
+        </label>
+        <button class="btn btn-ghost btn-xs" onclick="smsClearFilters()" style="margin-left:auto">Clear all</button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border)">
         <button class="bl-action-btn" onclick="smsSelectAll()" style="font-size:var(--text-sm)">Select All</button>
         <button class="bl-action-btn" onclick="smsClearAll()" style="font-size:var(--text-sm)">Clear</button>
         <span style="font-size:var(--text-sm);color:var(--text3);margin-left:auto" id="sms-select-count">0 selected</span>
       </div>
-      <div id="sms-contact-list" style="max-height:320px;overflow-y:auto"></div>
+      <div id="sms-contact-list" style="max-height:360px;overflow-y:auto"></div>
     </div>
 
     <!-- ── Send actions ───────────────────────────────── -->
-    <div class="settings-group" style="margin-bottom:20px">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <div class="mb-card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div>
-          <div style="font-size:var(--text-lg);font-weight:600" id="sms-action-count">0 contacts selected</div>
-          <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Choose a delivery method below</div>
+          <div style="font-size:var(--text-lg);font-weight:700" id="sms-action-count">0 contacts selected</div>
+          <div style="font-size:var(--text-sm);color:var(--text3);margin-top:1px" id="sms-action-value">Choose a delivery method below</div>
         </div>
       </div>
-      <button class="settings-row" onclick="startSequential('wa')">
-        <div class="settings-row-icon" style="background:rgba(37,211,102,0.12);color:#25d366">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M3 5h14a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1z"/><polyline points="2,5 10,11 18,5"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">WhatsApp Queue</div><div class="settings-row-label-sub">Opens each chat one by one</div></div>
-        <span class="settings-chevron">›</span>
+      <button class="bd-btn full" style="background:linear-gradient(135deg,rgba(37,211,102,0.16),rgba(37,211,102,0.05));border-color:rgba(37,211,102,0.4);color:#25d366;font-weight:700;padding:12px;margin-bottom:8px" onclick="startSequential('wa')">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WhatsApp Queue — opens each chat one by one
       </button>
-      <button class="settings-row" onclick="sendBulkSMS()">
-        <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M2 4h16v10H2z" rx="1"/><path d="M6 14l-2 3 4-1"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">Bulk SMS</div><div class="settings-row-label-sub">Opens SMS app with all numbers</div></div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="startSequential('sms')">
-        <div class="settings-row-icon" style="background:rgba(167,139,250,0.12);color:var(--purple)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 4h12a1 1 0 011 1v8a1 1 0 01-1 1H7l-4 3V5a1 1 0 011-1z"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">Sequential SMS</div><div class="settings-row-label-sub">Send one at a time via SMS</div></div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="openSmsReviewModal('copy')">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.1);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M13 7V4.5A1.5 1.5 0 0011.5 3h-7A1.5 1.5 0 003 4.5v7A1.5 1.5 0 004.5 13H7"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">Copy Numbers</div><div class="settings-row-label-sub">Copy all selected to clipboard</div></div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="openSmsReviewModal('export')">
-        <div class="settings-row-icon" style="background:rgba(34,197,94,0.1);color:var(--green)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 3v10M6 10l4 4 4-4"/><line x1="3" y1="17" x2="17" y2="17"/></svg>
-        </div>
-        <div class="settings-row-label"><div class="settings-row-label-main">Export List</div><div class="settings-row-label-sub">Download as CSV</div></div>
-        <span class="settings-chevron">›</span>
-      </button>
+      <div class="bd-section-grid" style="grid-template-columns:repeat(3,1fr)">
+        <button class="bd-btn" onclick="sendBulkSMS()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1z"/><polyline points="2,5 10,11 18,5"/></svg></span> Bulk SMS</button>
+        <button class="bd-btn" onclick="startSequential('sms')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v13H8l-4 4z"/></svg></span> Sequential</button>
+        <button class="bd-btn" onclick="openSmsReviewModal('copy')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V6a2 2 0 012-2h9"/></svg></span> Copy</button>
+      </div>
+      <button class="bd-btn full" style="margin-top:8px" onclick="openSmsReviewModal('export')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 10l4 4 4-4"/><line x1="3" y1="17" x2="17" y2="17"/></svg></span> Export List (CSV)</button>
     </div>
   </section>
 
@@ -12460,7 +12488,7 @@ function renderSettingsAgedOut() {
 
 
 // ── SMS BLAST ──────────────────────────────────────────
-let smsTemplate = 'friendly';
+let smsTemplate = 'gentle_1'; // must match the <select>'s first <option> (Polite Reminder) — was 'friendly', a stale id from before templates were renamed to gentle_1/gentle_2/etc, which matched no branch in getSmsBlastMsg() and silently produced an empty message on first load every time.
 let smsSelected = new Set();
 let seqList = [];
 let seqIndex = 0;
@@ -12570,6 +12598,8 @@ function setSmsTemplate(tmpl) {
   if (sel && sel.value !== tmpl) sel.value = tmpl;
   const custom = document.getElementById('sms-custom-msg');
   if (custom) custom.style.display = tmpl === 'custom' ? '' : 'none';
+  const discountRow = document.getElementById('sms-discount-row');
+  if (discountRow) discountRow.style.display = tmpl.startsWith('generous') ? 'flex' : 'none';
   const vars = document.getElementById('sms-vars');
   if (vars) {
     vars.style.display = tmpl === 'custom' ? 'flex' : 'none';
@@ -12606,23 +12636,81 @@ function updateSmsPreview() {
 }
 
 function getSmsFilteredContacts() {
-  const search = (document.getElementById('sms-search')?.value || '').toLowerCase();
-  const filter = document.getElementById('sms-filter')?.value || '';
+  const search   = (document.getElementById('sms-search')?.value || '').toLowerCase();
+  const status   = document.getElementById('sms-status-filter')?.value || '';
+  const minAmt   = document.getElementById('sms-min-amount')?.value;
+  const maxAmt   = document.getElementById('sms-max-amount')?.value;
+  const odMin    = document.getElementById('sms-od-min')?.value;
+  const odMax    = document.getElementById('sms-od-max')?.value;
+  const promised = document.getElementById('sms-promised-filter')?.value || '';
+  const contacted= document.getElementById('sms-contacted-filter')?.value || '';
+  const validPhoneOnly = document.getElementById('sms-valid-phone')?.checked || false;
+  const todayStr = new Date().toISOString().split('T')[0];
+
   return state.borrowers.filter(b => {
     const s = getStatus(b);
     const due = getDueToday(b);
     const od = getOdAge(b.startDate, b);
     if (s === 'Paid') return false;
-    if (filter === 'Unpaid' && s !== 'Unpaid') return false;
-    if (filter === 'Partial' && s !== 'Partial') return false;
-    if (filter === 'high' && due < 1000) return false;
-    if (filter === 'medium' && (due < 400 || due >= 1000)) return false;
-    if (filter === 'low' && due >= 400) return false;
-    if (filter === 'critical' && od < 13) return false;
-    if (filter === 'promised' && !b.promisedToPay) return false;
+    if (status === 'Unpaid' && s !== 'Unpaid') return false;
+    if (status === 'Partial' && s !== 'Partial') return false;
+    if (minAmt && due < parseFloat(minAmt)) return false;
+    if (maxAmt && due > parseFloat(maxAmt)) return false;
+    if (odMin && od < parseInt(odMin)) return false;
+    if (odMax && od > parseInt(odMax)) return false;
+    if (promised === 'promised' && !b.promisedToPay) return false;
+    if (contacted === 'not_today') {
+      const already = (b.callLog||[]).some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+      if (already) return false;
+    }
+    if (validPhoneOnly && (!b.phone || b.phone.replace(/\D/g,'').length < 9)) return false;
     if (search && !b.name.toLowerCase().includes(search) && !b.phone.includes(search)) return false;
     return true;
   });
+}
+
+function smsToggleFiltersPanel() {
+  const panel = document.getElementById('sms-filter-panel');
+  const btn = document.getElementById('sms-filters-toggle');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  if (btn) btn.classList.toggle('open', !isOpen);
+  haptic('light');
+}
+
+function smsClearFilters() {
+  const statusEl = document.getElementById('sms-status-filter');
+  if (statusEl) statusEl.value = '';
+  ['sms-min-amount','sms-max-amount','sms-od-min','sms-od-max'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const promisedEl = document.getElementById('sms-promised-filter');
+  if (promisedEl) promisedEl.value = '';
+  const contactedEl = document.getElementById('sms-contacted-filter');
+  if (contactedEl) contactedEl.value = '';
+  const validEl = document.getElementById('sms-valid-phone');
+  if (validEl) validEl.checked = false;
+  renderSmsBlast();
+  haptic('light');
+}
+
+function _smsUpdateFilterBadge() {
+  const badge = document.getElementById('sms-filter-badge');
+  if (!badge) return;
+  const active = [
+    document.getElementById('sms-status-filter')?.value,
+    document.getElementById('sms-min-amount')?.value,
+    document.getElementById('sms-max-amount')?.value,
+    document.getElementById('sms-od-min')?.value,
+    document.getElementById('sms-od-max')?.value,
+    document.getElementById('sms-promised-filter')?.value,
+    document.getElementById('sms-contacted-filter')?.value,
+    document.getElementById('sms-valid-phone')?.checked ? '1' : '',
+  ].filter(v => v).length;
+  if (active > 0) { badge.textContent = active; badge.style.display = 'flex'; }
+  else badge.style.display = 'none';
 }
 
 function renderSmsBlast() {
@@ -12630,7 +12718,15 @@ function renderSmsBlast() {
   const listEl = document.getElementById('sms-contact-list');
   const countEl = document.getElementById('sms-select-count');
   const actionEl = document.getElementById('sms-action-count');
+  const valueEl = document.getElementById('sms-action-value');
+  const totalEl = document.getElementById('sms-contact-total');
   if (!listEl) return;
+
+  if (totalEl) totalEl.textContent = '· ' + contacts.length + ' match' + (contacts.length!==1?'es':'');
+  _smsUpdateFilterBadge();
+
+  const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
+  const todayStr = new Date().toISOString().split('T')[0];
 
   if (!contacts.length) {
     listEl.innerHTML = '<div class="empty-state" style="padding:20px"><div>No contacts match</div></div>';
@@ -12640,17 +12736,23 @@ function renderSmsBlast() {
       const due = getDueToday(b);
       const od = getOdAge(b.startDate, b);
       const odCls = odClass(od);
-      const bg = checked ? 'background:rgba(232,160,32,0.06)' : '';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);cursor:pointer;' + bg + '" data-smsid="' + b.id + '">'
-        + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' style="accent-color:var(--gold);pointer-events:none;flex-shrink:0">'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:var(--text-md);font-weight:600;color:var(--text)">' + b.name + '</div>'
-        + '<div style="font-size:var(--text-sm);color:var(--text3)">' + b.phone + ' · <span class="' + odCls + '">Day ' + od + '</span></div>'
-        + '</div>'
-        + '<div style="text-align:right;flex-shrink:0">'
-        + '<div style="font-family:var(--font-mono);font-size:var(--text-base);color:var(--red);font-weight:600">' + fmtC(due) + '</div>'
-        + '<div>' + statusBadge(getStatus(b)) + '</div>'
-        + '</div></div>';
+      const hue = b.name.charCodeAt(0) % 6;
+      const [ac1,ac2] = avatarColors[hue];
+      const initials = b.name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+      const contactedToday = (b.callLog||[]).some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+      const validPhone = b.phone && b.phone.replace(/\D/g,'').length >= 9;
+      return '<div class="mb-contact-row' + (checked?' selected':'') + '" data-smsid="' + b.id + '">'
+        + '<input type="checkbox" class="mb-cb" ' + (checked ? 'checked' : '') + ' style="pointer-events:none">'
+        + '<div class="mb-contact-avatar" style="background:linear-gradient(135deg,' + ac1 + ',' + ac2 + ')">' + initials + '</div>'
+        + '<div class="mb-contact-info">'
+        + '<div class="mb-contact-name">' + escapeHtml(b.name) + (contactedToday?' <span class="ico" style="color:var(--green)" title="Already messaged today"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>':'') + '</div>'
+        + '<div class="mb-contact-meta">'
+        + (validPhone ? escapeHtml(b.phone) : '<span style="color:var(--red)">No valid phone</span>')
+        + ' · <span class="' + odCls + '">Day ' + od + '</span>'
+        + (b.promisedToPay?' · <span style="color:var(--purple)">Promised</span>':'')
+        + '</div></div>'
+        + '<div class="mb-contact-amount" style="color:var(--red)">' + fmtC(due) + '<div style="margin-top:2px">' + statusBadge(getStatus(b)) + '</div></div>'
+        + '</div>';
     });
     listEl.innerHTML = rows.join('');
     listEl.querySelectorAll('[data-smsid]').forEach(function(el) {
@@ -12659,8 +12761,10 @@ function renderSmsBlast() {
   }
 
   const selCount = smsSelected.size;
+  const selValue = [...smsSelected].reduce((s,id) => { const b = state.borrowers.find(x=>x.id===id); return s + (b ? getDueToday(b) : 0); }, 0);
   if (countEl) countEl.textContent = selCount + ' selected';
   if (actionEl) actionEl.textContent = selCount + ' contact' + (selCount !== 1 ? 's' : '') + ' selected';
+  if (valueEl) valueEl.textContent = selCount ? fmtC(selValue) + ' in outstanding balances' : 'Choose a delivery method below';
   updateSmsPreview();
 }
 
@@ -12681,6 +12785,23 @@ function smsClearAll() {
   renderSmsBlast();
 }
 
+// Logs a WA/SMS contact-log entry for each contact so the "Not Messaged
+// Today" filter stays accurate — mirrors markDispatchContacted's dedup logic.
+function _markContactsMessaged(contacts) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  let changed = false;
+  contacts.forEach(b => {
+    if (!b) return;
+    if (!b.callLog) b.callLog = [];
+    const already = b.callLog.some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+    if (!already) {
+      b.callLog.push({ date: new Date().toISOString(), type: 'WA/SMS', note: 'Sent via Message Blast' });
+      changed = true;
+    }
+  });
+  if (changed) saveState();
+}
+
 function sendBulkSMS() {
   if (!smsSelected.size) return toast('Select at least one contact', 'error');
   const contacts = [...smsSelected].map(id => state.borrowers.find(b => b.id === id)).filter(Boolean);
@@ -12693,6 +12814,7 @@ function sendBulkSMS() {
     if (contacts.length === 1) {
       const smsLink = 'sms:' + contacts[0].phone.replace(/\s/g,'') + (isIOS ? '&body=' : '?body=') + encodeURIComponent(sharedMsg);
       window.open(smsLink, '_self');
+      _markContactsMessaged(contacts);
       return;
     }
     const numbers = contacts.map(b => b.phone.replace(/\s/g,'')).join(isIOS ? ';' : ',');
@@ -12704,6 +12826,7 @@ function sendBulkSMS() {
     const smsLink = 'sms:' + numbers + '?body=' + encodeURIComponent(sharedMsg);
     window.location.href = smsLink;
     toast('Opening SMS app with ' + contacts.length + ' recipients...', 'success');
+    _markContactsMessaged(contacts);
     return;
   }
 
@@ -12713,6 +12836,7 @@ function sendBulkSMS() {
     const smsLink = 'sms:' + contacts[0].phone.replace(/\s/g,'') + (isIOS ? '&body=' : '?body=') + encodeURIComponent(sharedMsg);
     window.open(smsLink, '_self');
     toast('Opening SMS app...', 'success');
+    _markContactsMessaged(contacts);
     return;
   }
 
@@ -12783,7 +12907,7 @@ function _confirmBulkOrSequential(contacts, numbers) {
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(function() {
     var bsBtn = document.getElementById('bulk-send-btn');
-    if (bsBtn) bsBtn.addEventListener('click', function() { closeModal(); toast('Opening SMS app with ' + contacts.length + ' recipients...', 'success'); });
+    if (bsBtn) bsBtn.addEventListener('click', function() { closeModal(); toast('Opening SMS app with ' + contacts.length + ' recipients...', 'success'); _markContactsMessaged(contacts); });
   }, 0);
 }
 
@@ -12891,7 +13015,7 @@ function showSeqModal() {
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Stop</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="seqIndex++;showSeqModal()">Skip <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
-    + '<button class="btn btn-gold" onclick="seqIndex++;showSeqModal()">Mark Sent & Next <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></button>';
+    + '<button class="btn btn-gold" onclick="_markContactsMessaged([seqList[seqIndex]]);seqIndex++;showSeqModal()">Mark Sent & Next <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span></button>';
   document.getElementById('modal-overlay').classList.add('open');
   // Wire iOS copy button if rendered
   setTimeout(function() {
