@@ -11247,6 +11247,17 @@ function _openBorrowerDetailFill(id) {
     + '<div><div style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:700;color:var(--green)">' + fmtC(b.amountPaid||0) + '</div><div style="font-size:var(--text-xs);color:var(--text3)">Paid</div></div>'
     + '<div><div style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:700;color:'+stColor+'">' + (st==='Paid'?'Paid <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>':fmtC(getDueToday(b))) + '</div><div style="font-size:var(--text-xs);color:var(--text3)">Due Today</div></div>'
     + '</div>'
+    + (st!=='Paid' ? ('<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border2)">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
+      + '<span style="font-size:var(--text-xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Discounted Settlement</span>'
+      + '<span style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:700;color:var(--gold)" id="bd-discount-amt">' + fmtC(getGenerous(b)) + '</span>'
+      + '</div>'
+      + '<div class="discount-wrap">'
+      + '<input type="range" class="discount-slider" id="bd-discount-slider" min="0" max="100" value="' + Math.round((state.discountRate||0.30)*100) + '" style="flex:1">'
+      + '<span style="font-family:var(--font-mono);color:var(--gold);font-size:var(--text-sm);font-weight:700;min-width:34px;text-align:right" id="bd-discount-pct">' + Math.round((state.discountRate||0.30)*100) + '%</span>'
+      + '</div>'
+      + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px" id="bd-discount-save-note">Customer pays this % of the OD fee — saves ' + fmtC(Math.round(_getOdFeeCached(b)*(1-(state.discountRate||0.30)))) + '</div>'
+      + '</div>') : '')
     + (predicted ? '<div style="margin-top:8px;padding:6px 10px;background:rgba(96,165,250,0.1);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--blue)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Predicted next payment: <strong>' + predicted + '</strong></div>' : '')
     + renderInstalmentBadge(b)
     + '</div>'
@@ -11321,6 +11332,8 @@ function _openBorrowerDetailFill(id) {
     if (elH)   elH.onclick   = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openHistoryModal(id); };
     if (elE)   elE.onclick   = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openEditModal(id); };
     if (elAO)  elAO.onclick  = function(){ haptic('light'); openAdjustOdModal(id); };
+    var elDiscSl = document.getElementById('bd-discount-slider');
+    if (elDiscSl) elDiscSl.oninput = function(){ updateBdDiscount(id, this.value); };
     if (elInst) elInst.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openEditModal(id); };
     if (elCL)  elCL.onclick  = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openCallLogModal(id); };
     var elTL = document.getElementById('bd-timeline');
@@ -12072,6 +12085,35 @@ function updateDiscount(val) {
   const smsLbl = document.getElementById('sms-discount-label');
   if (smsSl) smsSl.value = pct;
   if (smsLbl) smsLbl.textContent = pct + '%';
+}
+
+function updateBdDiscount(bid, val) {
+  const pct = parseInt(val);
+  state.discountRate = pct / 100;
+  saveState();
+  const b = state.borrowers.find(function(x){ return x.id === bid; });
+  const lbl = document.getElementById('bd-discount-pct');
+  if (lbl) lbl.textContent = pct + '%';
+  const amt = document.getElementById('bd-discount-amt');
+  if (amt && b) amt.textContent = fmtC(getGenerous(b));
+  const saveNote = document.getElementById('bd-discount-save-note');
+  if (saveNote && b) saveNote.textContent = 'Customer pays this % of the OD fee — saves ' + fmtC(Math.round(_getOdFeeCached(b) * (1 - state.discountRate)));
+  // Keep every other discount control across the app in sync
+  const ds = document.getElementById('discount-slider');
+  const dsLbl = document.getElementById('discount-label');
+  if (ds) ds.value = pct;
+  if (dsLbl) dsLbl.textContent = pct + '%';
+  const ss = document.getElementById('sms-discount-slider');
+  const ssLbl = document.getElementById('sms-discount-label');
+  if (ss) ss.value = pct;
+  if (ssLbl) ssLbl.textContent = pct + '%';
+  const settingsSl = document.getElementById('settings-discount-slider');
+  const settingsPct = document.getElementById('settings-discount-pct');
+  const settingsSub = document.getElementById('settings-discount-sub');
+  if (settingsSl) settingsSl.value = pct;
+  if (settingsPct) settingsPct.textContent = pct + '%';
+  if (settingsSub) settingsSub.textContent = pct + '% of OD fee waived';
+  try { localStorage.setItem('sq_default_discount', pct); } catch(e) {}
 }
 
 function togglePromise(id) {
