@@ -22975,6 +22975,13 @@ function pinPress(digit) {
     haptic('medium');
     return;
   }
+  const keyBtn = document.querySelector('.ls-num[data-key="' + digit + '"]');
+  if (keyBtn) {
+    keyBtn.classList.remove('pressed');
+    void keyBtn.offsetWidth; // restart animation if tapped again quickly
+    keyBtn.classList.add('pressed');
+    setTimeout(() => keyBtn.classList.remove('pressed'), 350);
+  }
   if (_pinBuffer.length >= 4) return;
   _pinBuffer += digit;
   haptic('light');
@@ -22994,6 +23001,7 @@ function updatePinDots() {
     if (dot) {
       dot.classList.toggle('filled', i < _pinBuffer.length);
       dot.classList.remove('shake');
+      dot.classList.remove('success');
     }
   }
 }
@@ -23034,6 +23042,15 @@ async function processPin() {
     }
 
     if (matched) {
+      // Correct PIN — brief success flash before unlocking
+      for (let i = 0; i < 4; i++) {
+        const d = document.getElementById('pindot-'+i);
+        if (d) d.classList.add('success');
+      }
+      const traySuc = document.getElementById('ls-pin-dots');
+      if (traySuc) { traySuc.classList.add('success-pulse'); setTimeout(() => traySuc.classList.remove('success-pulse'), 350); }
+      await new Promise(r => setTimeout(r, 220));
+
       // Correct PIN — unlock
       _activeAgent = _pinTarget;
       _sessionUnlocked = true;
@@ -23058,10 +23075,8 @@ async function processPin() {
       _pinAttempts++;
       _pinBuffer = '';
       updatePinDots();
-      for (let i = 0; i < 4; i++) {
-        const dot = document.getElementById('pindot-'+i);
-        if (dot) { void dot.offsetWidth; dot.classList.add('shake'); }
-      }
+      const trayW = document.getElementById('ls-pin-dots');
+      if (trayW) { trayW.classList.remove('shake'); void trayW.offsetWidth; trayW.classList.add('shake'); setTimeout(() => trayW.classList.remove('shake'), 450); }
       if (_pinAttempts >= 5) {
         _pinLockCycles++;
         const dur = _pinLockDurationMs(_pinLockCycles);
@@ -23099,6 +23114,15 @@ async function processPin() {
     document.getElementById('lock-pin-name').textContent = 'Confirm your PIN';
   } else if (_pinMode === 'confirm') {
     if (_pinBuffer === _pinSetBuffer) {
+      // PINs match — brief success flash before saving
+      for (let i = 0; i < 4; i++) {
+        const d = document.getElementById('pindot-'+i);
+        if (d) d.classList.add('success');
+      }
+      const traySet = document.getElementById('ls-pin-dots');
+      if (traySet) { traySet.classList.add('success-pulse'); setTimeout(() => traySet.classList.remove('success-pulse'), 350); }
+      await new Promise(r => setTimeout(r, 220));
+
       // PINs match — save
       const hash = await hashPin(_pinBuffer, _pinTarget.id);
       const agents = getAgentList();
@@ -23131,10 +23155,8 @@ async function processPin() {
     } else {
       _pinBuffer = ''; _pinSetBuffer = ''; _pinMode = 'set';
       updatePinDots();
-      for (let i = 0; i < 4; i++) {
-        const dot = document.getElementById('pindot-'+i);
-        if (dot) { void dot.offsetWidth; dot.classList.add('shake'); }
-      }
+      const trayS = document.getElementById('ls-pin-dots');
+      if (trayS) { trayS.classList.remove('shake'); void trayS.offsetWidth; trayS.classList.add('shake'); setTimeout(() => trayS.classList.remove('shake'), 450); }
       document.getElementById('lock-pin-error').textContent = 'PINs did not match. Start over.';
       haptic('medium');
     }
@@ -25752,7 +25774,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
           <div id="lock-pin-stage" class="ls-pin-stage"></div>
 
           <!-- Dot indicators -->
-          <div class="ls-pin-dots">
+          <div class="ls-pin-dots" id="ls-pin-dots">
             <div class="ls-pin-dot" id="pindot-0"></div>
             <div class="ls-pin-dot" id="pindot-1"></div>
             <div class="ls-pin-dot" id="pindot-2"></div>
@@ -25764,21 +25786,22 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
           <!-- Numpad -->
           <div class="ls-numpad">
-            <button class="ls-num" onclick="pinPress('1')"><span class="ls-num-main">1</span></button>
-            <button class="ls-num" onclick="pinPress('2')"><span class="ls-num-main">2</span><span class="ls-num-sub">ABC</span></button>
-            <button class="ls-num" onclick="pinPress('3')"><span class="ls-num-main">3</span><span class="ls-num-sub">DEF</span></button>
-            <button class="ls-num" onclick="pinPress('4')"><span class="ls-num-main">4</span><span class="ls-num-sub">GHI</span></button>
-            <button class="ls-num" onclick="pinPress('5')"><span class="ls-num-main">5</span><span class="ls-num-sub">JKL</span></button>
-            <button class="ls-num" onclick="pinPress('6')"><span class="ls-num-main">6</span><span class="ls-num-sub">MNO</span></button>
-            <button class="ls-num" onclick="pinPress('7')"><span class="ls-num-main">7</span><span class="ls-num-sub">PQRS</span></button>
-            <button class="ls-num" onclick="pinPress('8')"><span class="ls-num-main">8</span><span class="ls-num-sub">TUV</span></button>
-            <button class="ls-num" onclick="pinPress('9')"><span class="ls-num-main">9</span><span class="ls-num-sub">WXYZ</span></button>
+            <button class="ls-num" data-key="1" onclick="pinPress('1')"><span class="ls-num-main">1</span></button>
+            <button class="ls-num" data-key="2" onclick="pinPress('2')"><span class="ls-num-main">2</span></button>
+            <button class="ls-num" data-key="3" onclick="pinPress('3')"><span class="ls-num-main">3</span></button>
+            <button class="ls-num" data-key="4" onclick="pinPress('4')"><span class="ls-num-main">4</span></button>
+            <button class="ls-num" data-key="5" onclick="pinPress('5')"><span class="ls-num-main">5</span></button>
+            <button class="ls-num" data-key="6" onclick="pinPress('6')"><span class="ls-num-main">6</span></button>
+            <button class="ls-num" data-key="7" onclick="pinPress('7')"><span class="ls-num-main">7</span></button>
+            <button class="ls-num" data-key="8" onclick="pinPress('8')"><span class="ls-num-main">8</span></button>
+            <button class="ls-num" data-key="9" onclick="pinPress('9')"><span class="ls-num-main">9</span></button>
             <button class="ls-num ls-num-ghost" onclick="lockSelectAgent(null);authClearCode()" style="font-size:var(--text-base);color:var(--ls-muted)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg></span> Back</button>
-            <button class="ls-num" onclick="pinPress('0')"><span class="ls-num-main">0</span></button>
+            <button class="ls-num" data-key="0" onclick="pinPress('0')"><span class="ls-num-main">0</span></button>
             <button class="ls-num ls-num-ghost" onclick="pinBackspace()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:20px;height:20px"><path d="M21 12H7M7 12l5-5M7 12l5 5"/></svg>
             </button>
           </div>
+
 
           <button id="bio-unlock-btn" style="display:none;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:10px;padding:12px;border-radius:var(--radius-lg);border:1px solid rgba(240,160,48,0.3);background:rgba(240,160,48,0.07);color:var(--ls-gold);font-size:var(--text-md);font-weight:600;font-family:var(--font-body);cursor:pointer;transition:all 0.15s" onclick="">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px"><path d="M12 2C9.24 2 7 4.24 7 7v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-2V7c0-2.76-2.24-5-5-5z"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
@@ -25849,6 +25872,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   --ls-gold-glow: rgba(240,160,48,0.25);
   --ls-neon:      #38bdf8;
   --ls-neon-glow: rgba(56,189,248,0.5);
+  --ls-green:     #22c55e;
 }
 
 /* ── Background ── */
@@ -26178,6 +26202,23 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   box-shadow: 0 0 10px rgba(56,189,248,0.9), 0 0 20px rgba(56,189,248,0.5);
   transform: none;
 }
+.ls-pin-dot.success {
+  background: var(--ls-green, #22c55e) !important;
+  box-shadow: 0 0 10px rgba(34,197,94,0.9), 0 0 20px rgba(34,197,94,0.5) !important;
+}
+@keyframes ls-pin-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+.ls-pin-dots.shake { animation: ls-pin-shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes ls-pin-success-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.ls-pin-dots.success-pulse { animation: ls-pin-success-pulse 0.35s ease; }
 
 /* Error */
 .ls-pin-error {
@@ -26189,18 +26230,18 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 /* Numpad — Neon Glow keys */
 .ls-numpad {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 9px; max-width: 280px; margin: 0 auto 16px;
+  gap: 12px; max-width: 296px; margin: 0 auto 16px;
 }
 .ls-num {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius:var(--radius-lg);
+  border-radius: 16px;
   padding: 16px 12px 14px;
   cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px;
   transition: all 0.12s ease;
-  min-height: 62px;
+  min-height: 72px;
   position: relative; overflow: hidden;
 }
 .ls-num::before {
@@ -26222,15 +26263,17 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   box-shadow: 0 0 20px rgba(56,189,248,0.35);
 }
 .ls-num:active .ls-num-main { color: var(--ls-neon) !important; }
+.ls-num.pressed::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(circle, rgba(56,189,248,0.35) 0%, transparent 70%);
+  animation: ls-ripple-fade 0.4s ease-out forwards;
+}
+@keyframes ls-ripple-fade { from { opacity: 1; } to { opacity: 0; } }
 .ls-num-main {
   font-family: var(--font-head);
-  font-size: 24px; font-weight: 600;
+  font-size: 27px; font-weight: 600;
   color: var(--ls-text); line-height: 1;
-  position: relative; z-index: 1;
-}
-.ls-num-sub {
-  font-size:var(--text-3xs); font-weight: 700;
-  color: rgba(56,189,248,0.45); letter-spacing: 1.5px;
   position: relative; z-index: 1;
 }
 .ls-num-ghost {
