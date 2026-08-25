@@ -4688,6 +4688,16 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
+      <button class="settings-row" onclick="_runWeeklyBackup(true)">
+        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Run Weekly Backup Now</div>
+          <div class="settings-row-label-sub" id="settings-weekly-backup-sub">Auto-runs every 7 days · saves to cloud + share sheet</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
       <button class="settings-row" onclick="settingsClearPtpHistory()">
         <div class="settings-row-icon" style="background:rgba(167,139,250,0.12);color:var(--purple)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/></svg>
@@ -6218,7 +6228,7 @@ function initState() {
     hitList: [], callLog: {}, rankingHistory: [], undoHistory: [], pendingSyncCount: 0,
     offlineQueue: [], customMessages: [], archivedBorrowers: [],
     ptpHistory: [], templatePerf: {}, scoreHistory: [], messageBank: [],
-    agentProfile: {}, m2TargetLocks: {}, m2DayReviews: {},     _lastLocalSave: 0, _blockRemotePullUntil: 0 };
+    agentProfile: {}, m2TargetLocks: {}, m2DayReviews: {}, msgFavorites: [],     _lastLocalSave: 0, _blockRemotePullUntil: 0, _lastAutoBackup: 0 };
 }
 
 function migrateState(s) {
@@ -6258,6 +6268,13 @@ function migrateState(s) {
   if (!s.templatePerf)      s.templatePerf = {};
   if (!s.scoreHistory)      s.scoreHistory = [];
   if (!s.messageBank || !s.messageBank.length) s.messageBank = (typeof MESSAGE_BANK !== 'undefined' ? MESSAGE_BANK : []);
+  if (!s.msgFavorites) {
+    // One-time pull from the old device-only localStorage list so nobody loses
+    // favorites already picked before this moved into synced state.
+    let legacyFavs = [];
+    try { legacyFavs = JSON.parse(localStorage.getItem('msg_favorites') || '[]'); } catch(e) {}
+    s.msgFavorites = Array.isArray(legacyFavs) ? legacyFavs : [];
+  }
   (s.borrowers||[]).forEach(b => {
     if (b.promisedToPay === undefined) b.promisedToPay = false;
     if (b.isPaid === undefined) b.isPaid = (b.amountPaid > 0 && b.amountPaid >= b.loanDue); // sticky: only set if truly undefined
@@ -6952,7 +6969,16 @@ function getOdLog(b) {
     const payLog      = (b.payLog || []).filter(p => p.date && p.delta > 0 && p.date > snapDate);
     const sortedPays  = payLog.slice().sort((a, z) => a.date.localeCompare(z.date));
 
-    
+    function paidAfterSnap(dayN) {
+      if (sortedPays.length === 0) return amountPaid;
+      const d = new Date(snapDate + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + dayN);
+      const dayStr = d.toISOString().split('T')[0];
+      const preSnapPaid = amountPaid - sortedPays.reduce((s, p) => s + (p.delta || 0), 0);
+      let cumPost = 0;
+      for (const p of sortedPays) { if (p.date < dayStr) cumPost += (p.delta || 0); }
+      return Math.max(0, preSnapPaid) + cumPost;
+    }
 
     const log = [{ day: 'Snapshot', date: snapDate, rate: '—', base: principal, fee: b.odFeeSnapshot, cumulative: b.odFeeSnapshot, stopped: null, note: b.odFeeSnapshotNote || 'Manual OD correction' }];
     let cumOD = b.odFeeSnapshot;
@@ -6980,7 +7006,15 @@ function getOdLog(b) {
   const sortedPays  = payLog.slice().sort((a, z) => a.date.localeCompare(z.date));
   const startDateStr = b.startDate;
 
-  
+  function paidBeforeDay(dayN) {
+    if (sortedPays.length === 0) return 0;
+    const dayStartDate = new Date(startDateStr + 'T00:00:00Z');
+    dayStartDate.setUTCDate(dayStartDate.getUTCDate() + dayN);
+    const dayStr = dayStartDate.toISOString().split('T')[0];
+    let cumPaid = 0;
+    for (const p of sortedPays) { if (p.date < dayStr) cumPaid += (p.delta || 0); }
+    return cumPaid;
+  }
 
   const log = [];
   let cumOD = 0;
@@ -21601,22 +21635,57 @@ function openOdFeeModal(id) {
   const odLog      = getOdLog(b);
   const threshold70 = Math.round((b.principal||0) * 1.00);
   const stopped70   = odLog.length > 0 && odLog[odLog.length-1].stopped === '100% paid';
-  const rows = [
-    ['Original Principal',       fmtC(b.principal||0)],
-    ['Amount Paid',               fmtC(b.amountPaid||0)],
-    ['Remaining Principal',       fmtC(remaining)],
-    ['100% Threshold',             fmtC(threshold70) + (stopped70 ? ' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Reached — OD frozen' : '')],
-    ['Days in Default',           od <= 0 ? 'M0 — No default yet' : 'Day ' + od],
-    ['Day 1 Rate',                '4% of remaining principal'],
-    ['Day 2+ Rate',               '2% per day of remaining principal'],
-    ['Total OD Fee',              fmtC(rawFee) + (capped ? ' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Cap reached' : '')],
-    ['OD Cap (= Principal)',      fmtC(cap)],
-    ['Generous Offer (' + Math.round((state.discountRate||0.30)*100) + '% of OD)', fmtC(discounted)],
-    ['Full Settlement Today',     fmtC(getDueToday(b))],
-  ];
+  const capPct      = cap > 0 ? Math.min(100, Math.round((rawFee/cap)*100)) : 0;
+  const checkIco    = '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span>';
   document.getElementById('modal-title').textContent = 'OD Fee Breakdown — ' + b.name.split(' ')[0];
 
-  const dailyRows = odLog.map(entry => {
+  const scard = function(label, val, color) {
+    return '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px 8px;text-align:center">'
+      + '<div style="font-family:var(--font-mono);font-weight:700;font-size:var(--text-md);color:' + color + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + val + '</div>'
+      + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">' + label + '</div>'
+      + '</div>';
+  };
+
+  // ── Hero: fee total + cap progress ──────────────────────────
+  const heroHtml =
+    '<div style="background:linear-gradient(135deg, rgba(240,160,48,0.12), rgba(240,160,48,0.02));border:1px solid rgba(240,160,48,0.25);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:12px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+    + '<div><div style="font-size:var(--text-xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Total OD Fee</div>'
+    + '<div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:var(--gold);line-height:1">' + fmtC(rawFee) + '</div></div>'
+    + (capped
+        ? '<span style="font-size:var(--text-2xs);background:rgba(239,68,68,0.15);color:var(--red);border-radius:6px;padding:3px 8px;font-weight:700;white-space:nowrap">CAP REACHED</span>'
+        : '<span style="font-size:var(--text-2xs);color:var(--text3);white-space:nowrap;background:var(--surface2);border-radius:6px;padding:3px 8px">' + (od<=0 ? 'M0 · No default' : 'Day ' + od) + '</span>')
+    + '</div>'
+    + '<div class="progress-bar-wrap" style="margin-top:10px"><div class="progress-bar" style="width:' + capPct + '%;background:linear-gradient(90deg,var(--gold),' + (capped?'var(--red)':'var(--gold2)') + ')"></div></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:var(--text-2xs);color:var(--text3);margin-top:4px"><span>' + capPct + '% of cap</span><span>Cap: ' + fmtC(cap) + ' (= principal)</span></div>'
+    + (stopped70 ? '<div style="font-size:var(--text-xs);color:var(--green);margin-top:8px;font-weight:600">' + checkIco + ' 100% of principal (' + fmtC(threshold70) + ') was paid — OD frozen</div>' : '')
+    + '</div>';
+
+  // ── Stat grid ────────────────────────────────────────────────
+  const statGridHtml =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
+    + scard('Remaining Principal', fmtC(remaining), 'var(--text)')
+    + scard('Amount Paid', fmtC(b.amountPaid||0), 'var(--green)')
+    + scard('Full Settlement', fmtC(getDueToday(b)), 'var(--gold)')
+    + '</div>';
+
+  // ── Rate chips ───────────────────────────────────────────────
+  const rateChipsHtml =
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'
+    + '<div style="flex:1;background:var(--surface2);border-radius:var(--radius-md);padding:8px 10px"><div style="font-size:var(--text-2xs);color:var(--text3);text-transform:uppercase">Day 1 Rate</div><div style="font-weight:700;font-size:var(--text-sm);margin-top:2px">4% of remaining principal</div></div>'
+    + '<div style="flex:1;background:var(--surface2);border-radius:var(--radius-md);padding:8px 10px"><div style="font-size:var(--text-2xs);color:var(--text3);text-transform:uppercase">Day 2+ Rate</div><div style="font-weight:700;font-size:var(--text-sm);margin-top:2px">2% per day of remaining principal</div></div>'
+    + '</div>';
+
+  // ── Generous / discount offer callout ───────────────────────
+  const generousHtml =
+    '<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:var(--radius-md);padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
+    + '<div><div style="font-size:var(--text-xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Generous Offer (' + Math.round((state.discountRate||0.30)*100) + '% of OD)</div>'
+    + '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">Customer saves ' + fmtC(rawFee-discounted) + ' on the fee</div></div>'
+    + '<div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:800;color:var(--green);white-space:nowrap">' + fmtC(discounted) + '</div>'
+    + '</div>';
+
+  // ── Day-by-day accrual ───────────────────────────────────────
+  const dailyRows = odLog.map(function(entry, i) {
     const dayLabel = entry.day === 'Snapshot' ? 'Snapshot' : 'Day ' + entry.day;
     const dateSub  = entry.date ? '<div style="font-size:var(--text-2xs);color:var(--text3)">'+entry.date+'</div>' : '';
     const badge    = entry.stopped === '100% paid'
@@ -21624,7 +21693,7 @@ function openOdFeeModal(id) {
       : entry.stopped === 'cap'
       ? '<span style="font-size:var(--text-2xs);background:rgba(239,68,68,0.15);color:var(--red);border-radius:4px;padding:1px 5px;margin-left:5px;font-weight:700">CAP</span>'
       : '';
-    return '<div style="display:grid;grid-template-columns:64px 44px 1fr 1fr;gap:6px;padding:6px 2px;border-bottom:1px solid var(--border);font-size:var(--text-sm);align-items:center">'
+    return '<div style="display:grid;grid-template-columns:64px 44px 1fr 1fr;gap:6px;padding:7px 8px;border-radius:var(--radius-sm);font-size:var(--text-sm);align-items:center;background:' + (i % 2 ? 'var(--surface2)' : 'transparent') + '">'
       + '<div style="color:var(--text2);font-weight:600">' + dayLabel + badge + dateSub + '</div>'
       + '<div style="color:var(--text3);font-family:var(--font-mono)">' + entry.rate + '</div>'
       + '<div style="font-family:var(--font-mono);text-align:right;color:' + (entry.fee ? 'var(--text2)' : 'var(--text3)') + '">' + (entry.fee ? '+' + fmtC(entry.fee) : '—') + '</div>'
@@ -21635,22 +21704,18 @@ function openOdFeeModal(id) {
 
   const dailyBreakdownHtml = odLog.length
     ? '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Day-by-Day Accrual</div>'
-      + '<div style="display:grid;grid-template-columns:64px 44px 1fr 1fr;gap:6px;padding:0 2px 6px;font-size:var(--text-xs);color:var(--text3);font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border2)">'
+      + '<div style="display:grid;grid-template-columns:64px 44px 1fr 1fr;gap:6px;padding:0 8px 6px;font-size:var(--text-xs);color:var(--text3);font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--border2)">'
       + '<div>Day</div><div>Rate</div><div style="text-align:right">Fee</div><div style="text-align:right">Total</div></div>'
-      + '<div style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px">' + dailyRows + '</div>'
+      + '<div style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius-md);padding:4px">' + dailyRows + '</div>'
     : '<div style="padding:14px;text-align:center;color:var(--text3);font-size:var(--text-sm);background:var(--surface2);border-radius:var(--radius-md);margin-bottom:14px">No OD fee accrued yet — account is not in default.</div>';
 
   document.getElementById('modal-body').innerHTML =
-    '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:12px;margin-bottom:12px">'
-    + rows.map(([label, val]) =>
-        '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:var(--text-base)">'
-        + '<span style="color:var(--text3)">' + label + '</span>'
-        + '<span style="font-family:var(--font-mono);font-weight:600">' + val + '</span>'
-        + '</div>'
-      ).join('')
-    + '</div>'
+    heroHtml
+    + statGridHtml
+    + rateChipsHtml
+    + generousHtml
     + dailyBreakdownHtml
-    + '<div style="font-size:var(--text-sm);color:var(--text3);line-height:1.8">Fee accrues from Day 1. Day 1 = 4%, every subsequent day = 2% of remaining principal. OD stops when principal is fully paid or OD equals principal.</div>';
+    + '<div style="font-size:var(--text-xs);color:var(--text3);line-height:1.7">Fee accrues from Day 1. Day 1 = 4%, every subsequent day = 2% of remaining principal. OD stops when principal is fully paid or OD equals principal.</div>';
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
     + '<button class="btn btn-green" onclick="_pushModal(() => openOdFeeModal(\'' + id + '\'));openPayModal(\'' + id + '\')" ><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> Record Payment</button>';
@@ -23142,9 +23207,74 @@ async function loadStateForAgent() {
   updateSidebarAgentInfo();
   renderDashboard();
   showSkeletons(false);
+  _maybeRunWeeklyBackup();
   } catch(e) {
     console.error("loadStateForAgent error:", e);
     toast("Failed to load account data — please try signing in again", "error");
+  }
+}
+
+// ── Automated Weekly Backup ───────────────────────────────────
+// Runs at most once per 7 days per agent, on first load after that window.
+// Writes a dated snapshot to Supabase (separate row, never overwrites live
+// data) AND offers the same JSON file locally — via the share sheet (so it
+// can be sent straight to Mail/Gmail/WhatsApp) or a plain download.
+const WEEKLY_BACKUP_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function _maybeRunWeeklyBackup() {
+  try {
+    if (!state) return;
+    const last = state._lastAutoBackup || 0;
+    if (Date.now() - last < WEEKLY_BACKUP_MS) return; // not due yet
+    await _runWeeklyBackup(false);
+  } catch (e) {
+    console.warn('Weekly auto-backup skipped:', e);
+  }
+}
+
+async function _runWeeklyBackup(manual) {
+  const now   = new Date();
+  const stamp = now.toISOString().split('T')[0];
+  const payload = { version: 2, exportedAt: now.toISOString(), agent: _activeAgent?.name || 'unknown', state };
+  const json  = JSON.stringify(payload, null, 2);
+
+  // 1) Snapshot to Supabase under its own id — never touches the live row,
+  //    so this builds up a rolling history of weekly backups agent-side.
+  let cloudOk = false;
+  if (_db) {
+    try {
+      const backupId = getSupabaseId() + '_backup_' + stamp;
+      const { error } = await _db.from('app_state').upsert({ id: backupId, data: payload });
+      cloudOk = !error;
+      if (error) console.warn('Weekly backup Supabase upsert failed:', error.message);
+    } catch (e) { console.warn('Weekly backup Supabase error:', e); }
+  }
+
+  // 2) Local file — via Web Share (lets the agent pick Email/Gmail/WhatsApp)
+  //    if the browser supports sharing files, else a straight download.
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], 'SqueveTrack-backup-' + stamp + '.json', { type: 'application/json' });
+  let shared = false;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'SqueveTrack Backup ' + stamp, text: 'Weekly SqueveTrack data backup — ' + stamp });
+      shared = true;
+    } catch (e) { /* user cancelled share — fall back to silent download below */ }
+  }
+  if (!shared) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = file.name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  state._lastAutoBackup = Date.now();
+  saveState();
+
+  if (manual || shared || !cloudOk) {
+    toast(cloudOk ? 'Weekly backup saved (' + stamp + ')' : 'Backup downloaded — cloud copy failed, check connection', cloudOk ? 'success' : 'error');
   }
 }
 
@@ -23489,6 +23619,14 @@ function renderSettingsPage() {
   if (discSl) discSl.value = savedDiscount;
   if (discPct) discPct.textContent = savedDiscount + '%';
   if (discSub) discSub.textContent = savedDiscount + '% of OD fee waived';
+  // Weekly backup status
+  const backupSub = document.getElementById('settings-weekly-backup-sub');
+  if (backupSub) {
+    const lastBk = state._lastAutoBackup;
+    backupSub.textContent = lastBk
+      ? 'Last backup: ' + new Date(lastBk).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) + ' · auto-runs every 7 days'
+      : 'No backup yet · auto-runs every 7 days';
+  }
   // Stage badges toggle
   const sbToggle = document.getElementById('stage-badges-toggle');
   const sbSlider = document.getElementById('stage-badges-slider');
@@ -24233,10 +24371,11 @@ function updateStatusBarColor(page) {
 
 // ── Message Bank Favorites ──────────────────────────────────
 function msgBankGetFavorites() {
-  try { return JSON.parse(localStorage.getItem('msg_favorites') || '[]'); } catch { return []; }
+  return state.msgFavorites || (state.msgFavorites = []);
 }
 function msgBankSaveFavorites(ids) {
-  localStorage.setItem('msg_favorites', JSON.stringify(ids));
+  state.msgFavorites = ids;
+  saveState(); // pushes to Supabase so favorites survive a device change
 }
 function msgBankToggleFavorite(msgId) {
   const favs = msgBankGetFavorites();
