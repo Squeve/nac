@@ -1834,6 +1834,80 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
 .exp-format-btn.selected .ef-icon{color:var(--gold);}
 .exp-format-btn .ef-label{font-size:var(--text-sm);font-weight:700;color:var(--text2);}
 .exp-format-btn .ef-desc{font-size:var(--text-xs);color:var(--text3);text-align:center;}
+
+/* ── EXPORT MODAL — premium redesign additions ───────────────── */
+.exp-stepper{display:flex;align-items:center;margin-bottom:16px;padding:0 2px;}
+.exp-step-node{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;position:relative;flex-shrink:0;}
+.exp-step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text3);background:var(--surface2);border:1.5px solid var(--border2);transition:all 0.3s cubic-bezier(.34,1.4,.64,1);position:relative;z-index:2;}
+.exp-step-node.active .exp-step-circle{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1200;border-color:transparent;box-shadow:0 0 14px rgba(240,160,48,0.45);transform:scale(1.08);}
+.exp-step-node.done .exp-step-circle{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:var(--green);}
+.exp-step-label{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
+.exp-step-node.active .exp-step-label{color:var(--gold);}
+.exp-step-line{flex:1;height:2px;background:var(--border2);margin:0 -2px;position:relative;top:-9px;overflow:hidden;}
+.exp-step-line::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--gold),var(--gold2));transform:scaleX(0);transform-origin:left;transition:transform 0.4s ease;}
+.exp-step-line.filled::after{transform:scaleX(1);}
+
+.exp-group-divider{border-top:1px solid var(--border);margin:16px 0;}
+
+/* Segmented control (Name format / Sort order) */
+.exp-seg{display:flex;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;padding:4px;flex-wrap:wrap;}
+.exp-seg-opt{flex:1;min-width:70px;text-align:center;padding:8px 6px;border-radius:8px;font-size:var(--text-sm);font-weight:600;color:var(--text3);cursor:pointer;transition:all 0.18s;user-select:none;}
+.exp-seg-opt.selected{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1200;box-shadow:0 3px 10px rgba(240,160,48,0.3);}
+
+/* iOS-style toggle switch */
+.exp-switch-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-radius:11px;background:var(--surface2);border:1px solid var(--border);margin-bottom:8px;cursor:pointer;}
+.exp-switch-row .lbl{font-size:var(--text-base);color:var(--text2);font-weight:600;}
+.exp-switch-row .sub{font-size:var(--text-xs);color:var(--text3);margin-top:1px;}
+.exp-switch{width:38px;height:22px;border-radius:999px;background:var(--border2);position:relative;flex-shrink:0;transition:background 0.25s;}
+.exp-switch.on{background:linear-gradient(135deg,var(--gold),var(--gold2));}
+.exp-switch .knob{width:17px;height:17px;border-radius:50%;background:#fff;position:absolute;top:2.5px;left:2.5px;transition:transform 0.25s cubic-bezier(.34,1.4,.64,1);box-shadow:0 1px 4px rgba(0,0,0,0.4);}
+.exp-switch.on .knob{transform:translateX(16px);}
+
+/* Status pills w/ accent bar */
+.exp-status-pill{display:flex;align-items:center;gap:8px;}
+.exp-status-pill .exp-accent{width:4px;height:15px;border-radius:3px;flex-shrink:0;background:var(--border2);transition:background 0.2s;}
+.exp-status-pill.on .exp-accent{background:var(--gold);}
+
+/* Range preview bar */
+.exp-range-preview{height:4px;background:var(--border2);border-radius:3px;margin-top:4px;position:relative;overflow:hidden;}
+.exp-range-preview .fill{position:absolute;height:100%;background:linear-gradient(90deg,var(--blue),var(--gold));border-radius:3px;transition:left 0.2s,width 0.2s;}
+
+/* Hero count bar */
+.exp-count-bar{display:block !important;background:linear-gradient(135deg,rgba(240,160,48,0.12),rgba(240,160,48,0.02));border:1px solid rgba(240,160,48,0.22) !important;}
+.exp-count-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.exp-count-track{height:5px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.exp-count-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:3px;transition:width 0.4s cubic-bezier(.34,1.2,.64,1);}
+
+/* Search + exclude */
+.exp-search-wrap{position:relative;margin-bottom:8px;}
+.exp-search-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:11px 13px 11px 38px;color:var(--text);font-family:var(--font-body);font-size:var(--text-base);outline:none;transition:all 0.2s;}
+.exp-search-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,160,48,0.1);}
+.exp-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;}
+.exp-search-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:10;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;max-height:220px;overflow-y:auto;display:none;box-shadow:0 16px 32px rgba(0,0,0,0.45);}
+.exp-search-results.show{display:block;}
+.exp-search-row{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;}
+.exp-search-row:last-child{border-bottom:none;}
+.exp-search-row:hover{background:rgba(255,255,255,0.04);}
+.exp-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.exp-srr-name{font-size:var(--text-base);font-weight:600;}
+.exp-srr-sub{font-size:var(--text-xs);color:var(--text3);margin-top:1px;}
+.exp-srr-add{font-size:var(--text-2xs);color:var(--red);font-weight:700;margin-left:auto;background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:999px;flex-shrink:0;}
+.exp-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.exp-chip{display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;border-radius:999px;padding:5px 5px 5px 11px;font-size:var(--text-xs);font-weight:600;}
+.exp-chip button{background:rgba(239,68,68,0.2);border:none;color:#f87171;width:15px;height:15px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;}
+.exp-chip-empty{font-size:var(--text-xs);color:var(--text3);font-style:italic;}
+
+/* Colored format cards */
+.exp-format-btn{position:relative;flex-direction:row;align-items:center;gap:10px;padding:13px 12px;justify-content:flex-start;text-align:left;}
+.exp-format-btn .ef-icon{width:34px;height:34px;border-radius:10px;background:var(--efc-bg,var(--surface));}
+.exp-format-btn.selected{box-shadow:0 0 0 2px var(--efc,var(--gold)),0 6px 16px var(--efc-glow,rgba(240,160,48,0.25));border-color:transparent;}
+.exp-format-btn.selected .ef-icon{color:var(--efc,var(--gold));}
+.exp-format-btn .ef-info{display:flex;flex-direction:column;gap:1px;}
+.exp-format-btn .ef-label{text-align:left;}
+.exp-format-btn .ef-desc{text-align:left;}
+.exp-format-check{position:absolute;top:7px;right:7px;width:15px;height:15px;border-radius:50%;background:var(--efc,var(--gold));display:none;align-items:center;justify-content:center;}
+.exp-format-btn.selected .exp-format-check{display:flex;}
+.exp-format-check svg{width:8px;height:8px;color:#fff;}
 @media (max-width: 900px) {
   #sidebar { display: none; }
   #mobile-header { display: flex; }
@@ -9795,21 +9869,27 @@ function renderLogMonthProgress() {
   const target   = state.monthlyTarget || 0;
 
   const thisStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const lastStart = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().split('T')[0];
-  const lastEnd   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
   const allLogs   = state.dailyLog || [];
-
   const thisTotal = allLogs.filter(e => e.date >= thisStart).reduce((s,e) => s+(e.collected||0), 0);
-  const lastTotal = allLogs.filter(e => e.date >= lastStart && e.date <= lastEnd).reduce((s,e) => s+(e.collected||0), 0);
 
   // (9) Projection: at current pace, month-end estimate
   const activeSoFar   = allLogs.filter(e => e.date >= thisStart && (e.collected||0) > 0).length;
   const dailyAvgSoFar = activeSoFar > 0 ? thisTotal / dayNum : 0;
   const projection    = Math.round(dailyAvgSoFar * dim);
 
-  // (10) Month-on-month same-day comparison
-  const lastSameDayEnd = new Date(now.getFullYear(), now.getMonth()-1, dayNum).toISOString().split('T')[0];
-  const lastSameDay    = allLogs.filter(e => e.date >= lastStart && e.date <= lastSameDayEnd).reduce((s,e) => s+(e.collected||0), 0);
+  // (10) Month-on-month same-day comparison.
+  // state.dailyLog only ever holds the CURRENT month's entries — it's wiped
+  // on every rollover — so last month's figures must come from the archived
+  // snapshot's dailyLogSnapshot, not from filtering state.dailyLog by date.
+  const monthNamesFull = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+  const prevMonthDate  = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastMonthLabel = monthNamesFull[prevMonthDate.getMonth()] + ' ' + prevMonthDate.getFullYear();
+  const lastMonthLog   = _getMonthDailyLog(lastMonthLabel);
+  const lastStart      = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth(), 1).toISOString().split('T')[0];
+  const lastSameDayEnd = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth(), dayNum).toISOString().split('T')[0];
+  const lastTotal      = lastMonthLog.reduce((s,e) => s+(e.collected||0), 0);
+  const lastSameDay    = lastMonthLog.filter(e => e.date >= lastStart && e.date <= lastSameDayEnd).reduce((s,e) => s+(e.collected||0), 0);
   const momDiff        = lastSameDay > 0 ? Math.round((thisTotal - lastSameDay) / lastSameDay * 100) : null;
   const momCol         = momDiff === null ? 'var(--text3)' : momDiff >= 0 ? 'var(--green)' : 'var(--red)';
   const momArrow       = momDiff === null ? '' : momDiff >= 0 ? '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M6 11l6-6 6 6"/></svg></span>' : '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M18 13l-6 6-6-6"/></svg></span>';
@@ -9964,6 +10044,9 @@ function addLogEntry() {
 }
 
 function openExportModal() {
+  // Reset manual exclusions each time the modal opens fresh
+  window._expExcludedIds = new Set();
+
   // -- data for live count
   window._expCount = function() {
     try {
@@ -9979,6 +10062,7 @@ function openExportModal() {
       var amtMin=parseFloat(document.getElementById('exp-amt-min')?.value||'0')||0;
       var amtMax=parseFloat(document.getElementById('exp-amt-max')?.value||'')||Infinity;
       var n = state.borrowers.filter(function(b){
+        if (window._expExcludedIds && window._expExcludedIds.has(b.id)) return false;
         var od=getOdAge(b.startDate, b), due=getDueToday(b);
         if(od<odMin||od>odMax) return false;
         if(due<amtMin||due>amtMax) return false;
@@ -9996,38 +10080,56 @@ function openExportModal() {
       }).length;
       var el=document.getElementById('exp-count-num');
       if(el) el.textContent=n+' account'+(n!==1?'s':'');
+      var fill=document.getElementById('exp-count-fill');
+      if(fill) fill.style.width = Math.min(100, Math.round(n/Math.max(1,state.borrowers.length)*100))+'%';
+      var dlc=document.getElementById('exp-dl-count');
+      if(dlc) dlc.textContent = n;
     } catch(e){}
   }
 
   var _expTab = 'columns';
   window._switchExpTab = function(t) {
     _expTab = t;
-    ['columns','filters','export'].forEach(function(id){
-      var tb=document.getElementById('exptab-'+id);
+    var order = ['columns','filters','export'];
+    var idx = order.indexOf(t);
+    order.forEach(function(id, i){
+      var sn=document.getElementById('expstep-'+id);
       var pn=document.getElementById('exppanel-'+id);
-      if(tb) tb.classList.toggle('active', id===t);
+      if(sn){ sn.classList.toggle('active', id===t); sn.classList.toggle('done', i<idx); }
       if(pn) pn.classList.toggle('active', id===t);
     });
+    var l1=document.getElementById('expline-1'), l2=document.getElementById('expline-2');
+    if(l1) l1.classList.toggle('filled', idx>=1);
+    if(l2) l2.classList.toggle('filled', idx>=2);
     _expCount();
   }
 
-  const cols = [
-    { id:'name',        label:'Full Name',          def:true  },
-    { id:'phone',       label:'Phone Number',       def:true  },
-    { id:'loanType',    label:'Loan Type',          def:true  },
-    { id:'odAge',       label:'OD Age',             def:true  },
-    { id:'promiseDate', label:'Promise Date',       def:true  },
-    { id:'generous',    label:'Generous Amt (₵)',  def:true  },
-    { id:'dueToday',    label:'Full Balance (₵)',  def:false },
-    { id:'loanDue',     label:'Loan Due (₵)',      def:false },
-    { id:'paid',        label:'Amount Paid (₵)',   def:false },
-    { id:'remaining',   label:'Remaining (₵)',     def:false },
-    { id:'odFee',       label:'OD Fee (₵)',        def:false },
-    { id:'status',      label:'Status',            def:false },
-    { id:'tags',        label:'Tags',              def:false },
-    { id:'stage',       label:'Stage (M0–M5)',     def:false },
-    { id:'smsMsg',      label:'SMS Message',       def:false },
-    { id:'serial',      label:'Serial (1/2)',      def:false },
+  // ── Columns, grouped for readability — all 16 present, none removed ──
+  const colGroups = [
+    { label: 'Identity', cols: [
+      { id:'name',        label:'Full Name',          def:true  },
+      { id:'phone',       label:'Phone Number',       def:true  },
+    ]},
+    { label: 'Loan Info', cols: [
+      { id:'loanType',    label:'Loan Type',          def:true  },
+      { id:'stage',       label:'Stage (M0–M5)',     def:false },
+      { id:'tags',        label:'Tags',              def:false },
+    ]},
+    { label: 'Financial', cols: [
+      { id:'odAge',       label:'OD Age',             def:true  },
+      { id:'generous',    label:'Generous Amt (₵)',  def:true  },
+      { id:'dueToday',    label:'Full Balance (₵)',  def:false },
+      { id:'loanDue',     label:'Loan Due (₵)',      def:false },
+      { id:'paid',        label:'Amount Paid (₵)',   def:false },
+      { id:'remaining',   label:'Remaining (₵)',     def:false },
+      { id:'odFee',       label:'OD Fee (₵)',        def:false },
+      { id:'status',      label:'Status',            def:false },
+    ]},
+    { label: 'Dates &amp; Messaging', cols: [
+      { id:'promiseDate', label:'Promise Date',       def:true  },
+      { id:'smsMsg',      label:'SMS Message',        def:false },
+      { id:'serial',      label:'Serial (1/2)',       def:false },
+    ]},
   ];
 
   const allOdAges = [...new Set(state.borrowers.map(b=>getOdAge(b.startDate, b)))].sort((a,b)=>a-b);
@@ -10038,71 +10140,104 @@ function openExportModal() {
   document.getElementById('modal-title').textContent = 'Export Data';
 
   document.getElementById('modal-body').innerHTML =
-    // ── Tabs
-    '<div class="export-tabs">'
-    + '<div class="export-tab active" id="exptab-columns" onclick="_switchExpTab(\'columns\')"><span class="export-tab-num">1</span> Columns</div>'
-    + '<div class="export-tab" id="exptab-filters" onclick="_switchExpTab(\'filters\')"><span class="export-tab-num">2</span> Filters</div>'
-    + '<div class="export-tab" id="exptab-export" onclick="_switchExpTab(\'export\')"><span class="export-tab-num">3</span> Export</div>'
+    // ── Stepper
+    '<div class="exp-stepper">'
+    + '<div class="exp-step-node active" id="expstep-columns" onclick="_switchExpTab(\'columns\')"><div class="exp-step-circle">1</div><div class="exp-step-label">Columns</div></div>'
+    + '<div class="exp-step-line" id="expline-1"></div>'
+    + '<div class="exp-step-node" id="expstep-filters" onclick="_switchExpTab(\'filters\')"><div class="exp-step-circle">2</div><div class="exp-step-label">Filters</div></div>'
+    + '<div class="exp-step-line" id="expline-2"></div>'
+    + '<div class="exp-step-node" id="expstep-export" onclick="_switchExpTab(\'export\')"><div class="exp-step-circle">3</div><div class="exp-step-label">Export</div></div>'
     + '</div>'
 
     // ── Panel 1: Columns
     + '<div class="export-tab-panel active" id="exppanel-columns">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">'
     + '<div class="exp-section-label" style="margin-bottom:0">Select columns</div>'
     + '<div style="display:flex;gap:8px">'
     + '<button class="btn btn-ghost btn-xs" onclick="document.querySelectorAll(\'.export-col-item\').forEach(e=>{e.classList.add(\'checked\');e.querySelector(\'input\').checked=true})">All</button>'
     + '<button class="btn btn-ghost btn-xs" onclick="document.querySelectorAll(\'.export-col-item\').forEach(e=>{e.classList.remove(\'checked\');e.querySelector(\'input\').checked=false})">None</button>'
     + '</div></div>'
-    + '<div class="exp-cols-grid">'
-    + cols.map(c =>
-        '<div class="export-col-item'+(c.def?' checked':'')+'" onclick="toggleExportCol(this)" data-col="'+c.id+'">'
-        + '<input type="checkbox"'+(c.def?' checked':'')+' style="accent-color:var(--gold);flex-shrink:0"> <span>'+c.label+'</span></div>'
-      ).join('')
-    + '</div>'
-    + '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">'
+    + colGroups.map(function(g, gi){
+        return '<div style="margin-top:'+(gi===0?10:16)+'px">'
+          + '<div class="exp-section-label">'+g.label+'</div>'
+          + '<div class="exp-cols-grid">'
+          + g.cols.map(c =>
+              '<div class="export-col-item'+(c.def?' checked':'')+'" onclick="toggleExportCol(this)" data-col="'+c.id+'">'
+              + '<input type="checkbox"'+(c.def?' checked':'')+' style="accent-color:var(--gold);flex-shrink:0"> <span>'+c.label+'</span></div>'
+            ).join('')
+          + '</div></div>';
+      }).join('')
+    + '<div class="exp-group-divider"></div>'
     + '<div class="exp-section-label">Name format</div>'
-    + '<select id="export-name-format" class="filter-select" style="width:100%;font-size:var(--text-md)">'
+    + '<div class="exp-seg">'
+    + '<div class="exp-seg-opt selected" data-v="full" onclick="_expSegSelect(this,\'export-name-format\')">Full</div>'
+    + '<div class="exp-seg-opt" data-v="first" onclick="_expSegSelect(this,\'export-name-format\')">First</div>'
+    + '<div class="exp-seg-opt" data-v="last" onclick="_expSegSelect(this,\'export-name-format\')">Last</div>'
+    + '<div class="exp-seg-opt" data-v="first_last" onclick="_expSegSelect(this,\'export-name-format\')">First+Last</div>'
+    + '</div>'
+    + '<select id="export-name-format" style="display:none">'
     + '<option value="full">Full Name</option>'
     + '<option value="first">First Name only</option>'
     + '<option value="last">Last Name only</option>'
     + '<option value="first_last">First + Last</option>'
-    + '</select></div>'
+    + '</select>'
     + '<div style="margin-top:10px">'
-    + '<label style="display:flex;align-items:center;gap:10px;font-size:var(--text-base);cursor:pointer;color:var(--text2);padding:10px 0">'
-    + '<input type="checkbox" id="export-msg-generous" checked style="accent-color:var(--gold)"> SMS column uses Generous amount'
-    + '</label></div>'
-    + '<button class="btn btn-gold" style="width:100%;margin-top:4px" onclick="_switchExpTab(\'filters\')">Next: Filters <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
+    + '<div class="exp-switch-row" onclick="_expSwitchToggle(this.querySelector(\'.exp-switch\'),\'export-msg-generous\')">'
+    + '<div><div class="lbl">SMS uses Generous amount</div><div class="sub">Applies the discount rate to the SMS column</div></div>'
+    + '<div class="exp-switch on" onclick="event.stopPropagation();_expSwitchToggle(this,\'export-msg-generous\')"><div class="knob"></div></div>'
+    + '</div>'
+    + '<input type="checkbox" id="export-msg-generous" checked style="display:none">'
+    + '</div>'
+    + '<button class="btn btn-gold" style="width:100%;margin-top:12px" onclick="_switchExpTab(\'filters\')">Next: Filters <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
     + '</div>'
 
-    // ── Panel 2: Filters (fixed missing +)
+    // ── Panel 2: Filters
     + '<div class="export-tab-panel" id="exppanel-filters">'
-    + '<div class="exp-count-bar" id="exp-count-bar">'
-    + '<span style="font-size:var(--text-base);color:var(--text3)">Matching accounts</span>'
-    + '<span style="font-family:var(--font-mono);font-size:var(--text-xl);font-weight:700;color:var(--gold)" id="exp-count-num">'+totalActive+' accounts</span>'
+    + '<div class="exp-section-label">Exclude a specific contact</div>'
+    + '<div class="exp-search-wrap">'
+    + '<span class="exp-search-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>'
+    + '<input class="exp-search-input" id="exp-search-input" placeholder="Search by name or phone…" oninput="_expDoSearch(this.value)" onfocus="_expDoSearch(this.value)">'
+    + '<div class="exp-search-results" id="exp-search-results"></div>'
     + '</div>'
+    + '<div class="exp-chips" id="exp-chips" style="margin-bottom:16px"><span class="exp-chip-empty">None excluded — every matching account included</span></div>'
+
+    + '<div class="exp-count-bar" id="exp-count-bar">'
+    + '<div class="exp-count-top"><span style="font-size:var(--text-base);color:var(--text3)">Matching accounts</span>'
+    + '<span style="font-family:var(--font-mono);font-size:var(--text-xl);font-weight:700;color:var(--gold)" id="exp-count-num">'+totalActive+' accounts</span></div>'
+    + '<div class="exp-count-track"><div class="exp-count-fill" id="exp-count-fill" style="width:0%"></div></div>'
+    + '</div>'
+
     + '<div class="exp-section-label">Account status</div>'
     + '<div class="exp-status-grid" style="margin-bottom:var(--section-gap)">'
-    + '<div class="exp-status-pill on" id="pill-unpaid" onclick="_togglePill(this,\'exp-inc-unpaid\')">⏳ Unpaid</div>'
-    + '<div class="exp-status-pill on" id="pill-partial" onclick="_togglePill(this,\'exp-inc-partial\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Part Paid</div>'
-    + '<div class="exp-status-pill" id="pill-paid" onclick="_togglePill(this,\'exp-inc-paid\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Fully Paid</div>'
-    + '<div class="exp-status-pill on" id="pill-promised" onclick="_togglePill(this,\'exp-inc-promised\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> Promised</div>'
+    + '<div class="exp-status-pill on" id="pill-unpaid" onclick="_togglePill(this,\'exp-inc-unpaid\')"><span class="exp-accent"></span> ⏳ Unpaid</div>'
+    + '<div class="exp-status-pill on" id="pill-partial" onclick="_togglePill(this,\'exp-inc-partial\')"><span class="exp-accent"></span> <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Part Paid</div>'
+    + '<div class="exp-status-pill" id="pill-paid" onclick="_togglePill(this,\'exp-inc-paid\')"><span class="exp-accent"></span> <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Fully Paid</div>'
+    + '<div class="exp-status-pill on" id="pill-promised" onclick="_togglePill(this,\'exp-inc-promised\')"><span class="exp-accent"></span> <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> Promised</div>'
     + '</div>'
-    + '<div style="margin-bottom:var(--section-gap)">'
-    + '<label style="display:flex;align-items:center;gap:10px;font-size:var(--text-base);cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:var(--radius-md);border:1px solid var(--border)">'
-    + '<input type="checkbox" id="exp-inc-promised-only" style="accent-color:var(--gold)"> Promised accounts only <span style="margin-left:auto;font-size:var(--text-xs);color:var(--text3)">(overrides above)</span>'
-    + '</label></div>'
-    + '<div style="margin-bottom:var(--section-gap)">'
-    + '<label style="display:flex;align-items:center;gap:10px;font-size:var(--text-base);cursor:pointer;color:var(--text2);padding:9px 12px;background:var(--surface2);border-radius:var(--radius-md);border:1px solid var(--border)">'
-    + '<input type="checkbox" id="exp-excl-future-today" style="accent-color:var(--gold)" onchange="setTimeout(_expCount,50)"> Exclude future &amp; today&#39;s promises <span style="margin-left:auto;font-size:var(--text-xs);color:var(--text3)">(keeps only past-due / no promise)</span>'
-    + '</label></div>'
+
+    + '<div class="exp-switch-row" onclick="_expSwitchToggle(this.querySelector(\'.exp-switch\'),\'exp-inc-promised-only\')">'
+    + '<div><div class="lbl">Promised accounts only</div><div class="sub">Overrides the status pills above</div></div>'
+    + '<div class="exp-switch" onclick="event.stopPropagation();_expSwitchToggle(this,\'exp-inc-promised-only\')"><div class="knob"></div></div>'
+    + '</div>'
+    + '<input type="checkbox" id="exp-inc-promised-only" style="display:none">'
+
+    + '<div class="exp-switch-row" style="margin-bottom:var(--section-gap)" onclick="_expSwitchToggle(this.querySelector(\'.exp-switch\'),\'exp-excl-future-today\')">'
+    + '<div><div class="lbl">Exclude future &amp; today\'s promises</div><div class="sub">Keeps only past-due or no promise</div></div>'
+    + '<div class="exp-switch" onclick="event.stopPropagation();_expSwitchToggle(this,\'exp-excl-future-today\')"><div class="knob"></div></div>'
+    + '</div>'
+    + '<input type="checkbox" id="exp-excl-future-today" style="display:none">'
+
     + '<div class="exp-section-label">OD Day range</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:var(--section-gap)">'
+    + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center">'
     + '<div><label style="font-size:var(--text-xs);color:var(--text3);margin-bottom:3px;display:block">From</label>'
     + '<input type="number" id="exp-od-min" class="form-input" style="font-size:var(--text-md);padding:8px 10px" min="0" max="90" value="'+minOd+'" oninput="setTimeout(_expCount,50)"></div>'
     + '<div style="text-align:center;padding-top:20px;color:var(--text3);font-size:var(--text-md)">—</div>'
     + '<div><label style="font-size:var(--text-xs);color:var(--text3);margin-bottom:3px;display:block">To</label>'
     + '<input type="number" id="exp-od-max" class="form-input" style="font-size:var(--text-md);padding:8px 10px" min="0" max="90" value="'+maxOd+'" oninput="setTimeout(_expCount,50)"></div>'
     + '</div>'
+    + '<div class="exp-range-preview"><div class="fill" style="left:0%;width:100%"></div></div>'
+    + '<div style="margin-bottom:var(--section-gap)"></div>'
+
     + '<div class="exp-section-label">Balance owed (₵)</div>'
     + '<div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:center;margin-bottom:var(--section-gap)">'
     + '<div><label style="font-size:var(--text-xs);color:var(--text3);margin-bottom:3px;display:block">Min</label>'
@@ -10111,8 +10246,16 @@ function openExportModal() {
     + '<div><label style="font-size:var(--text-xs);color:var(--text3);margin-bottom:3px;display:block">Max</label>'
     + '<input type="number" id="exp-amt-max" class="form-input" style="font-size:var(--text-md);padding:8px 10px" min="0" placeholder="No limit" oninput="setTimeout(_expCount,50)"></div>'
     + '</div>'
+
     + '<div class="exp-section-label">Sort order</div>'
-    + '<select id="exp-sort-by" class="filter-select" style="width:100%;font-size:var(--text-md);margin-bottom:var(--section-gap)">'
+    + '<div class="exp-seg" style="margin-bottom:var(--section-gap)">'
+    + '<div class="exp-seg-opt selected" data-v="odAge" onclick="_expSegSelect(this,\'exp-sort-by\')">OD Age</div>'
+    + '<div class="exp-seg-opt" data-v="balance" onclick="_expSegSelect(this,\'exp-sort-by\')">Highest Balance</div>'
+    + '<div class="exp-seg-opt" data-v="paid" onclick="_expSegSelect(this,\'exp-sort-by\')">Amount Paid</div>'
+    + '<div class="exp-seg-opt" data-v="name" onclick="_expSegSelect(this,\'exp-sort-by\')">Name A–Z</div>'
+    + '<div class="exp-seg-opt" data-v="promiseDate" onclick="_expSegSelect(this,\'exp-sort-by\')">Promise Date</div>'
+    + '</div>'
+    + '<select id="exp-sort-by" style="display:none">'
     + '<option value="odAge">OD Age (default)</option>'
     + '<option value="balance">Highest Balance</option>'
     + '<option value="paid">Amount Paid</option>'
@@ -10124,33 +10267,48 @@ function openExportModal() {
 
     // ── Panel 3: Export
     + '<div class="export-tab-panel" id="exppanel-export">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;background:transparent;padding:6px 2px;margin-bottom:var(--section-gap)">'
-    + '<span style="font-size:var(--text-base);color:var(--text3)">Ready to export</span>'
-    + '<span style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:600;color:var(--text2)" id="exp-count-num2">— accounts</span>'
+    + '<div class="exp-count-bar" style="margin-bottom:var(--section-gap)">'
+    + '<div class="exp-count-top"><span style="font-size:var(--text-base);color:var(--text3)">Ready to export</span>'
+    + '<span style="font-family:var(--font-mono);font-size:var(--text-xl);font-weight:700;color:var(--gold)" id="exp-count-num2">— accounts</span></div>'
+    + '<div class="exp-count-track"><div class="exp-count-fill" style="width:0%"></div></div>'
     + '</div>'
     + '<div class="exp-section-label">Choose format</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
-    + '<div class="exp-format-btn selected" id="efmt-csv" onclick="_selectExpFmt(\'csv\')">'
-    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><line x1="8.5" y1="13.2" x2="15.5" y2="13.2"/><line x1="8.5" y1="16.8" x2="15.5" y2="16.8"/></svg></div><div class="ef-label">CSV</div><div class="ef-desc">Spreadsheet-ready</div></div>'
-    + '<div class="exp-format-btn" id="efmt-xlsx" onclick="_selectExpFmt(\'xlsx\')">'
-    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="1.8"/><line x1="3.5" y1="10" x2="20.5" y2="10"/><line x1="3.5" y1="15" x2="20.5" y2="15"/><line x1="9.5" y1="4.5" x2="9.5" y2="19.5"/><line x1="15" y1="4.5" x2="15" y2="19.5"/></svg></div><div class="ef-label">Excel</div><div class="ef-desc">Real .xlsx with 2 sheets</div></div>'
-    + '<div class="exp-format-btn" id="efmt-pdf" onclick="_selectExpFmt(\'pdf\')">'
-    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.7 13.6l1.4 1.4 3-3.2"/></svg></div><div class="ef-label">PDF Report</div><div class="ef-desc">Print-ready</div></div>'
-    + '<div class="exp-format-btn" id="efmt-wa" onclick="_selectExpFmt(\'wa\')">'
-    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.5h2.7l1.3 3.6-1.4 1.4a10.5 10.5 0 0 0 5.4 5.4l1.4-1.4 3.6 1.3v2.7a1.8 1.8 0 0 1-1.9 1.8A15 15 0 0 1 3.7 6.4a1.8 1.8 0 0 1 1.8-1.9z"/></svg></div><div class="ef-label">WA Numbers</div><div class="ef-desc">Phone list for broadcast</div></div>'
+    + '<div class="exp-format-btn selected" id="efmt-csv" onclick="_selectExpFmt(\'csv\')" style="--efc:#22c55e;--efc-bg:rgba(34,197,94,0.14);--efc-glow:rgba(34,197,94,0.25)">'
+    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><line x1="8.5" y1="13.2" x2="15.5" y2="13.2"/><line x1="8.5" y1="16.8" x2="15.5" y2="16.8"/></svg></div>'
+    + '<div class="ef-info"><div class="ef-label">CSV</div><div class="ef-desc">Spreadsheet-ready</div></div>'
+    + '<div class="exp-format-check">'+_expCheckSvg()+'</div></div>'
+    + '<div class="exp-format-btn" id="efmt-xlsx" onclick="_selectExpFmt(\'xlsx\')" style="--efc:#16a34a;--efc-bg:rgba(22,163,74,0.14);--efc-glow:rgba(22,163,74,0.25)">'
+    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="1.8"/><line x1="3.5" y1="10" x2="20.5" y2="10"/><line x1="3.5" y1="15" x2="20.5" y2="15"/><line x1="9.5" y1="4.5" x2="9.5" y2="19.5"/><line x1="15" y1="4.5" x2="15" y2="19.5"/></svg></div>'
+    + '<div class="ef-info"><div class="ef-label">Excel</div><div class="ef-desc">.xlsx, 2 sheets</div></div>'
+    + '<div class="exp-format-check">'+_expCheckSvg()+'</div></div>'
+    + '<div class="exp-format-btn" id="efmt-pdf" onclick="_selectExpFmt(\'pdf\')" style="--efc:#ef4444;--efc-bg:rgba(239,68,68,0.14);--efc-glow:rgba(239,68,68,0.25)">'
+    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.7 13.6l1.4 1.4 3-3.2"/></svg></div>'
+    + '<div class="ef-info"><div class="ef-label">PDF Report</div><div class="ef-desc">Print-ready</div></div>'
+    + '<div class="exp-format-check">'+_expCheckSvg()+'</div></div>'
+    + '<div class="exp-format-btn" id="efmt-wa" onclick="_selectExpFmt(\'wa\')" style="--efc:#14b8a6;--efc-bg:rgba(20,184,166,0.14);--efc-glow:rgba(20,184,166,0.25)">'
+    + '<div class="ef-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 4.5h2.7l1.3 3.6-1.4 1.4a10.5 10.5 0 0 0 5.4 5.4l1.4-1.4 3.6 1.3v2.7a1.8 1.8 0 0 1-1.9 1.8A15 15 0 0 1 3.7 6.4a1.8 1.8 0 0 1 1.8-1.9z"/></svg></div>'
+    + '<div class="ef-info"><div class="ef-label">WA Numbers</div><div class="ef-desc">Broadcast list</div></div>'
+    + '<div class="exp-format-check">'+_expCheckSvg()+'</div></div>'
     + '</div>'
     + '<div id="exp-pdf-opts" style="display:none;margin-bottom:var(--section-gap)">'
     + '<div class="exp-section-label">PDF report type</div>'
-    + '<select id="pdf-type-sel" class="filter-select" style="width:100%;font-size:var(--text-md)">'
+    + '<div class="exp-seg">'
+    + '<div class="exp-seg-opt selected" data-v="report" onclick="_expSegSelect(this,\'pdf-type-sel\')">Portfolio Report</div>'
+    + '<div class="exp-seg-opt" data-v="active" onclick="_expSegSelect(this,\'pdf-type-sel\')">Active Accounts</div>'
+    + '<div class="exp-seg-opt" data-v="full" onclick="_expSegSelect(this,\'pdf-type-sel\')">Full Portfolio</div>'
+    + '</div>'
+    + '<select id="pdf-type-sel" style="display:none">'
     + '<option value="report">Portfolio Report</option>'
     + '<option value="active">Active Accounts</option>'
     + '<option value="full">Full Portfolio</option>'
     + '</select></div>'
-    + '<button class="btn btn-gold" style="width:100%;padding:13px;font-size:var(--text-lg);letter-spacing:0.3px" id="exp-dl-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Download</button>'
+    + '<button class="btn btn-ghost" style="width:100%" onclick="_switchExpTab(\'columns\')">← Back to Columns</button>'
     + '</div>';
 
   document.getElementById('modal-footer').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>';
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'
+    + '<button class="btn btn-gold" style="flex:1;padding:13px;font-size:var(--text-lg);letter-spacing:0.3px" id="exp-dl-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v13"/><path d="M6 12l6 6 6-6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Download <span id="exp-dl-count">'+totalActive+'</span></button>';
 
   document.getElementById('modal-overlay').classList.add('open');
 
@@ -10177,8 +10335,69 @@ function openExportModal() {
   };
   window._expCount = _expCount;
 
+  // ── Search-and-exclude a specific contact ──────────────────
+  window._expDoSearch = function(q) {
+    var results = document.getElementById('exp-search-results');
+    if (!results) return;
+    q = (q||'').trim().toLowerCase();
+    if (!q) { results.classList.remove('show'); return; }
+    var matches = state.borrowers.filter(function(b){
+      return !window._expExcludedIds.has(b.id) &&
+        (b.name.toLowerCase().includes(q) || (b.phone||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')));
+    }).slice(0, 8);
+    if (!matches.length) {
+      results.innerHTML = '<div class="exp-search-row"><span class="exp-srr-sub">No matching contact</span></div>';
+    } else {
+      results.innerHTML = matches.map(function(b){
+        var color = _expAvatarColor(b.name);
+        var due = fmtC(getDueToday(b));
+        return '<div class="exp-search-row" onclick="_expExcludeContact(\''+b.id+'\')">'
+          + '<div class="exp-avatar" style="background:'+color+'">'+_expInitials(b.name)+'</div>'
+          + '<div><div class="exp-srr-name">'+escapeHtml(b.name)+'</div><div class="exp-srr-sub">'+escapeHtml(b.phone||'')+' · '+due+' due</div></div>'
+          + '<div class="exp-srr-add">Exclude</div></div>';
+      }).join('');
+    }
+    results.classList.add('show');
+  };
+  window._expRenderChips = function() {
+    var wrap = document.getElementById('exp-chips');
+    if (!wrap) return;
+    if (!window._expExcludedIds.size) {
+      wrap.innerHTML = '<span class="exp-chip-empty">None excluded — every matching account included</span>';
+      return;
+    }
+    var chips = [];
+    window._expExcludedIds.forEach(function(id){
+      var b = state.borrowers.find(function(x){ return x.id === id; });
+      if (!b) return;
+      chips.push('<span class="exp-chip">'+escapeHtml(b.name.split(' ')[0])+' <button onclick="_expRemoveExclusion(\''+id+'\')">✕</button></span>');
+    });
+    wrap.innerHTML = chips.join('');
+  };
+  window._expExcludeContact = function(id) {
+    window._expExcludedIds.add(id);
+    var input = document.getElementById('exp-search-input');
+    if (input) input.value = '';
+    var results = document.getElementById('exp-search-results');
+    if (results) results.classList.remove('show');
+    window._expRenderChips();
+    _expCount();
+  };
+  window._expRemoveExclusion = function(id) {
+    window._expExcludedIds.delete(id);
+    window._expRenderChips();
+    _expCount();
+  };
+
   setTimeout(function(){
     _expCount();
+    // close search results when tapping elsewhere
+    document.getElementById('modal-body')?.addEventListener('click', function(e){
+      if (!e.target.closest('.exp-search-wrap')) {
+        var r = document.getElementById('exp-search-results');
+        if (r) r.classList.remove('show');
+      }
+    });
     // sync count to export panel too
     var dl = document.getElementById('exp-dl-btn');
     if(dl) dl.addEventListener('click', function(){
@@ -10200,6 +10419,10 @@ function openExportModal() {
     var bar=document.getElementById('exp-count-bar');
     if(bar) obs.observe(bar,{subtree:true,characterData:true,childList:true});
   },0);
+}
+
+function _expCheckSvg() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 }
 
 function doExportWANumbers() {
@@ -10241,6 +10464,36 @@ function _expCheckbox(id, label, checked, wide) {
 function toggleExportCol(el) {
   el.classList.toggle('checked');
   el.querySelector('input').checked = el.classList.contains('checked');
+}
+
+// Generic segmented-control selector: highlights the tapped option and syncs
+// its value onto a hidden native <select> so existing read logic (.value)
+// keeps working untouched.
+function _expSegSelect(el, hiddenId) {
+  el.parentElement.querySelectorAll('.exp-seg-opt').forEach(function(o){ o.classList.remove('selected'); });
+  el.classList.add('selected');
+  const hidden = document.getElementById(hiddenId);
+  if (hidden) hidden.value = el.dataset.v;
+  if (typeof _expCount === 'function') _expCount();
+}
+
+// Generic iOS-style switch: flips its own state and syncs onto a hidden
+// checkbox so existing read logic (.checked) keeps working untouched.
+function _expSwitchToggle(el, hiddenId) {
+  el.classList.toggle('on');
+  const hidden = document.getElementById(hiddenId);
+  if (hidden) hidden.checked = el.classList.contains('on');
+  if (typeof _expCount === 'function') _expCount();
+}
+
+const _EXP_AVATAR_PALETTE = ['#f0a030','#38bdf8','#a78bfa','#22c55e','#ef4444','#14b8a6','#fb923c','#ec4899'];
+function _expAvatarColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  return _EXP_AVATAR_PALETTE[hash % _EXP_AVATAR_PALETTE.length];
+}
+function _expInitials(name) {
+  return name.trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase();
 }
 
 function doExportCSV() {
@@ -10330,6 +10583,8 @@ function _getExportData() {
 
   // ── Filter ─────────────────────────────────────────────────
   let borrowers = state.borrowers.filter(function(b) {
+    // Manually excluded via the search-and-exclude box
+    if (window._expExcludedIds && window._expExcludedIds.has(b.id)) return false;
     const age    = getOdAge(b.startDate, b);
     const bal    = getDueToday(b);
     const status = getStatus(b);
@@ -14099,7 +14354,20 @@ function _buildMonthlySnapshot(monthStr, today, opts) {
     ptpHonourRate:    ptpHonourRate,     // % of PTPs that resulted in payment
     odStageMix:       odBuckets,         // portfolio aging snapshot at month-end
     activeDaysLogged: (state.dailyLog||[]).filter(e => (e.collected||0) > 0).length,
+    // Full day-by-day log, preserved because state.dailyLog gets wiped to []
+    // right after this snapshot is built — without this, any "vs last month"
+    // comparison silently breaks the moment a rollover happens.
+    dailyLogSnapshot: JSON.parse(JSON.stringify(state.dailyLog || [])),
   }, opts);
+}
+
+// Returns the day-by-day collection log for a given month label (e.g. "August 2026").
+// The current month's log lives at state.dailyLog; every prior month's log only
+// survives inside its archived snapshot (state.dailyLog is cleared on rollover).
+function _getMonthDailyLog(monthLabel) {
+  if (monthLabel === state.month) return state.dailyLog || [];
+  const snap = (state.archive || []).find(a => a.month === monthLabel);
+  return (snap && snap.dailyLogSnapshot) || [];
 }
 
 function doRollover() {
