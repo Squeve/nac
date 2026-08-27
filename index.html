@@ -6356,6 +6356,12 @@ function migrateState(s) {
     if (!b.payLog) b.payLog = [];
     if (!b.callLog) b.callLog = [];
     if (b.ptpBreached === undefined) b.ptpBreached = false;
+    if (b.brokenPromiseCount === undefined) {
+      // One-time backfill: count only genuine breaches, not kept/rescheduled
+      // promises — the old escalation message counted promiseHistory.length
+      // directly, which silently included promises the borrower DID keep.
+      b.brokenPromiseCount = (b.promiseHistory||[]).filter(h => h.outcome !== 'paid').length;
+    }
     if (b.priorityScore === undefined) b.priorityScore = 5;
     if (!s.offlineQueue) s.offlineQueue = [];
   });
@@ -7313,6 +7319,7 @@ function ptpAutoFlagMissed() {
     if (!b.ptpOutcome || b.ptpOutcome === '' || b.ptpOutcome === 'pending') {
       b.ptpOutcome  = 'missed';
       b.ptpBreached = true;
+      b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
       changed = true;
     }
   });
@@ -12887,6 +12894,7 @@ function autoExpirePtps() {
     // Past due, unpaid, unresolved → mark as missed/breached
     b.ptpOutcome  = 'missed';
     b.ptpBreached = true;
+    b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
     changed = true;
   });
 
@@ -16067,20 +16075,26 @@ This has been recorded in your file and will be considered in future decisions a
   // Level 10: Repeat Broken Promise Notice (Chronic — 2nd+ occurrence)
   if (level === 10) {
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
-    const breakCount = (b.promiseHistory || []).length + 1;
+    const breakCount = b.brokenPromiseCount || 2;
     const ord = _ordinal(breakCount);
-    return _escalHeader('⚠️', 'REPEATED BROKEN PROMISE NOTICE', b, caseRef, dateStr, [
+    return _escalHeader('🚨', 'REPEATED BROKEN PROMISE — FINAL WARNING', b, caseRef, dateStr, [
       { label: 'BROKEN PROMISES ON FILE', value: String(breakCount) },
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
 
 *${salute},*
 
-This is now the *${ord}* time you have failed to honour a promise to pay on this account. Your most recent promised date of *${promiseDate}* has passed without payment.
+This is the *${ord} time* you have failed to honour a promise to pay on this account. Your most recent promised date of *${promiseDate}* has passed without payment.
 
-Repeated broken promises are recorded permanently on your file and significantly reduce our willingness to offer flexible arrangements going forward.
+A pattern of broken promises is now permanently on your file. *We will no longer accept verbal promises alone* — no further reschedule will be offered on this account.
 
-*We will no longer accept verbal promises alone.* Full payment of *${balance}* is required *immediately*, or your account will proceed to field recovery and third-party notification without further warning.
+*If full payment of ${balance} is not received today:*
+
+🚫 Your case proceeds *immediately* to field recovery and third-party (guarantor/emergency contact) notification
+📉 Your details are submitted to the *Credit Reference Bureau*, affecting your ability to borrow from *any* licensed lender
+⚖️ Your file is flagged for *legal recovery review*
+
+This is your final opportunity to resolve this directly with us.
 
 📌 ${_escalPayGuide(b)}
 
@@ -16284,17 +16298,18 @@ Dear *${contactName}*,
 
 This is to inform you, as the signed guarantor on ${b.name}'s ${loanType} loan agreement, that the account is now *${odDays} days* overdue with an outstanding balance of *${balance}*. Direct contact attempts with ${b.name} have been unsuccessful.
 
-Under the guarantee you signed, and consistent with the Borrowers and Lenders Act, 2020 (Act 1052), a guarantor may be called upon to help settle the borrower's obligation once direct recovery efforts have been exhausted.
+Under the guarantee you signed, and consistent with the Borrowers and Lenders Act, 2020 (Act 1052), a guarantor may be called upon to help settle the borrower's obligation once direct recovery efforts have been exhausted — *that stage has now been reached on this account.*
 
-Please reach out to ${b.name} to help arrange payment, or contact us directly to discuss this account.
+*Please act within 48 hours:* reach ${b.name} to arrange payment, or contact us directly to discuss your position as guarantor. Continued non-response from both parties may result in this matter being referred for formal legal recovery, which can add legal costs to the amount owed.
 
 📌 Contact us at *${agentPhone}* to discuss settlement.
 
 *LoanBase Recovery Management*`;
     }
 
-    // Plain emergency contact — no liability, no threats. A courteous ask for help only.
-    return _escalHeader('📢', 'NOTIFICATION — UNABLE TO REACH BORROWER', b, caseRef, dateStr, [
+    // Plain emergency contact — no liability, no threats. Firmer on urgency,
+    // never on consequence to THEM — they owe nothing and are told so plainly.
+    return _escalHeader('📢', 'URGENT — UNABLE TO REACH BORROWER', b, caseRef, dateStr, [
       { label: 'EMERGENCY CONTACT', value: contactName }
     ]) + `
 
@@ -16302,9 +16317,9 @@ Dear *${contactName}*,
 
 You are listed as the emergency contact on ${b.name}'s ${loanType} loan application. We have been unable to reach ${b.name} directly, and the account is now *${odDays} days* overdue.
 
-This is not a claim against you — you have no obligation on this loan. We are asking for your help getting in touch with ${b.name} so they are aware and can act.
+*To be clear: this is not a claim against you and you have no obligation on this loan.* We are reaching out only because ${b.name}'s account is approaching a serious stage of recovery, and further silence may lead to formal actions on their file — actions we would rather avoid if they simply get in touch.
 
-If you are able to, please ask ${b.name} to contact us at *${agentPhone}* at their earliest convenience.
+If you're able to, please pass this on urgently: ask ${b.name} to contact us at *${agentPhone}* as soon as possible.
 
 Thank you for your help.
 
@@ -16401,6 +16416,67 @@ Thank you for resolving this matter.
 *LoanBase Recovery Management*`;
   }
 
+  // ══════════════ TIER 7 — Explicit refusal & evasion ══════════════
+  // Both levels below name real, lawful consequences only (credit bureau
+  // reporting under the Credit Reporting Act 2007 (Act 726), guarantor/
+  // emergency contact notification, and civil legal recovery). They never
+  // threaten arrest, violence, seizure without due process, or anything
+  // else that isn't a genuine step LoanBase can lawfully take.
+
+  // Level 22: Explicit Refusal to Pay
+  if (level === 22) {
+    return _escalHeader('🚫', 'FORMAL NOTICE — REFUSAL TO PAY RECORDED', b, caseRef, dateStr, [
+      { label: 'OUTSTANDING BALANCE', value: balance },
+      { label: 'STATUS', value: 'Refusal recorded ' + dateStr }
+    ]) + `
+
+*${salute},*
+
+You have indicated that you *do not intend to pay* the outstanding balance of *${balance}* on your ${loanType} loan account, now *${odDays} days* overdue.
+
+This has been formally recorded on your file as a *refusal to pay*, which is treated differently — and more seriously — than an inability to pay. Refusing to honour a loan agreement does not cancel the debt or your obligation to repay it.
+
+*Because this is now a refusal, not a delay, the following proceed without further reminder:*
+
+📉 Immediate submission to the *Credit Reference Bureau* under the Credit Reporting Act, 2007 (Act 726) — affecting your ability to borrow from *any* licensed lender in Ghana
+👥 Immediate notification of your guarantor / emergency contact on file
+⚖️ Referral of your file for *civil legal recovery*, which can add court and legal costs on top of the amount you already owe
+🔒 No further settlement discount or waiver will be offered on this account
+
+If this refusal was made in frustration or due to a dispute you'd like to raise, contact us *today* — this is your opportunity to resolve it before formal proceedings begin.
+
+📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* now.
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 23: Blocking Contact / Evasion Notice
+  // Meant to be sent via WHICHEVER channel still reaches the borrower —
+  // SMS if WhatsApp is blocked, or vice versa — since the point is that
+  // the usual channel no longer works.
+  if (level === 23) {
+    return _escalHeader('📵', 'NOTICE OF EVASION — CONTACT DELIBERATELY BLOCKED', b, caseRef, dateStr, [
+      { label: 'OUTSTANDING BALANCE', value: balance }
+    ]) + `
+
+*${salute},*
+
+Our attempts to reach you regarding your overdue ${loanType} loan of *${balance}* have been blocked or refused. This message is being sent through an alternative channel to ensure it reaches you.
+
+*Blocking or avoiding contact does not pause, reduce, or cancel your debt.* It is being formally recorded on your file as evasion of a lawful recovery process, and — because you cannot be reached directly — the following proceed automatically:
+
+👥 Your guarantor / emergency contact on file will be notified
+✉️ A formal written notice will be sent to the address on your loan file, where available
+📉 Your account is submitted to the *Credit Reference Bureau*, since non-response is treated the same as non-payment
+⚖️ Continued unavailability moves your file toward *legal recovery referral*
+
+You have not been forgotten, and this will not be dropped. Unblock and respond, or call us directly at *${_escalAgentPhone()}*, to resolve this on your terms before it proceeds further.
+
+📌 ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
   return '';
 }
 // Open escalation for a single borrower (from borrower detail card)
@@ -16413,7 +16489,7 @@ function openEscalFromBorrower(borrowerId) {
 // real state, so the agent isn't picking blind from 21 options every time.
 function _recommendEscalLevel(b) {
   if (getStatus(b) === 'Paid') return 21;
-  if (b.ptpBreached) return (b.promiseHistory||[]).length >= 1 ? 10 : 9;
+  if (b.ptpBreached) return (b.brokenPromiseCount||0) >= 2 ? 10 : 9;
   if (b.promisedToPay && (b.promiseDate||'').split(' ')[0] === new Date(Date.now()+86400000).toISOString().split('T')[0]) return 2;
   const instStatus = getInstalmentStatus(b);
   if (instStatus && !instStatus.onTrack) return 11;
@@ -16463,6 +16539,9 @@ function openEscalationPanel() {
     { level:20, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> L20 – Final Demand (Pre-Legal)',    color:'#dc2626', desc:'Last notice before handing over to lawyers.' },
     // ── Tier 6: Closure ─────────────────────────────────────────
     { level:21, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> L21 – Payment Acknowledgment',      color:'#22c55e', desc:'Confirm full payment and release.' },
+    // ── Tier 7: Explicit refusal & evasion ──────────────────────
+    { level:22, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/></svg></span> L22 – Refusal to Pay',              color:'#b91c1c', desc:'Customer explicitly states they will not pay — treated as more serious than a delay.' },
+    { level:23, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> L23 – Blocking Contact / Evasion',  color:'#b91c1c', desc:'Customer has blocked calls/WhatsApp — send via an alternative channel that still reaches them.' },
   ];
 
   const recommendedLevel = (isSingle && singleB) ? _recommendEscalLevel(singleB) : null;
@@ -16550,7 +16629,7 @@ function previewEscalation(level) {
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
   const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '' + levelLabels[level];
@@ -16606,7 +16685,7 @@ function escalRenderModal() {
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
   const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Field Visit',17:'Guarantor / Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = 'Escalation — ' + (idx+1) + ' of ' + tot;
@@ -22234,6 +22313,7 @@ function checkPtpBreaches() {
     if ((b.amountPaid||0) > 0) return;
     b.ptpBreached = true;
     b.ptpOutcome  = 'missed';
+    b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
     changed = true;
   });
   if (changed) saveState();
