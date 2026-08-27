@@ -10852,6 +10852,7 @@ function openAddModal() {
     + '<button class="btn btn-ghost btn-sm" id="tab-clipboard" data-addtab="clipboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Paste Rows</button>'
     + '<button class="btn btn-ghost btn-sm" id="tab-csv" data-addtab="csv"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V7"/><path d="M6 12l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span> Upload CSV</button>'
     + '<button class="btn btn-ghost btn-sm" id="tab-xlsx" data-addtab="xlsx"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> Upload Excel</button>'
+    + '<button class="btn btn-ghost btn-sm" id="tab-scan" data-addtab="scan"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M20 8V6a2 2 0 00-2-2h-2M20 16v2a2 2 0 01-2 2h-2"/><circle cx="12" cy="12" r="3.2"/></svg></span> Scan Photo</button>'
     + '</div>'
     + '<div id="add-tab-manual">' + borrowerForm() + '</div>'
     + '<div id="add-tab-clipboard" style="display:none">'
@@ -10895,6 +10896,35 @@ function openAddModal() {
     + '</label>'
     + '<div id="xlsx-preview" style="margin-top:10px;font-size:var(--text-base);color:var(--text3)"></div>'
     + '<button class="btn btn-gold" style="width:100%;margin-top:8px;display:none" id="btn-import-xlsx"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> Import Excel</button>'
+    + '</div>'
+    + '<div id="add-tab-scan" style="display:none">'
+    + '<div style="background:rgba(232,160,32,0.07);border:1px solid rgba(232,160,32,0.25);border-radius:var(--radius-md);padding:12px;margin-bottom:12px;font-size:var(--text-base)">'
+    + '<div style="font-weight:700;color:var(--gold);margin-bottom:6px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none"/></svg></span> Scan an intake sheet or ledger page</div>'
+    + '<div style="color:var(--text2);line-height:1.8">Take a photo (or upload one) of a handwritten intake form or ledger page. Every row/entry it can read gets pulled into an editable list below — review, correct, and choose which ones to add.</div>'
+    + '</div>'
+    + '<div class="exp-section-label">Reading engine</div>'
+    + '<div class="exp-seg" id="cs-provider-seg" style="margin-bottom:8px">'
+    + '<div class="exp-seg-opt" data-p="local" onclick="_csSetProvider(\'local\')">Local OCR (Free)</div>'
+    + '<div class="exp-seg-opt" data-p="gemini" onclick="_csSetProvider(\'gemini\')">Gemini</div>'
+    + '<div class="exp-seg-opt" data-p="claude" onclick="_csSetProvider(\'claude\')">Claude</div>'
+    + '<div class="exp-seg-opt" data-p="openai" onclick="_csSetProvider(\'openai\')">GPT-4o</div>'
+    + '</div>'
+    + '<div id="cs-provider-warning" style="display:none;font-size:var(--text-xs);color:var(--red);margin-bottom:8px">Handwriting is hard for local OCR — an AI provider above will read it far more reliably.</div>'
+    + '<div id="cs-key-wrap" style="display:none;margin-bottom:12px">'
+    + '<input type="password" class="form-input" id="cs-key-input" placeholder="Paste your API key" style="font-family:var(--font-mono);font-size:var(--text-sm)" onblur="_csSaveKey(this.value)">'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px">Saved on this device only — shared with the Leaderboard Scan feature in Settings.</div>'
+    + '</div>'
+    + '<label style="display:block;cursor:pointer">'
+    + '<div style="border:2px dashed rgba(240,160,48,0.35);border-radius:var(--radius);padding:20px;text-align:center;background:rgba(240,160,48,0.04)" id="cs-drop-zone">'
+    + '<span class="ico" style="display:block;margin-bottom:8px"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto;color:var(--gold)"><path d="M4 8V6a2 2 0 012-2h2M4 16v2a2 2 0 002 2h2M20 8V6a2 2 0 00-2-2h-2M20 16v2a2 2 0 01-2 2h-2"/><circle cx="12" cy="12" r="3.2"/></svg></span>'
+    + '<div style="font-size:var(--text-md);font-weight:600;color:var(--text);margin-bottom:4px">Tap to take a photo or choose one</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3)">Handwritten intake sheets and ledger pages</div>'
+    + '</div>'
+    + '<input type="file" id="case-scan-upload" accept="image/*" style="display:none" onchange="scanCaseSheet(this)">'
+    + '</label>'
+    + '<div id="case-scan-status" style="font-size:var(--text-base);color:var(--text3);margin-top:10px;min-height:18px"></div>'
+    + '<div id="case-scan-preview" style="margin-top:8px"></div>'
+    + '<button class="btn btn-gold" style="width:100%;margin-top:8px;display:none" id="btn-import-scan"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Add Selected Cases</button>'
     + '</div>';
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'
@@ -10912,11 +10942,14 @@ function openAddModal() {
     if (btnCsv) btnCsv.addEventListener('click', importFromCSV);
     var btnXlsx = document.getElementById('btn-import-xlsx');
     if (btnXlsx) btnXlsx.addEventListener('click', importFromXLSX);
+    var btnScan = document.getElementById('btn-import-scan');
+    if (btnScan) btnScan.addEventListener('click', importFromCaseScan);
+    _csSyncProviderUI();
   }, 0);
 }
 
 function showAddTab(tab) {
-  ['manual','clipboard','csv','xlsx'].forEach(t => {
+  ['manual','clipboard','csv','xlsx','scan'].forEach(t => {
     const el = document.getElementById('add-tab-' + t);
     const btn = document.getElementById('tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
@@ -10959,6 +10992,193 @@ function importFromClipboard() {
   }
   purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
   toast('Imported ' + added + ' contact' + (added!==1?'s':'') + (skipped?' · '+skipped+' skipped':''), 'success');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CASE SCAN — camera/photo OCR for handwritten intake sheets
+// Reuses the same local-OCR + AI-vision engine as Ranking Scan
+// (same _scanProvider, same saved API keys) — just a different
+// prompt, parser, and destination (Add Borrower instead of ranking).
+// ══════════════════════════════════════════════════════════════
+
+function _csSetProvider(p) {
+  setScanProvider(p); // updates the shared _scanProvider + localStorage
+  _csSyncProviderUI();
+}
+
+function _csSyncProviderUI() {
+  var seg = document.getElementById('cs-provider-seg');
+  if (!seg) return; // Scan tab not open / not built yet
+  seg.querySelectorAll('.exp-seg-opt').forEach(function(opt) {
+    opt.classList.toggle('selected', opt.dataset.p === _scanProvider);
+  });
+  var warn = document.getElementById('cs-provider-warning');
+  if (warn) warn.style.display = (_scanProvider === 'local') ? '' : 'none';
+  var keyWrap = document.getElementById('cs-key-wrap');
+  var keyInput = document.getElementById('cs-key-input');
+  if (keyWrap) keyWrap.style.display = (_scanProvider === 'local') ? 'none' : '';
+  if (keyInput) keyInput.value = _scanProvider === 'local' ? '' : getProviderKey(_scanProvider);
+}
+
+function _csSaveKey(val) {
+  saveProviderKey(_scanProvider, val);
+}
+
+// ── Main entry: photo selected → OCR/AI → parse → preview ────
+async function scanCaseSheet(inputEl) {
+  var file = inputEl && inputEl.files && inputEl.files[0];
+  var statusEl = document.getElementById('case-scan-status');
+  var dropZone = document.getElementById('cs-drop-zone');
+  if (!file) return;
+
+  if (_scanProvider !== 'local' && !getProviderKey(_scanProvider)) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">Add an API key above first, or switch to Local OCR.</span>';
+    return;
+  }
+
+  if (dropZone) dropZone.style.opacity = '0.6';
+  if (statusEl) statusEl.innerHTML = '⏳ Starting scan...';
+  haptic('light');
+
+  var _scanTimeout = null;
+  var _timeoutPromise = new Promise(function(_, reject) {
+    _scanTimeout = setTimeout(function() {
+      reject(new Error('Scan timed out after 60 seconds — try a clearer photo or better lighting'));
+    }, 60000);
+  });
+
+  try {
+    var _scanPromise = (_scanProvider === 'local')
+      ? _runLocalOcr(file, statusEl)
+      : _runAiScan(file, statusEl);
+
+    var rawText = await Promise.race([_scanPromise, _timeoutPromise]);
+    clearTimeout(_scanTimeout);
+
+    if (!rawText || !rawText.trim()) {
+      if (statusEl) statusEl.textContent = 'Nothing extracted — try a clearer, better-lit photo';
+      if (dropZone) dropZone.style.opacity = '1';
+      return;
+    }
+
+    var rows = _parseCaseScanText(rawText);
+    if (!rows.length) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">Could not read any entries. Try Gemini/Claude/GPT-4o above — handwriting needs an AI reader, not local OCR.</span>';
+      if (dropZone) dropZone.style.opacity = '1';
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">Found ' + rows.length + ' possible entr' + (rows.length!==1?'ies':'y') + ' — review below before adding.</span>';
+    _renderCaseScanPreview(rows);
+
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">Scan failed: ' + escapeHtml(e.message || 'unknown error') + '</span>';
+    console.error('Case scan error:', e);
+  }
+  if (dropZone) dropZone.style.opacity = '1';
+}
+
+function _caseScanPrompt() {
+  return 'This is a photo of a HANDWRITTEN loan intake sheet or ledger page from a Ghanaian loan '
+    + 'recovery agent. It may list one person or many, one per line/row. Read the handwriting as '
+    + 'carefully as you can, including messy or slanted writing and crossed-out corrections (use '
+    + 'the corrected value). For each distinct person/entry, output exactly one line in this format:\n'
+    + 'NAME|PHONE|PRINCIPAL|LOANDUE|NOTES\n'
+    + 'Rules:\n'
+    + '- NAME: the person\'s full name as written.\n'
+    + '- PHONE: digits only where possible (Ghanaian numbers are usually 10 digits starting with 0, '
+    + 'or start with +233). If illegible or missing, write —\n'
+    + '- PRINCIPAL: the loan principal/amount given, as a plain number with no currency symbol or '
+    + 'commas. If missing, write 0\n'
+    + '- LOANDUE: the total amount due/to repay, as a plain number. If missing or same as principal, '
+    + 'repeat the principal.\n'
+    + '- NOTES: any other short handwritten remark on that line (date, location, item bought, etc). '
+    + 'If none, write —\n'
+    + 'One line per person. No headers, no extra commentary, no markdown — just the pipe-delimited '
+    + 'lines. If a field is genuinely unreadable, use — rather than guessing wildly.';
+}
+
+// ── Parser: pipe-delimited lines → structured row objects ─────
+function _parseCaseScanText(raw) {
+  if (!raw) return [];
+  var rows = [];
+  raw.split('\n').forEach(function(line) {
+    line = line.trim();
+    if (!line) return;
+    var parts = line.split('|').map(function(p){ return p.trim(); });
+    if (parts.length < 2) return; // need at least name + phone to be useful
+    var name = parts[0].replace(/^[-•\d.\s]+/, '').trim(); // strip leading bullets/numbering
+    if (!name || name === '—' || /^name$/i.test(name)) return; // skip blanks/headers
+    var phoneRaw = parts[1] && parts[1] !== '—' ? parts[1] : '';
+    var principal = parts[2] && parts[2] !== '—' ? parseFloat(parts[2].replace(/[^\d.]/g,'')) || 0 : 0;
+    var loanDue   = parts[3] && parts[3] !== '—' ? parseFloat(parts[3].replace(/[^\d.]/g,'')) || principal : principal;
+    var notes     = parts[4] && parts[4] !== '—' ? parts[4] : '';
+    rows.push({ name: name, phone: phoneRaw, principal: principal, loanDue: loanDue, notes: notes });
+  });
+  return rows;
+}
+
+// ── Editable preview list before committing anything ───────────
+function _renderCaseScanPreview(rows) {
+  var wrap = document.getElementById('case-scan-preview');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="exp-section-label" style="margin-top:6px">Review before adding (' + rows.length + ')</div>'
+    + rows.map(function(r, i) {
+      return '<div class="cs-row" data-idx="' + i + '" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);padding:10px;margin-bottom:8px">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+        + '<input type="checkbox" class="cs-inc" checked style="width:16px;height:16px;accent-color:var(--gold);flex-shrink:0">'
+        + '<input type="text" class="form-input cs-name" placeholder="Full name" value="' + escapeHtml(r.name) + '" style="font-weight:700;flex:1">'
+        + '</div>'
+        + '<div class="form-row" style="margin-bottom:8px">'
+        + '<div class="form-group" style="margin-bottom:0"><input type="text" class="form-input cs-phone" placeholder="Phone" value="' + escapeHtml(r.phone) + '"></div>'
+        + '<div class="form-group" style="margin-bottom:0"><select class="form-input cs-odage">' + buildOdOptions() + '</select></div>'
+        + '</div>'
+        + '<div class="form-row" style="margin-bottom:8px">'
+        + '<div class="form-group" style="margin-bottom:0"><input type="number" class="form-input cs-principal" placeholder="Principal (₵)" value="' + (r.principal||'') + '" min="0"></div>'
+        + '<div class="form-group" style="margin-bottom:0"><input type="number" class="form-input cs-loandue" placeholder="Loan Due (₵)" value="' + (r.loanDue||'') + '" min="0"></div>'
+        + '</div>'
+        + '<input type="text" class="form-input cs-notes" placeholder="Notes" value="' + escapeHtml(r.notes||'') + '">'
+        + '</div>';
+    }).join('');
+  var btn = document.getElementById('btn-import-scan');
+  if (btn) btn.style.display = '';
+}
+
+// ── Commit checked rows as real borrower records ────────────────
+function importFromCaseScan() {
+  var rowEls = document.querySelectorAll('#case-scan-preview .cs-row');
+  let added = 0, skipped = 0;
+  rowEls.forEach(function(rowEl) {
+    if (!rowEl.querySelector('.cs-inc').checked) return;
+    var name = rowEl.querySelector('.cs-name').value.trim();
+    var phoneRaw = rowEl.querySelector('.cs-phone').value.trim();
+    var phone = phoneRaw ? normalizePhone(phoneRaw) : '';
+    var principal = parseFloat(rowEl.querySelector('.cs-principal').value) || 0;
+    var loanDue = parseFloat(rowEl.querySelector('.cs-loandue').value) || 0;
+    var notes = rowEl.querySelector('.cs-notes').value.trim();
+    var odAge = parseInt(rowEl.querySelector('.cs-odage').value) || 6;
+
+    if (!name) { skipped++; return; }
+    var phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 7) { skipped++; return; }
+    if (!loanDue) loanDue = principal; // fall back so a scan missing this field isn't silently dropped
+
+    var d = new Date(); d.setDate(d.getDate() - (odAge - 1));
+    state.borrowers.push({
+      id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random().toString(36).slice(2)),
+      name: name, phone: phone, principal: principal, loanDue: loanDue, overdueFeee: 0,
+      amountPaid: 0, startDate: d.toISOString().split('T')[0],
+      loanType: 'LoanBase', notes: notes, promisedToPay: false, isPaid: false, payLog: [], callLog: []
+    });
+    added++;
+  });
+
+  if (added === 0) {
+    return toast(skipped ? 'No rows added — check name/phone fields' : 'Nothing selected to add', 'error');
+  }
+  purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
+  toast('Added ' + added + ' case' + (added!==1?'s':'') + (skipped?' · '+skipped+' skipped':''), 'success');
 }
 
 
