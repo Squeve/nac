@@ -9378,7 +9378,7 @@ function renderDispatch() {
         + '<div class="dispatch-actions">'
         + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</a>'
         + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> SMS</a>'
-        + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder — Tier ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
+        + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder: Day ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
         + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')" title="Mark as contacted"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></button>'
         + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')" title="Copy message"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></button>'
         + '</div></div>';
@@ -16005,7 +16005,7 @@ Please ensure each payment is made on or before the due date. Missing two consec
 
   // Level 7: Wrong / Unreachable Number Notice (sent via SMS — WhatsApp already failed)
   if (level === 7) {
-    return _escalHeader('📵', 'UNABLE TO REACH YOU — PLEASE CONFIRM YOUR CONTACT', b, caseRef, dateStr, [
+    return _escalHeader('📵', 'UNABLE TO REACH YOU: PLEASE CONFIRM YOUR CONTACT', b, caseRef, dateStr, [
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
 
@@ -16034,8 +16034,8 @@ This is a formal notice from LoanBase Recovery Management regarding your overdue
 
 Your account has been escalated to our *Enforcement Division*. Failure to respond within *24 hours* may trigger the following actions:
 
-🚫 *Credit Bureau Reporting* — your details may be submitted to a licensed Credit Reference Bureau, as authorised in your loan agreement.
-📋 *Account Documentation* — your default is now on record and may be reported to relevant financial institutions.
+🚫 *Credit Bureau Reporting*: your details may be submitted to a licensed Credit Reference Bureau, as authorised in your loan agreement.
+📋 *Account Documentation*: your default is now on record and may be reported to relevant financial institutions.
 
 *TO PREVENT ESCALATION:*
 Make your payment of *${balance}* today before *${deadline}*.
@@ -16050,7 +16050,7 @@ Your prompt action is required.
   // Level 9: Broken Promise Notice (PTP Missed — first occurrence)
   if (level === 9) {
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
-    return _escalHeader('⚠️', 'PROMISE TO PAY — BREACH NOTICE', b, caseRef, dateStr, [
+    return _escalHeader('⚠️', 'PROMISE TO PAY: BREACH NOTICE', b, caseRef, dateStr, [
       { label: 'PROMISED DATE', value: promiseDate },
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
@@ -16077,7 +16077,7 @@ This has been recorded in your file and will be considered in future decisions a
     const promiseDate = b.promiseDate ? b.promiseDate.split(' ')[0] : 'not set';
     const breakCount = b.brokenPromiseCount || 2;
     const ord = _ordinal(breakCount);
-    return _escalHeader('🚨', 'REPEATED BROKEN PROMISE — FINAL WARNING', b, caseRef, dateStr, [
+    return _escalHeader('🚨', 'REPEATED BROKEN PROMISE: FINAL WARNING', b, caseRef, dateStr, [
       { label: 'BROKEN PROMISES ON FILE', value: String(breakCount) },
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
@@ -16086,7 +16086,7 @@ This has been recorded in your file and will be considered in future decisions a
 
 This is the *${ord} time* you have failed to honour a promise to pay on this account. Your most recent promised date of *${promiseDate}* has passed without payment.
 
-A pattern of broken promises is now permanently on your file. *We will no longer accept verbal promises alone* — no further reschedule will be offered on this account.
+A pattern of broken promises is now permanently on your file. *We will no longer accept verbal promises alone,* and no further reschedule will be offered on this account.
 
 *If full payment of ${balance} is not received today:*
 
@@ -16211,7 +16211,7 @@ All additional OD fees of ~${fmtC(waivedAmt)}~ accumulated after Day 1 will be *
 
 ✅ Total you pay: *${fmtC(settleAmt)}*
 ✅ Amount waived: *${fmtC(waivedAmt)}*
-✅ Account closed — no further charges
+✅ Account closed, no further charges
 
 *⚠️ This offer is valid until ${deadline} TODAY only and will not be renewed.*
 
@@ -16227,7 +16227,7 @@ After this deadline, the full outstanding balance of *${balance}* will be pursue
 
   // Level 15: Unreachable / Silent Phone
   if (level === 15) {
-    return _escalHeader('📵', 'NOTICE OF ACCOUNT UNREACHABLE — ESCALATION TRIGGERED', b, caseRef, dateStr, [
+    return _escalHeader('📵', 'NOTICE OF ACCOUNT UNREACHABLE: ESCALATION TRIGGERED', b, caseRef, dateStr, [
       { label: 'OUTSTANDING BALANCE', value: balance }
     ]) + `
 
@@ -16298,7 +16298,7 @@ Dear *${contactName}*,
 
 This is to inform you, as the signed guarantor on ${b.name}'s ${loanType} loan agreement, that the account is now *${odDays} days* overdue with an outstanding balance of *${balance}*. Direct contact attempts with ${b.name} have been unsuccessful.
 
-Under the guarantee you signed, and consistent with the Borrowers and Lenders Act, 2020 (Act 1052), a guarantor may be called upon to help settle the borrower's obligation once direct recovery efforts have been exhausted — *that stage has now been reached on this account.*
+Under the guarantee you signed, and consistent with the Borrowers and Lenders Act, 2020 (Act 1052), a guarantor may be called upon to help settle the borrower's obligation once direct recovery efforts have been exhausted. *That stage has now been reached on this account.*
 
 *Please act within 48 hours:* reach ${b.name} to arrange payment, or contact us directly to discuss your position as guarantor. Continued non-response from both parties may result in this matter being referred for formal legal recovery, which can add legal costs to the amount owed.
 
@@ -16309,7 +16309,7 @@ Under the guarantee you signed, and consistent with the Borrowers and Lenders Ac
 
     // Plain emergency contact — no liability, no threats. Firmer on urgency,
     // never on consequence to THEM — they owe nothing and are told so plainly.
-    return _escalHeader('📢', 'URGENT — UNABLE TO REACH BORROWER', b, caseRef, dateStr, [
+    return _escalHeader('📢', 'URGENT: UNABLE TO REACH BORROWER', b, caseRef, dateStr, [
       { label: 'EMERGENCY CONTACT', value: contactName }
     ]) + `
 
@@ -16317,7 +16317,7 @@ Dear *${contactName}*,
 
 You are listed as the emergency contact on ${b.name}'s ${loanType} loan application. We have been unable to reach ${b.name} directly, and the account is now *${odDays} days* overdue.
 
-*To be clear: this is not a claim against you and you have no obligation on this loan.* We are reaching out only because ${b.name}'s account is approaching a serious stage of recovery, and further silence may lead to formal actions on their file — actions we would rather avoid if they simply get in touch.
+*To be clear: this is not a claim against you and you have no obligation on this loan.* We are reaching out only because ${b.name}'s account is approaching a serious stage of recovery, and further silence may lead to formal actions on their file, actions we would rather avoid if they simply get in touch.
 
 If you're able to, please pass this on urgently: ask ${b.name} to contact us at *${agentPhone}* as soon as possible.
 
@@ -16364,7 +16364,7 @@ This is formal notice that your loan default details have been submitted to a li
 • Future loan and credit applications may be declined
 • This record can remain on file for *up to 5 years*
 
-A reversal is possible — but ONLY upon full payment of *${balance}*.
+A reversal is possible, but ONLY upon full payment of *${balance}*.
 
 📌 ${_escalPayGuide(b)} Then send your confirmation to initiate the reversal.
 
@@ -16401,13 +16401,14 @@ You can still avoid legal action by paying *${balance}* immediately.
 
   // Level 21: Payment Received – Acknowledgment & Release
   if (level === 21) {
+    const paidAmt = fmtC(b.amountPaid || b.loanDue || 0);
     return _escalHeader('✅', 'FULL PAYMENT CONFIRMATION & RELEASE', b, caseRef, dateStr, [
-      { label: 'AMOUNT PAID', value: balance }
+      { label: 'AMOUNT PAID', value: paidAmt }
     ]) + `
 
 ${salute},
 
-We hereby confirm receipt of *${balance}* as full and final settlement of your ${loanType} loan account.
+We hereby confirm receipt of *${paidAmt}* as full and final settlement of your ${loanType} loan account.
 
 All escalation actions have been *cancelled*. Your credit reference will be updated to reflect "Paid in Full".
 
@@ -16425,7 +16426,7 @@ Thank you for resolving this matter.
 
   // Level 22: Explicit Refusal to Pay
   if (level === 22) {
-    return _escalHeader('🚫', 'FORMAL NOTICE — REFUSAL TO PAY RECORDED', b, caseRef, dateStr, [
+    return _escalHeader('🚫', 'FORMAL NOTICE: REFUSAL TO PAY RECORDED', b, caseRef, dateStr, [
       { label: 'OUTSTANDING BALANCE', value: balance },
       { label: 'STATUS', value: 'Refusal recorded ' + dateStr }
     ]) + `
@@ -16434,16 +16435,16 @@ Thank you for resolving this matter.
 
 You have indicated that you *do not intend to pay* the outstanding balance of *${balance}* on your ${loanType} loan account, now *${odDays} days* overdue.
 
-This has been formally recorded on your file as a *refusal to pay*, which is treated differently — and more seriously — than an inability to pay. Refusing to honour a loan agreement does not cancel the debt or your obligation to repay it.
+This has been formally recorded on your file as a *refusal to pay*, which is treated differently, and more seriously, than an inability to pay. Refusing to honour a loan agreement does not cancel the debt or your obligation to repay it.
 
 *Because this is now a refusal, not a delay, the following proceed without further reminder:*
 
-📉 Immediate submission to the *Credit Reference Bureau* under the Credit Reporting Act, 2007 (Act 726) — affecting your ability to borrow from *any* licensed lender in Ghana
+📉 Immediate submission to the *Credit Reference Bureau* under the Credit Reporting Act, 2007 (Act 726), affecting your ability to borrow from *any* licensed lender in Ghana
 👥 Immediate notification of your guarantor / emergency contact on file
 ⚖️ Referral of your file for *civil legal recovery*, which can add court and legal costs on top of the amount you already owe
 🔒 No further settlement discount or waiver will be offered on this account
 
-If this refusal was made in frustration or due to a dispute you'd like to raise, contact us *today* — this is your opportunity to resolve it before formal proceedings begin.
+If this refusal was made in frustration or due to a dispute you'd like to raise, contact us *today*. This is your opportunity to resolve it before formal proceedings begin.
 
 📌 ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* now.
 
@@ -16455,7 +16456,7 @@ If this refusal was made in frustration or due to a dispute you'd like to raise,
   // SMS if WhatsApp is blocked, or vice versa — since the point is that
   // the usual channel no longer works.
   if (level === 23) {
-    return _escalHeader('📵', 'NOTICE OF EVASION — CONTACT DELIBERATELY BLOCKED', b, caseRef, dateStr, [
+    return _escalHeader('📵', 'NOTICE OF EVASION: CONTACT DELIBERATELY BLOCKED', b, caseRef, dateStr, [
       { label: 'OUTSTANDING BALANCE', value: balance }
     ]) + `
 
@@ -16757,14 +16758,21 @@ function copyEscalMsg() {
 // the Bank of Ghana's 2025 Digital Credit Services directive.
 // ══════════════════════════════════════════════════════════════
 const DUNNING_TIERS = [
-  { tier:1, dayMin:6,  dayMax:8,  title:'Formal Notice',      color:'#f0a030' },
-  { tier:2, dayMin:9,  dayMax:11, title:'Escalation Warning', color:'#f97316' },
-  { tier:3, dayMin:12, dayMax:13, title:'Pre-Final Notice',   color:'#ef4444' },
-  { tier:4, dayMin:14, dayMax:15, title:'Final Notice',       color:'#dc2626' },
+  { tier:6,  dayMin:6,  dayMax:6,  title:'Account Flagged',      color:'#f0a030' },
+  { tier:7,  dayMin:7,  dayMax:7,  title:'Formal Notice',        color:'#ee8c2e' },
+  { tier:8,  dayMin:8,  dayMax:8,  title:'Second Notice',        color:'#ec7a2c' },
+  { tier:9,  dayMin:9,  dayMax:9,  title:'Escalation Warning',   color:'#ea6829' },
+  { tier:10, dayMin:10, dayMax:10, title:'Halfway Warning',      color:'#e85527' },
+  { tier:11, dayMin:11, dayMax:11, title:'Third-Party Notice Pending', color:'#e44325' },
+  { tier:12, dayMin:12, dayMax:12, title:'Pre-Final Notice',     color:'#dc3327' },
+  { tier:13, dayMin:13, dayMax:13, title:'Penultimate Warning',  color:'#d02929' },
+  { tier:14, dayMin:14, dayMax:14, title:'Final Warning',        color:'#c01f1f' },
+  { tier:15, dayMin:15, dayMax:15, title:'Final Notice: Last Day', color:'#991b1b' },
 ];
 
-// Returns the tier (1–4) matching this borrower's current OD day, or
-// null if they're outside the M2 Day 6–15 window entirely.
+// Returns the day (6–15) matching this borrower's current OD day, or
+// null if they're outside the M2 Day 6–15 window entirely. Each day
+// now has its own distinct message rather than being grouped into bands.
 function _recommendDunningTier(b) {
   const od = getOdAge(b.startDate, b);
   const hit = DUNNING_TIERS.find(t => od >= t.dayMin && od <= t.dayMax);
@@ -16776,30 +16784,53 @@ function buildDunningMsg(b, tier) {
   const dateStr = _escalDate();
   const balance = fmtC(getDueToday(b));
   const odDays  = getOdAge(b.startDate, b);
+  const salute  = _escalSalutation(b);
+  const loanType = b.loanType;
   const hasGuarantor = !!b.guarantorIsFormal && !!b.guarantorName;
   const fields = [
     { label: 'AMOUNT DUE', value: balance },
     { label: 'DAYS OVERDUE', value: String(odDays) }
   ];
 
-  if (tier === 1) {
-    return _escalHeader('📋', 'ACCOUNT STATUS — ACTIVE DEFAULT', b, caseRef, dateStr, fields) + `
+  if (tier === 6) {
+    return _escalHeader('📋', 'ACCOUNT FLAGGED: ACTIVE DEFAULT REVIEW', b, caseRef, dateStr, fields) + `
 
-This account has entered active default review under Act 1052.
+Your ${loanType} loan account has just entered active default review under Act 1052.
 
-From today, this file is reviewed daily. Every day it stays unpaid moves it one step closer to:
-• Credit Bureau submission
-• ${hasGuarantor ? 'Guarantor notification' : 'Further formal notice'}
-• Legal handover
+From today, this file is reviewed daily by our recovery team. No formal action has been taken yet. This is your earliest and easiest opportunity to clear this balance before anything escalates further.
 
-None of this has happened yet. All of it is now in motion.
-
-Pay before end of day. ${_escalPayGuide(b)}
+Pay today. ${_escalPayGuide(b)}
 
 *LoanBase Recovery Management*`;
   }
 
-  if (tier === 2) {
+  if (tier === 7) {
+    return _escalHeader('📋', 'FORMAL NOTICE: ACCOUNT OVERDUE', b, caseRef, dateStr, fields) + `
+
+This is a formal notice that your account remains overdue at Day 7.
+
+Continued non-payment moves this file one step closer to Credit Bureau reporting and, ${hasGuarantor ? 'eventually, guarantor notification' : 'if unresolved, further formal notice'}.
+
+Clear the balance today to stop further escalation.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 8) {
+    return _escalHeader('📋', 'SECOND NOTICE', b, caseRef, dateStr, fields) + `
+
+This is your second notice on this account. Two reminders have now gone unanswered.
+
+Your file is being prepared for Credit Bureau flagging if this continues past this stage. Daily penalty fees are already accruing on the balance shown above.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 9) {
     return _escalHeader('⚠️', 'ESCALATION WARNING', b, caseRef, dateStr, fields) + `
 
 Multiple reminders on this account have gone unanswered. This file is now being prepared for formal escalation.
@@ -16813,13 +16844,55 @@ ${_escalPayGuide(b)}
 *LoanBase Recovery Management*`;
   }
 
-  if (tier === 3) {
+  if (tier === 10) {
+    return _escalHeader('⚠️', 'HALFWAY WARNING', b, caseRef, dateStr, fields) + `
+
+You are now halfway through this stage with no payment received.
+
+${hasGuarantor ? 'Your guarantor has not been contacted yet, but that changes soon if this balance remains unpaid.' : 'This file continues moving toward formal recovery without further reminder.'} Your employer may also be contacted to verify your status if this continues.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 11) {
+    return _escalHeader('🔴', hasGuarantor ? 'GUARANTOR NOTICE PENDING' : 'THIRD-PARTY NOTICE PENDING', b, caseRef, dateStr, fields) + `
+
+${hasGuarantor ? 'Your guarantor will be notified directly within the next few days if this balance remains unpaid.' : 'Your file is being prepared for field recovery contact if this balance remains unpaid.'}
+
+Your employer may also be contacted to verify your status. Five days remain before this stage ends.
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 12) {
     const bullets = [
       hasGuarantor ? '• Your guarantor will be contacted directly' : '• This file proceeds without further reminder',
       '• Your employer may be contacted to verify your status',
-      '• Your file moves into formal recovery at Day 16 — no exceptions'
+      '• Your file moves into formal recovery at Day 16, no exceptions'
     ].join('\n');
     return _escalHeader('🔴', 'PRE-FINAL NOTICE', b, caseRef, dateStr, fields) + `
+
+Three days remain at this stage.
+
+If this balance is not cleared:
+${bullets}
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  if (tier === 13) {
+    const bullets = [
+      hasGuarantor ? '• Your guarantor will be contacted directly' : '• This file proceeds without further reminder',
+      '• Your employer may be contacted to verify your status',
+      '• Your file moves into formal recovery at Day 16, no exceptions'
+    ].join('\n');
+    return _escalHeader('🔴', 'PENULTIMATE WARNING', b, caseRef, dateStr, fields) + `
 
 Two days remain at this stage.
 
@@ -16833,14 +16906,33 @@ ${_escalPayGuide(b)}
 *LoanBase Recovery Management*`;
   }
 
-  // tier 4
+  if (tier === 14) {
+    const bullets = [
+      '• This file moves to formal recovery',
+      hasGuarantor ? '• Your guarantor is contacted directly' : '• Formal recovery proceeds without further reminder',
+      '• Your file is prepared for Credit Bureau submission, a record that stays on file for up to 5 years',
+      '• Legal handover review begins'
+    ].join('\n');
+    return _escalHeader('🔴', 'FINAL WARNING: ONE DAY REMAINING', b, caseRef, dateStr, fields) + `
+
+One day remains at this stage. This is your last reminder before the final notice.
+
+Tomorrow, WITHOUT further notice:
+${bullets}
+
+${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // tier 15
   const bullets = [
     '• This file moves to formal recovery',
     hasGuarantor ? '• Your guarantor is contacted directly' : '• Formal recovery proceeds without further reminder',
-    '• Your file is prepared for Credit Bureau submission — a record that stays on file for up to 5 years',
+    '• Your file is prepared for Credit Bureau submission, a record that stays on file for up to 5 years',
     '• Legal handover review begins'
   ].join('\n');
-  return _escalHeader('🔴', 'FINAL NOTICE — LAST DAY OF STAGE', b, caseRef, dateStr, fields) + `
+  return _escalHeader('🔴', 'FINAL NOTICE: LAST DAY OF STAGE', b, caseRef, dateStr, fields) + `
 
 This is the last day of this stage. No further reminder will be sent.
 
@@ -16863,24 +16955,22 @@ function openDunningPanel(borrowerId) {
   window._dunningSingleId = borrowerId;
 
   _pushModal();
-  document.getElementById('modal-title').textContent = 'Dunning Ladder — ' + b.name;
+  document.getElementById('modal-title').textContent = 'Dunning Ladder: ' + b.name;
 
   let html = '<div style="font-size:var(--text-md);color:var(--text2);margin-bottom:16px;line-height:1.6">'
-    + 'Day <strong>' + getOdAge(b.startDate, b) + '</strong>. Select a tier to send to <strong>' + escapeHtml(b.name) + '</strong>.'
+    + 'Day <strong>' + getOdAge(b.startDate, b) + '</strong>. Select a day\'s notice to send to <strong>' + escapeHtml(b.name) + '</strong>.'
     + '</div><div style="display:grid;gap:10px">';
 
   DUNNING_TIERS.forEach(function(t) {
     const isRec = t.tier === recTier;
-    const dayLabel = t.dayMin === t.dayMax ? ('Day ' + t.dayMin) : ('Day ' + t.dayMin + '–' + t.dayMax);
     html += '<div style="background:var(--surface2);border:2px solid ' + (isRec ? t.color : t.color + '22') + ';border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;' + (isRec ? 'box-shadow:0 0 0 3px ' + t.color + '22' : '') + '"'
       + ' onclick="previewDunning(' + t.tier + ')"'
       + ' onmouseover="this.style.borderColor=\'' + t.color + '88\'"'
       + ' onmouseout="this.style.borderColor=\'' + (isRec ? t.color : t.color + '22') + '\'">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-      + '<span style="font-weight:800;font-size:var(--text-md);color:' + t.color + '">Tier ' + t.tier + ' — ' + t.title + '</span>'
+      + '<span style="font-weight:800;font-size:var(--text-md);color:' + t.color + '">Day ' + t.tier + ': ' + t.title + '</span>'
       + (isRec ? '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 7px;border-radius:var(--radius);font-weight:800;letter-spacing:0.3px">RECOMMENDED</span>' : '')
       + '</div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text3)">' + dayLabel + '</div>'
       + '</div>';
   });
 
@@ -16898,7 +16988,7 @@ function previewDunning(tier) {
   const t = DUNNING_TIERS.find(function(x) { return x.tier === tier; });
 
   _pushModal();
-  document.getElementById('modal-title').textContent = 'Tier ' + tier + ' — ' + t.title;
+  document.getElementById('modal-title').textContent = 'Day ' + tier + ': ' + t.title;
   document.getElementById('modal-body').innerHTML =
     '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">Preview for <strong>' + escapeHtml(b.name) + '</strong>.</div>'
     + '<div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.8;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;max-height:320px;overflow-y:auto;overflow-x:hidden;font-family:var(--font-body)">'
@@ -16933,7 +17023,7 @@ function sendDunningMsg(tier) {
   markDispatchContacted(b.id);
   window._dunningSingleId = null;
   closeAllModals();
-  toast('Dunning notice sent — Tier ' + tier, 'success');
+  toast('Dunning notice sent, Day ' + tier, 'success');
   haptic('pay');
 }
 
@@ -16958,7 +17048,7 @@ function dunningQueueRenderModal() {
   const idx = window._dunningQueueIdx;
   if (idx >= tot) {
     closeModal();
-    toast('Dunning Ladder complete — ' + tot + ' notices sent', 'success');
+    toast('Dunning Ladder complete: ' + tot + ' notices sent', 'success');
     haptic('pay');
     return;
   }
@@ -16975,7 +17065,7 @@ function dunningQueueRenderModal() {
     '<div style="height:4px;background:var(--border);border-radius:4px;margin-bottom:14px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + t.color + ';transition:width 0.3s"></div></div>'
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">'
     + '<strong style="font-size:var(--text-lg)">' + escapeHtml(b.name) + '</strong>'
-    + '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 8px;border-radius:var(--radius);font-weight:800">TIER ' + tier + ' — ' + t.title + '</span>'
+    + '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 8px;border-radius:var(--radius);font-weight:800">DAY ' + tier + ': ' + t.title + '</span>'
     + '</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
     + '<div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.8;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;max-height:260px;overflow-y:auto;font-family:var(--font-body)">'
