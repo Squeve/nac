@@ -3889,7 +3889,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
           <div class="card-body" id="analytics-dow"></div>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title">⏰ Best Call Times</span></div>
+          <div class="card-header"><span class="card-title">🕒 Best Call Times</span></div>
           <div class="card-body" id="analytics-calltime"></div>
         </div>
       </div>
@@ -4854,6 +4854,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" onclick="msgBankSurpriseMe()" title="Random message from current filter" style="font-size:var(--text-base)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/></svg></span> Surprise Me</button>
+      <button class="btn btn-ghost btn-sm" id="msg-quicktag-partial" onclick="msgBankQuickTag('partial payment')" title="Jump straight to partial payment encouragement messages" style="font-size:var(--text-base)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Partial Payment</button>
       <button class="btn btn-ghost btn-sm" onclick="msgBankOpenAddCustom()" title="Add your own message" style="font-size:var(--text-base)">＋ New</button>
       <button class="btn btn-gold" id="msg-fav-btn" onclick="msgBankOpenFavorite()" title="Your saved favorites"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3L3 9.4l6.4-.6z"/></svg></span> Favorites</button>
     </div>
@@ -5975,7 +5976,32 @@ const MESSAGE_BANK = [
   { "id": "m5_21", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Extreme Delinquency – Total Enforcement", "legalRefs": ["Act 1044","Act 1052","Act 772","Act 775"], "tags": ["every aspect documented","permanent and comprehensive"], "body": "[Name], under Act 1044, Act 1052, Act 772 and Act 775 every aspect of your financial conduct since this default began has been formally recorded. That record is permanent, comprehensive and accessible across Ghana's regulatory framework. There is no aspect of your default that is not documented. Dial *714*674#.\n\nLoanBase Recovery Team." },
   { "id": "m5_22", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Extreme Delinquency – Total Enforcement", "legalRefs": ["Act 1052"], "tags": ["eighty‑seven days","second‑to‑last message","two days remain"], "body": "[Name], eighty‑seven days in extreme delinquency. This is your second‑to‑last message before your account moves beyond the active recovery window. Under Act 1052 and all associated laws the consequences of that transition are permanent. Two days remain. Make this count. Dial *714*674# tonight.\n\nLoanBase Recovery Team." },
   { "id": "m5_23", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Extreme Delinquency – Total Enforcement", "legalRefs": ["Act 1052","Act 726","Act 987","Act 772","Act 29","Act 651","Act 707","Act 766","Act 915","Act 791","Act 63","Act 266","PNDCL 152","Act 992","Act 612","Act 774","Act 929","Act 931","Act 1044"], "tags": ["full breadth of framework","nothing held in reserve"], "body": "[Name], under Act 1052, Act 726, Act 987, Act 772, Act 29, Act 651, Act 707, Act 766, Act 915, Act 791, Act 63, Act 266, PNDCL 152, Act 992, Act 612, Act 774, Act 929, Act 931 and Act 1044 your account is subject to the full breadth of Ghana's financial enforcement framework. Nothing has been held in reserve. Dial *714*674#.\n\nLoanBase Recovery Team." },
-  { "id": "m5_24", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Extreme Delinquency – Total Enforcement", "legalRefs": ["Act 1052"], "tags": ["day eighty‑eight","last message","no further notice"], "body": "[Name], day eighty‑eight. One day before your account permanently exits the active recovery window. Every legal proceeding currently active on your account advances automatically tomorrow morning. No further notice will be issued. No further opportunity will be given. This message is your last. Dial *714*674# now.\n\nLoanBase Recovery Team." }
+  { "id": "m5_24", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Extreme Delinquency – Total Enforcement", "legalRefs": ["Act 1052"], "tags": ["day eighty‑eight","last message","no further notice"], "body": "[Name], day eighty‑eight. One day before your account permanently exits the active recovery window. Every legal proceeding currently active on your account advances automatically tomorrow morning. No further notice will be issued. No further opportunity will be given. This message is your last. Dial *714*674# now.\n\nLoanBase Recovery Team." },
+
+  // ====================== PARTIAL PAYMENT ENCOURAGEMENT (18 messages, 3 per stage) ======================
+  { "id": "m0_73", "stage": "M0", "subStage": "Day -1 to Day 0", "tone": "sweet", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","early"], "body": "[Name], if you cannot pay in full today, even a partial payment before your due date shows good faith and can be noted on your file. Dial *714*674# and pay what you can now, we will work with you on the rest.\n\nLoanBase Recovery Team." },
+  { "id": "m0_74", "stage": "M0", "subStage": "Day -1 to Day 0", "tone": "sweet", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","goodwill"], "body": "[Name], we understand full payment is not always possible right away. A partial payment today still keeps your account in a much stronger position than paying nothing. Dial *714*674# and send what you can.\n\nLoanBase Recovery Team." },
+  { "id": "m0_75", "stage": "M0", "subStage": "Day -1 to Day 0", "tone": "sweet", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","early"], "body": "[Name], you do not have to wait until your due date. If you would like to pay part of your loan early, dial *714*674# now. Every partial payment made ahead of time works in your favour.\n\nLoanBase Recovery Team." },
+
+  { "id": "m1_73", "stage": "M1", "subStage": "Day 1 to Day 5", "tone": "gentle", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","engagement"], "body": "[Name], we noticed you have not paid yet. If the full amount is difficult right now, a partial payment today keeps your account active and shows us you are engaged. Dial *714*674# and pay any amount towards your balance.\n\nLoanBase Recovery Team." },
+  { "id": "m1_74", "stage": "M1", "subStage": "Day 1 to Day 5", "tone": "gentle", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","momentum"], "body": "[Name], something is always better than nothing. Even half of what you owe today reduces your balance, slows down fee accrual and tells us you have not forgotten us. Dial *714*674# now.\n\nLoanBase Recovery Team." },
+  { "id": "m1_75", "stage": "M1", "subStage": "Day 1 to Day 5", "tone": "gentle", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","goodwill"], "body": "[Name], we would rather receive a partial payment from you today than no payment at all. It genuinely helps your case and ours. Dial *714*674# and send whatever you can manage right now.\n\nLoanBase Recovery Team." },
+
+  { "id": "m2_57", "stage": "M2", "subStage": "Day 6 to Day 15", "tone": "gentle", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","good faith"], "body": "[Name], your account is now in active default, but a partial payment today can still make a real difference. It reduces your balance and shows good faith while we continue working with you. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "m2_58", "stage": "M2", "subStage": "Day 6 to Day 15", "tone": "direct", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","flexibility"], "body": "[Name], we know things are tight. Paying part of what you owe today, even a small amount, keeps this account moving in the right direction instead of escalating further. Dial *714*674# and pay what you can.\n\nLoanBase Recovery Team." },
+  { "id": "m2_59", "stage": "M2", "subStage": "Day 6 to Day 15", "tone": "direct", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","commitment"], "body": "[Name], a partial payment will not clear your account, but it matters. It shows commitment and can support a case for flexibility from us going forward. Dial *714*674# today.\n\nLoanBase Recovery Team." },
+
+  { "id": "m3_45", "stage": "M3", "subStage": "Day 16 to Day 40", "tone": "direct", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","seriously overdue"], "body": "[Name], your account remains seriously overdue. If full payment is not possible today, send whatever partial amount you have available immediately. It is far better than continued silence. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "m3_46", "stage": "M3", "subStage": "Day 16 to Day 40", "tone": "serious", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","positive step"], "body": "[Name], we would still consider a partial payment today a positive step, even at this stage. It shows you have not abandoned this obligation. Dial *714*674# and pay what you can right now.\n\nLoanBase Recovery Team." },
+  { "id": "m3_47", "stage": "M3", "subStage": "Day 16 to Day 40", "tone": "serious", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","escalating"], "body": "[Name], this account is escalating. A partial payment today will not stop that process on its own, but it is meaningfully better than nothing and will be recorded in your favour. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "m4_33", "stage": "M4", "subStage": "Day 41 to Day 60", "tone": "serious", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","critically overdue"], "body": "[Name], your account is critically overdue and under active recovery review. If you cannot pay in full, send a partial payment today, it is the clearest signal you can give us that you intend to resolve this. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "m4_34", "stage": "M4", "subStage": "Day 41 to Day 60", "tone": "severe", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","noted on file"], "body": "[Name], even at this stage, a partial payment is taken seriously and noted on your file. It will not pause escalation on its own, but doing nothing guarantees the worst outcome. Dial *714*674# today.\n\nLoanBase Recovery Team." },
+  { "id": "m4_35", "stage": "M4", "subStage": "Day 41 to Day 60", "tone": "severe", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","whatever you can"], "body": "[Name], we are not asking for the impossible. Pay whatever portion of the balance you can access right now. It is a far better position than continued non-payment. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "m5_25", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "severe", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","critical stage"], "body": "[Name], your account is at its most critical stage before formal legal handover. A partial payment today, however small, is still meaningfully better than nothing and will be documented. Dial *714*674# immediately.\n\nLoanBase Recovery Team." },
+  { "id": "m5_26", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","final opportunity"], "body": "[Name], this is close to the final opportunity to act on this account voluntarily. If full settlement is out of reach right now, send whatever partial amount you can before this moves fully into legal recovery. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "m5_27", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","good faith"], "body": "[Name], we would still rather work with a partial payment from you today than proceed purely through legal and credit bureau channels. Show good faith now. Dial *714*674#.\n\nLoanBase Recovery Team." }
 ];
   
 // ── STATE ──────────────────────────────────────────────
@@ -19756,7 +19782,7 @@ function ptpForecastSelect(ds) {
         ? `<span style="font-size:var(--text-2xs);color:${confMap[b.ptpConfidence][1]};background:${confMap[b.ptpConfidence][2]};padding:1px 5px;border-radius:5px;font-weight:700">${confMap[b.ptpConfidence][0]} ${b.ptpConfidence}</span>` : '';
       const rn    = (b.rescheduleHistory||[]).length;
       const rs    = rn > 0 ? `<span style="font-size:var(--text-2xs);color:${rn>=3?'var(--red)':rn>=2?'var(--gold)':'var(--text3)'};background:${rn>=3?'rgba(239,68,68,0.1)':rn>=2?'rgba(240,160,48,0.1)':'var(--surface2)'};padding:1px 5px;border-radius:5px;font-weight:700"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13A8 8 0 0018.5 7.5"/><path d="M4 20v-7h7"/></svg></span>${rn}×</span>` : '';
-      const tm    = b.promiseDate && b.promiseDate.includes(' ') ? `<span style="font-size:var(--text-2xs);color:var(--text3)">⏰ ${b.promiseDate.split(' ')[1]}</span>` : '';
+      const tm    = b.promiseDate && b.promiseDate.includes(' ') ? `<span style="font-size:var(--text-2xs);color:var(--text3)">🕒 ${b.promiseDate.split(' ')[1]}</span>` : '';
       rows += `
         <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);${ok?'opacity:0.55':''}">
           <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${ok?'var(--green)':isToday?'var(--orange)':'var(--blue)'}"></div>
@@ -20688,7 +20714,7 @@ function _ptpGroupByTime(ptps) {
 }
 
 function _timeEmoji(label) {
-  return '\u23f0';
+  return '\u{1F552}';
 }
 
 function _ocLabel(oc) {
@@ -21665,7 +21691,7 @@ function getBestCallIndicator(b) {
   if (Math.abs(now - bestHour) <= 1) {
     return `<span title="Best time to call: ${bestHour}:00–${bestHour+1}:00" style="font-size:var(--text-xs);color:var(--green);font-weight:700"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#22c55e" stroke="none"/></svg></span> Best now</span>`;
   }
-  return `<span title="Best time: ${bestHour}:00" style="font-size:var(--text-2xs);color:var(--text3)">⏰${bestHour}:00</span>`;
+  return `<span title="Best time: ${bestHour}:00" style="font-size:var(--text-2xs);color:var(--text3)">🕒${bestHour}:00</span>`;
 }
 
 // ── MESSAGE PERFORMANCE TRACKER (item 33) ──────────────
@@ -25221,6 +25247,14 @@ function renderMessageBank() {
     favBtn.style.color      = window._mbFavOnly ? '#000' : '';
   }
 
+  // Highlight the Partial Payment quick-tag button when its filter is active
+  const quickTagBtn = document.getElementById('msg-quicktag-partial');
+  if (quickTagBtn) {
+    const isActive = search === 'partial payment';
+    quickTagBtn.style.background = isActive ? 'var(--gold)' : '';
+    quickTagBtn.style.color      = isActive ? '#000' : '';
+  }
+
   if (!messages.length) {
     container.innerHTML = filtersActive
       ? '<div class="empty-state" style="padding:36px 0;text-align:center">'
@@ -25462,6 +25496,17 @@ function msgBankSetTone(el, tone) {
   window._mbTone = tone;
   document.querySelectorAll('.msg-tone-chip').forEach(b => b.classList.remove('msg-tone-active'));
   if (el) el.classList.add('msg-tone-active');
+  renderMessageBank();
+  haptic('light');
+}
+
+// One-tap shortcut into a specific tag (e.g. Partial Payment) without typing
+// a search query — reuses the existing tag-aware search filter, so it stays
+// correct even if the tag vocabulary grows later.
+function msgBankQuickTag(tag) {
+  const searchEl = document.getElementById('msg-bank-search');
+  const isActive = searchEl && searchEl.value.trim().toLowerCase() === tag.toLowerCase();
+  if (searchEl) searchEl.value = isActive ? '' : tag; // tap again to clear
   renderMessageBank();
   haptic('light');
 }
