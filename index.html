@@ -5174,6 +5174,90 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 <script>
 // ═══ AUTO EOD NOTIFICATION
 
+// ── Unified, safe notification display ──────────────────────────
+// Fixes two real bugs found in the previous implementation:
+// 1) `new Notification()` throws "Illegal constructor" on many mobile
+//    browsers once a service worker is controlling the page — it must go
+//    through registration.showNotification() instead in that case.
+// 2) Titles/bodies built with in-app `.ico` SVG spans render as literal
+//    garbled HTML text in a native OS notification, which has no HTML
+//    renderer at all. Everything is stripped to plain text as a safety net.
+function _stripNotifHtml(str) {
+  return String(str || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+async function _showAppNotification(title, body, opts) {
+  opts = opts || {};
+  const cleanTitle = _stripNotifHtml(title);
+  const cleanBody  = _stripNotifHtml(body);
+  const payload = {
+    body: cleanBody,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: opts.tag || 'sq-notif',
+    requireInteraction: !!opts.requireInteraction,
+    vibrate: opts.vibrate || [200, 100, 200],
+    data: { url: opts.url || '' }
+  };
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(cleanTitle, payload);
+        return;
+      }
+    }
+    // Fallback for browsers with no active service worker registration
+    const n = new Notification(cleanTitle, payload);
+    n.onclick = function() {
+      window.focus();
+      if (opts.onFallbackClick) opts.onFallbackClick();
+    };
+  } catch (e) {
+    console.warn('Notification display failed:', e.message);
+  }
+}
+
+// Reads a ?notif=... deep link left by a tapped notification (see
+// _showAppNotification/sw.js notificationclick) and navigates there once,
+// then strips it from the URL so it doesn't re-fire on refresh/reopen.
+function _consumeNotifDeepLink() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('notif');
+    if (!target) return;
+    history.replaceState({}, '', window.location.pathname);
+    _applyNotifTarget(target);
+  } catch (e) { /* no-op — deep link is a convenience, never block app load */ }
+}
+
+// Shared by _consumeNotifDeepLink (fresh page load) and the service worker
+// postMessage listener below (tab was already open when notification was tapped).
+function _applyNotifTarget(target) {
+  if (!target) return;
+  if (target === 'ptp') {
+    navigate('ptp');
+  } else if (target === 'log') {
+    navigate('log');
+  } else if (target.startsWith('borrower:')) {
+    const bid = target.slice('borrower:'.length);
+    setTimeout(() => openBorrowerDetail(bid), 300); // let current page finish rendering first
+  }
+}
+
+// If the app is already open in a tab, sw.js focuses it and posts the
+// target here instead of doing a full page reload with a query param.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'sq-notif-click' && event.data.url) {
+      try {
+        const params = new URLSearchParams(event.data.url.replace(/^\?/, ''));
+        _applyNotifTarget(params.get('notif'));
+      } catch (e) { /* ignore malformed message */ }
+    }
+  });
+}
+
 // ═══ AUTO EOD NOTIFICATION ══════════════════════════════════
 function _scheduleEodNotif() {
   if (!('Notification' in window)) return;
@@ -5184,12 +5268,9 @@ function _scheduleEodNotif() {
   const msUntil = eod - now;
   setTimeout(function() {
     if (Notification.permission === 'granted') {
-      const n = new Notification('SqueveTrack · EOD Time', {
-        body: 'Time to log your collections and send your EOD report.',
-        icon: './icon-192.png',
-        tag: 'sq-eod'
+      _showAppNotification('SqueveTrack: EOD Time', 'Time to log your collections and send your EOD report.', {
+        tag: 'sq-eod', url: '?notif=log', onFallbackClick: function() { navigate('log'); }
       });
-      n.onclick = function() { window.focus(); navigate('log'); };
     } else {
       // Fallback: toast
       toast('Time to log collections and send EOD report', 'info');
@@ -20178,19 +20259,15 @@ function _clearAllPtpTimeouts() {
 
 function _fireNotif(title, body, tag, bid) {
   if (Notification.permission !== 'granted') return;
-  const n = new Notification(title, {
-    body,
-    icon:              './icon-192.png',
-    badge:             './icon-192.png',
-    tag,
+  _showAppNotification(title, body, {
+    tag: tag,
     requireInteraction: true,
-    vibrate:           [200, 100, 200]
+    url: bid ? ('?notif=borrower:' + bid) : '?notif=ptp',
+    onFallbackClick: function() {
+      if (bid) openBorrowerDetail(bid);
+      else navigate('ptp');
+    }
   });
-  n.onclick = () => {
-    window.focus();
-    if (bid) openBorrowerDetail(bid);
-    else navigate('ptp');
-  };
 }
 
 function schedulePtpReminders() {
@@ -20218,13 +20295,13 @@ function schedulePtpReminders() {
     const delay  = fireMs - now;
     if (delay < 0) return; // already past
 
-    const conf     = b.ptpConfidence ? { hot:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span>', warm:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>', cold:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4" y1="7" x2="20" y2="17"/><line x1="20" y1="7" x2="4" y2="17"/></svg></span>' }[b.ptpConfidence] || '' : '';
+    const conf     = b.ptpConfidence ? { hot:'🔥', warm:'📈', cold:'❄️' }[b.ptpConfidence] || '' : '';
     const amt      = fmtC(getDueToday(b));
     const timeStr  = hasTime ? b.promiseDate.split(' ')[1] : '09:00';
     const rn       = (b.rescheduleHistory||[]).length;
     const reschTxt = rn > 0 ? ` (rescheduled ${rn}×)` : '';
 
-    const title = `${conf}<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> ${b.name.split(' ')[0]} — promise in ${PTP_LEAD_MINS} min`;
+    const title = `${conf} ${b.name.split(' ')[0]}: promise in ${PTP_LEAD_MINS} min`;
     const body  = `${amt} due at ${timeStr}${reschTxt}${b.promiseNote ? ' · ' + b.promiseNote : ''}`;
 
     _ptpReminderTimeouts[b.id] = setTimeout(() => {
@@ -20250,8 +20327,8 @@ function schedulePtpReminders() {
     const total  = ptps.reduce((s,b) => s + getDueToday(b), 0);
     const hot    = ptps.filter(b => b.ptpConfidence === 'hot').length;
     _fireNotif(
-      `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.5" y1="4.5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="19.5" y2="4.5"/></svg></span> ${ptps.length} PTP${ptps.length!==1?'s':''} due today`,
-      `Expected ${fmtC(total)}${hot ? ` · <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span> ${hot} hot` : ''}`,
+      `☀️ ${ptps.length} PTP${ptps.length!==1?'s':''} due today`,
+      `Expected ${fmtC(total)}${hot ? ` · 🔥 ${hot} hot` : ''}`,
       'ptp-morning', null
     );
     // Re-schedule for tomorrow
@@ -20275,7 +20352,7 @@ function schedulePtpReminders() {
     if (!ptps.length) return;
     const rate = Math.round(honoured / ptps.length * 100);
     _fireNotif(
-      `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 119.5 4 7 7 0 0020 14.5z"/></svg></span> EOD: ${honoured}/${ptps.length} PTPs honoured (${rate}%)`,
+      `🌙 EOD: ${honoured}/${ptps.length} PTPs honoured (${rate}%)`,
       pending > 0 ? `${pending} still unresolved — follow up now` : 'All resolved. Great day!',
       'ptp-eod', null
     );
@@ -23956,6 +24033,7 @@ async function loadStateForAgent() {
   renderDashboard();
   showSkeletons(false);
   _maybeRunWeeklyBackup();
+  _consumeNotifDeepLink();
   } catch(e) {
     console.error("loadStateForAgent error:", e);
     toast("Failed to load account data — please try signing in again", "error");
@@ -25903,7 +25981,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           missed.forEach(function(b) { _ptpNotifiedCatchup.add(b.id); });
           const total = missed.reduce(function(s,b){ return s + getDueToday(b); }, 0);
           _fireNotif(
-            `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0112 0c0 4 1.5 5 1.5 5h-15S6 13 6 9z"/><path d="M10 18a2 2 0 004 0"/></svg></span> ${missed.length} PTP reminder${missed.length!==1?'s':''} while you were away`,
+            `🔔 ${missed.length} PTP reminder${missed.length!==1?'s':''} while you were away`,
             missed.length === 1 ? `${missed[0].name.split(' ')[0]} — ${fmtC(getDueToday(missed[0]))} promised today` : `Total ${fmtC(total)} promised today — check PTP Hub`,
             'ptp-catchup', missed.length === 1 ? missed[0].id : null
           );

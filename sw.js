@@ -1,63 +1,64 @@
-// SqueveTrack Service Worker v2
-// NETWORK-FIRST: always fetch fresh on deploy, fallback to cache when offline
-const CACHE = 'squevetrack-v5';
+// SqueveTrack service worker
+// Purpose (in priority order):
+//   1. Let the app show notifications via registration.showNotification(),
+//      which is required on many mobile browsers once a service worker is
+//      registered — the raw `new Notification()` constructor can throw
+//      there. This file existing + activating is what makes that work.
+//   2. Handle taps on those notifications and route back into the app at
+//      the right screen (PTP hub, a specific borrower, the log page).
+//   3. Minimal offline fallback — WITHOUT aggressively caching the app
+//      shell, since this app is updated frequently and a stale cache
+//      silently serving old code is worse than no offline support at all.
 
-self.addEventListener('install', e => {
-  // Pre-cache the app shell
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.add('/'))
-  );
-  self.skipWaiting();
+const CACHE_NAME = 'squevetrack-v1';
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting(); // activate immediately, don't wait for old tabs to close
 });
 
-self.addEventListener('activate', e => {
-  // Delete ALL old caches (v1 and any others)
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim()); // take control of any already-open tabs
 });
 
-self.addEventListener('fetch', e => {
-  const url = e.request.url;
+// Network-first, cache-fallback — only used when the device is offline.
+// This deliberately does NOT pre-cache or cache-bust aggressively: every
+// online load always gets the freshest index.html, so a new deployment is
+// never masked by an old cached copy. The cache only exists as a safety
+// net for the moment connectivity drops.
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return; // never cache POST/PUT/etc.
 
-  // Skip non-GET and external API requests — let them go direct
-  if (e.request.method !== 'GET') return;
-  if (url.includes('supabase.co')) return;
-  if (url.includes('cdn.jsdelivr.net')) return;
-  if (url.includes('cdnjs.cloudflare.com')) return;
-  if (url.includes('cdn.sheetjs.com')) return;
-  if (url.includes('fonts.googleapis.com')) return;
-  if (url.includes('fonts.gstatic.com')) return;
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
 
-  // NETWORK FIRST for HTML (the app shell) — always get fresh on deploy
-  if (url.endsWith('/') || url.endsWith('/squevetrack') || url.endsWith('/squevetrack/') || url.includes('index.html') || url.endsWith('.html')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          // Update cache with fresh copy
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request)) // offline fallback
-    );
-    return;
-  }
+// Tapping a notification: focus an already-open tab if one exists (and
+// hand it the deep link via postMessage so it can navigate without a full
+// reload), otherwise open a new one with ?notif=... which index.html reads
+// on load via _consumeNotifDeepLink().
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '';
 
-  // CACHE FIRST for static assets (icons, manifest, sw)
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          if (url) client.postMessage({ type: 'sq-notif-click', url });
+          return;
         }
-        return res;
-      });
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url ? ('./' + url) : './');
+      }
     })
   );
 });
