@@ -3870,7 +3870,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   <section class="page" id="page-analytics">
     <div class="page-header">
       <div>
-        <div class="page-title">Analytics</div>
+        <div class="page-title" style="display:flex;align-items:center;gap:8px"><span class="ico" style="color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><rect x="6" y="10" width="3" height="9" rx="1"/><rect x="11" y="6" width="3" height="13" rx="1"/><rect x="16" y="13" width="3" height="6" rx="1"/></svg></span> Analytics</div>
         <div class="page-sub" id="analytics-sub">Portfolio insights</div>
       </div>
     </div>
@@ -3965,7 +3965,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   <section class="page" id="page-dispatch">
     <div class="page-header">
       <div>
-        <div class="page-title" style="font-size:var(--text-5xl)">WhatsApp</div>
+        <div class="page-title" style="font-size:var(--text-5xl);display:flex;align-items:center;gap:8px"><span class="ico" style="color:#25d366"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 01-12.5 7.4L4 20l1.1-4.3A8.5 8.5 0 1121 11.5z"/><path d="M8.5 10.5c0 3 2.5 5.5 5.5 5.5"/></svg></span> WhatsApp</div>
         <div id="dispatch-stats" style="font-size:var(--text-sm);color:var(--text2);margin-top:4px;min-width:0;overflow:hidden">Grouped by OD day</div>
       </div>
     </div>
@@ -4066,7 +4066,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   <section class="page" id="page-log">
     <div class="page-header">
       <div>
-        <div class="page-title" style="font-size:var(--text-5xl)">Daily Log</div>
+        <div class="page-title" style="font-size:var(--text-5xl);display:flex;align-items:center;gap:8px"><span class="ico" style="color:var(--gold)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><path d="M8 13.5l2 2 4-4"/></svg></span> Daily Log</div>
         <div class="page-sub" id="log-month-label">—</div>
       </div>
       <div style="display:flex;gap:6px">
@@ -4158,7 +4158,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   <section class="page" id="page-smsblast">
     <div class="page-header">
       <div>
-        <div class="page-title" style="font-size:var(--text-5xl)">Message Blast</div>
+        <div class="page-title" style="font-size:var(--text-5xl);display:flex;align-items:center;gap:8px"><span class="ico" style="color:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l17-7-7 17-2.5-7L3 11z"/></svg></span> Message Blast</div>
         <div class="page-sub">Compose once, reach everyone</div>
       </div>
     </div>
@@ -5156,7 +5156,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         </button>
       </div>
     </div>
-    <div id="pending-sync-label" style="display:none;font-size:var(--text-xs);color:var(--gold);margin-top:8px;font-weight:600"></div>
+    <div id="mdrawer-pending-sync-label" style="display:none;font-size:var(--text-xs);color:var(--gold);margin-top:8px;font-weight:600"></div>
     <button id="install-btn-drawer" onclick="window._installPWA()" style="display:none;width:100%;background:var(--gold-grad);border:none;border-radius:var(--radius);padding:9px 12px;cursor:pointer;font-family:var(--font-body);font-size:var(--text-base);font-weight:700;color:#000;align-items:center;justify-content:center;gap:6px;margin-top:10px">
       Install App
     </button>
@@ -6420,16 +6420,18 @@ function setSyncStatus(status) {
   // Pending sync counter
   if (!state) return;
   const pendEl = document.getElementById('pending-sync-label');
-  if (pendEl) {
+  const pendElDrawer = document.getElementById('mdrawer-pending-sync-label');
+  const pendTargets = [pendEl, pendElDrawer].filter(Boolean);
+  if (pendTargets.length) {
     if (status === 'saving') {
       localStorage.setItem('last_sync_time', new Date().toISOString());
       if (!state.pendingSyncCount) state.pendingSyncCount = 0;
       state.pendingSyncCount++;
-      pendEl.style.display = 'block';
-      pendEl.textContent = state.pendingSyncCount + ' change' + (state.pendingSyncCount !== 1 ? 's' : '') + ' pending sync';
+      const label = state.pendingSyncCount + ' change' + (state.pendingSyncCount !== 1 ? 's' : '') + ' pending sync';
+      pendTargets.forEach(el => { el.style.display = 'block'; el.textContent = label; });
     } else if (status === 'saved') {
       state.pendingSyncCount = 0;
-      pendEl.style.display = 'none';
+      pendTargets.forEach(el => { el.style.display = 'none'; });
     }
   }
 }
@@ -7739,7 +7741,12 @@ function renderDashActivityFeed() {
     // ── Payments (most reliable source) ──────────────────────
     (b.payLog||[]).forEach(p => {
       if (!p.date || !p.amount) return;
-      const ms = new Date(p.date).getTime();
+      // payLog stores `date` as a date-only string (midnight) and, separately,
+      // a human `time` string (e.g. "14:35") for display. Using date alone
+      // parses as midnight UTC, making every payment look many hours old the
+      // instant it's recorded. Combine both for an accurate timestamp when
+      // `time` is present; fall back to date-only for older/legacy entries.
+      const ms = new Date(p.time ? (p.date + 'T' + p.time) : p.date).getTime();
       if (isNaN(ms) || now - ms > SEVEN_DAYS) return;
       const isPaid = (b.amountPaid||0) >= (b.loanDue||1);
       events.push({
@@ -12142,6 +12149,7 @@ function recordPayment(id) {
   if (!b) return;
   const newPaid = parseFloat(document.getElementById('pay-amount').value) || 0;
   const notes = document.getElementById('pay-notes').value.trim();
+  const _prevBest = getPersonalBest();
 
   // Save undo snapshot before modifying
   pushUndo('Payment on ' + b.name.split(' ')[0], { borrowers: state.borrowers, dailyLog: state.dailyLog });
@@ -12211,7 +12219,8 @@ function recordPayment(id) {
   } else {
     toast('' + b.name.split(' ')[0] + ' payment recorded', 'success');
   }
-  updateBadges(); renderCurrentPage();
+  updateBadges(); renderCurrentPage(); updateDailyPill();
+  _maybeCelebratePersonalBest(_prevBest);
 }
 
 // ── Undo a mistaken "fully paid" mark ──────────────────
@@ -14422,6 +14431,7 @@ function bulkAction(action) {
     pushUndo('Bulk mark paid (' + ids.length + ')', { borrowers: state.borrowers, dailyLog: state.dailyLog });
     const todayStr = new Date().toISOString().split('T')[0];
     const timeStr  = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const _prevBest = getPersonalBest();
     let totalDelta = 0;
     ids.forEach(id => {
       const b = state.borrowers.find(x => x.id === id);
@@ -14443,6 +14453,7 @@ function bulkAction(action) {
       logEntry.collected = (logEntry.collected || 0) + totalDelta;
     }
     toast(ids.length + ' accounts marked Paid   (+' + fmtC(totalDelta) + ' logged today)', 'success');
+    _maybeCelebratePersonalBest(_prevBest);
   } else if (action === 'promise') {
     const d = new Date().toISOString().split('T')[0];
     ids.forEach(id => { const b = state.borrowers.find(x => x.id === id); if (b) { b.promisedToPay = true; b.promiseDate = d; } });
@@ -14588,7 +14599,7 @@ function checkAutoRollover() {
   if (currentDate <= storedDate) return; // same month or future — no rollover needed
 
   // Month has changed — auto rollover
-  console.log('Auto-rollover: ' + stateMonthStr + ' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span> ' + thisMonthStr);
+  console.log('Auto-rollover: ' + stateMonthStr + ' → ' + thisMonthStr);
 
   const today   = now.toISOString().split('T')[0];
   const active  = getActiveBorrowers();
@@ -17271,6 +17282,20 @@ function checkPersonalBest(amount) {
   }
 }
 
+// Personal-best celebration also needs to fire when today's total grows via
+// borrower payments (recordPayment/quickPay/bulk/PTP-honoured) — not just
+// through the manual Daily Log entry form. Callers capture `prevBest` via
+// getPersonalBest() BEFORE mutating state.dailyLog, then call this after
+// saving so today's new running total gets checked against that prior best.
+function _maybeCelebratePersonalBest(prevBest) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEntry = (state.dailyLog || []).find(e => e.date === todayStr);
+  const todayTotal = todayEntry ? (todayEntry.collected || 0) : 0;
+  if (todayTotal > 0 && todayTotal > prevBest) {
+    checkPersonalBest(todayTotal);
+  }
+}
+
 // ── CONFETTI ───────────────────────────────────────────
 function fireConfetti() {
   const canvas = document.getElementById('confetti-canvas');
@@ -19372,6 +19397,7 @@ function getTodayPtps2() {
 function setPtpOutcome2(bid, outcome) {
   const b = state.borrowers.find(b => b.id === bid);
   if (!b) return;
+  const _prevBest = getPersonalBest();
   // If custom text entry, show the text input
   if (outcome === 'custom') {
     const row = document.querySelector('.ptp-outcome-row[data-bid="'+bid+'"]');
@@ -19391,7 +19417,7 @@ function setPtpOutcome2(bid, outcome) {
     _clearPromiseOnPaid(b); // remove the just-honoured promise once fully paid
     if (!b.payLog) b.payLog = [];
     const payDate = new Date().toISOString().split('T')[0];
-    b.payLog.push({ date: payDate, amount: full, delta, note: 'PTP honoured (EOD)', isPaid: true });
+    b.payLog.push({ date: payDate, time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), amount: full, delta, note: 'PTP honoured (EOD)', isPaid: true });
     if (delta > 0) {
       if (!state.dailyLog) state.dailyLog = [];
       let logEntry = state.dailyLog.find(e => e.date === payDate);
@@ -19401,6 +19427,8 @@ function setPtpOutcome2(bid, outcome) {
   }
   b.ptpOutcome = outcome;
   saveState();
+  updateDailyPill();
+  _maybeCelebratePersonalBest(_prevBest);
   // Update the select to match
   const sel = document.querySelector('.ptp-oc-sel[data-bid="'+bid+'"]');
   if (sel) {
@@ -21115,6 +21143,7 @@ function quickPay(id, pct) {
   if (!b) return;
   const remaining = getRemaining(b);
   const fullSettlement = getDueToday(b) + b.amountPaid;
+  const _prevBest = getPersonalBest();
   let newPaid;
   if (pct === 'full') newPaid = fullSettlement;
   else if (pct === 0.5) newPaid = b.amountPaid + Math.round(remaining * 0.5);
@@ -21140,7 +21169,8 @@ function quickPay(id, pct) {
   haptic(b.isPaid ? 'fullpay' : 'pay');
   const st = getStatus(b);
   toast((b.isPaid ? ' ' : ' ') + b.name.split(' ')[0] + (b.isPaid ? ' fully paid! ' : ' payment recorded'), 'success');
-  saveState(); updateBadges(); renderCurrentPage();
+  saveState(); updateBadges(); renderCurrentPage(); updateDailyPill();
+  _maybeCelebratePersonalBest(_prevBest);
   queueOfflineAction({ type: 'pay', id, newPaid });
 }
 
@@ -21296,16 +21326,19 @@ if (!navigator.onLine) {
 }
 
 function updatePendingSyncLabel() {
-  const el = document.getElementById('pending-sync-label');
-  if (!el) return;
+  const targets = ['pending-sync-label', 'mdrawer-pending-sync-label']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!targets.length) return;
   const count = state.offlineQueue?.length || 0;
-  if (count > 0) {
-    el.style.display = 'block';
-    el.textContent = count + ' change' + (count !== 1 ? 's' : '') + ' pending upload';
-    el.style.color = 'var(--gold)';
-  } else {
-    el.style.display = 'none';
-  }
+  targets.forEach(el => {
+    if (count > 0) {
+      el.style.display = 'block';
+      el.textContent = count + ' change' + (count !== 1 ? 's' : '') + ' pending upload';
+      el.style.color = 'var(--gold)';
+    } else {
+      el.style.display = 'none';
+    }
+  });
 }
   
 async function replayOfflineQueue() {
