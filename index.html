@@ -1167,18 +1167,20 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
   .attn-action .btn { width: 100%; }
 }
 
-/* ── Recent Activity feed ── */
-.ract-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
-.ract-header { display:flex; align-items:center; gap:7px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:var(--text-sm); font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; }
-.ract-list { max-height: 340px; overflow-y: auto; }
-.ract-row { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-top:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
-.ract-row:first-child { border-top: none; }
-.ract-row:hover { background: var(--surface2); }
-.ract-icon { flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
-.ract-icon .ico svg { width:14px; height:14px; }
-.ract-body { flex:1; min-width:0; }
-.ract-text { font-size:var(--text-base); color:var(--text2); line-height:1.4; overflow-wrap:anywhere; }
-.ract-time { font-size:var(--text-xs); color:var(--text3); margin-top:2px; }
+/* ── Recent Activity ticker (top-of-dashboard, compact) ── */
+.ract-ticker { position:relative; display:flex; align-items:stretch; height:38px; background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius-md); overflow:hidden; margin-bottom:var(--section-gap); }
+.ract-ticker-label { flex-shrink:0; display:flex; align-items:center; gap:5px; padding:0 10px; background:var(--surface2); border-right:1px solid var(--border); font-size:var(--text-2xs); font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap; }
+.ract-ticker-label .ico svg { width:12px; height:12px; }
+.ract-ticker-viewport { flex:1; min-width:0; overflow:hidden; position:relative; }
+.ract-ticker-track { display:flex; align-items:center; height:100%; position:absolute; top:0; left:0; white-space:nowrap; animation-name:ractScroll; animation-timing-function:linear; animation-iteration-count:infinite; will-change:transform; }
+.ract-ticker-viewport:hover .ract-ticker-track { animation-play-state:paused; }
+.ract-ticker-item { display:inline-flex; align-items:center; gap:6px; padding:0 22px; cursor:pointer; }
+.ract-ticker-icon { flex-shrink:0; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+.ract-ticker-icon .ico svg { width:11px; height:11px; }
+.ract-ticker-text { font-size:var(--text-sm); color:var(--text2); }
+.ract-ticker-time { font-size:var(--text-2xs); color:var(--text3); }
+.ract-ticker-empty { display:flex; align-items:center; padding:0 14px; font-size:var(--text-sm); color:var(--text3); }
+@keyframes ractScroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
 
 /* CARDS */
 .card {
@@ -3570,11 +3572,19 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <span id="streak-badge-dash" class="streak-badge" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span> 0 day streak</span>
-        <button class="btn btn-ghost btn-sm" onclick="openPerfCard()" title="Weekly performance card"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span></button>
-        <button class="btn btn-ghost btn-sm" onclick="openRolloverModal()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> New Month</button>
+        <div id="dash-more-menu-wrap" style="position:relative">
+          <button class="btn btn-ghost btn-sm" onclick="toggleDashMoreMenu()" aria-label="More options" title="More options"><span class="ico"><svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></span></button>
+          <div id="dash-more-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:190px;background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius-lg);z-index:500;box-shadow:0 12px 40px rgba(0,0,0,0.45);padding:5px">
+            <div class="bc-more-item" onclick="toggleDashMoreMenu(false);openPerfCard()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> Weekly Performance</div>
+            <div class="bc-more-item" onclick="toggleDashMoreMenu(false);openRolloverModal()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> New Month</div>
+          </div>
+        </div>
         <button class="btn btn-gold" onclick="openAddModal()">＋ New Borrower</button>
       </div>
     </div>
+
+    <!-- Recent Activity ticker — top of dashboard, compact scrolling strip -->
+    <div id="dash-activity"></div>
 
     <div id="dash-m2-strip" style="display:none"></div>
 
@@ -3584,14 +3594,12 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         <span style="font-weight:700;font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span> Today's Hit List <span id="hit-list-count" style="color:var(--text3);font-weight:400;font-size:var(--text-sm)"></span></span>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-xs" onclick="clearHitList()">Clear All</button>
+          <button class="btn btn-ghost btn-xs" id="hit-list-collapse-btn" onclick="toggleHitListCollapse()" aria-label="Collapse hit list"><span class="ico" id="hit-list-collapse-ico" style="display:inline-flex;transition:transform 0.2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button>
           <button class="btn btn-ghost btn-xs" onclick="toggleHitListPanel(false)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
         </div>
       </div>
       <div id="hit-list-items"></div>
     </div>
-
-    <!-- Ranking Gap Alert -->
-    <div id="ranking-gap-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--section-gap);align-items:center;gap:10px;font-size:var(--text-md);animation:fadeUp 0.3s ease both"></div>
 
     <div class="kpi-grid" id="kpi-grid"></div>
 
@@ -3602,18 +3610,30 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 
     <div id="dash-target-section"></div>
 
-    <div id="dash-alerts"></div>
+    <!-- Alerts zone — Needs Attention merged with Treadmill + Ranking Gap, collapsible, sits under monthly collection -->
+    <div class="attn-panel" id="dash-alerts-card" style="display:none">
+      <div class="attn-panel-header" style="justify-content:space-between;cursor:pointer" onclick="toggleDashAlertsCollapse()">
+        <span style="display:flex;align-items:center;gap:7px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 16.5v.1"/><path d="M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span> Needs Attention <span id="dash-alerts-count" style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:normal"></span></span>
+        <span class="ico" id="dash-alerts-collapse-ico" style="display:inline-flex;transition:transform 0.2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+      </div>
+      <div id="dash-alerts-body">
+        <div id="dash-alerts"></div>
+        <div id="treadmill-alert" style="display:none;margin:12px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:12px 18px"></div>
+        <div id="ranking-gap-alert" style="display:none;margin:12px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:10px 14px;align-items:center;gap:10px;font-size:var(--text-md);animation:fadeUp 0.3s ease both"></div>
+      </div>
+    </div>
 
-    <!-- Priority 1: Action lists — most important for daily workflow -->
-    <div class="two-col two-col-weighted">
-      <div class="card">
-        <div class="card-header"><span class="card-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 11v3M14 11v3"/><path d="M8 19h8"/><path d="M12 14v5"/></svg></span> Top Overdue — Act Now</span><span style="font-size:var(--text-xs);color:var(--text3)">tap any row</span></div>
-        <div class="card-body" id="dash-top-due"></div>
+    <!-- Priority 1: Action lists — unified tabbed card, same pattern as Smart Clusters -->
+    <div class="card" id="dash-priority-card">
+      <div class="card-header" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-xs" id="dash-pri-tab-due" onclick="setDashPriorityTab('due')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 11v3M14 11v3"/><path d="M8 19h8"/><path d="M12 14v5"/></svg></span> Top Overdue</button>
+          <button class="btn btn-ghost btn-xs" id="dash-pri-tab-commit" onclick="setDashPriorityTab('commit')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Highest Commitment</button>
+        </div>
+        <span style="font-size:var(--text-xs);color:var(--text3)">tap any row</span>
       </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Highest Commitment</span><span style="font-size:var(--text-xs);color:var(--text3)">tap to follow up</span></div>
-        <div class="card-body" id="dash-top-commit"></div>
-      </div>
+      <div class="card-body" id="dash-top-due"></div>
+      <div class="card-body" id="dash-top-commit" style="display:none"></div>
     </div>
 
     <!-- Smart Clusters — High Probability / Needs Pressure / Escalation Ready -->
@@ -3641,12 +3661,6 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 
     <!-- Empty state for new agents -->
     <div id="dash-empty-state" style="display:none"></div>
-
-    <!-- Activity feed -->
-    <div id="dash-activity" style="margin-bottom:var(--section-gap)"></div>
-
-    <!-- Treadmill Alert -->
-    <div id="treadmill-alert" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-left:4px solid var(--red);border-radius:var(--radius-md);padding:12px 18px;margin-bottom:var(--section-gap)"></div>
   </section>
 
   <!-- LOANS -->
@@ -3658,16 +3672,14 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         <div id="loans-count-sub" class="bl-sub"></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn btn-ghost btn-sm" onclick="openBulkDispatch()" title="Send message to multiple borrowers" style="font-size:var(--text-sm)">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> Bulk Send
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="navigate('paid')" title="View all fully paid accounts" style="font-size:var(--text-sm)">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Paid
-          <span id="paid-btn-count" style="background:rgba(34,197,94,0.18);color:var(--green);font-size:var(--text-xs);font-weight:700;padding:1px 5px;border-radius:var(--radius);margin-left:4px"></span>
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="openExportModal()" title="Export CSV">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:15px;height:15px;vertical-align:middle;margin-right:4px"><path d="M10 3v10M6 10l4 4 4-4"/><line x1="3" y1="17" x2="17" y2="17"/></svg>Export
-        </button>
+        <div id="loans-more-menu-wrap" style="position:relative">
+          <button class="btn btn-ghost btn-sm" onclick="toggleLoansMoreMenu()" aria-label="More options" title="More options"><span class="ico"><svg viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></span></button>
+          <div id="loans-more-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:200px;background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius-lg);z-index:500;box-shadow:0 12px 40px rgba(0,0,0,0.45);padding:5px">
+            <div class="bc-more-item" onclick="toggleLoansMoreMenu(false);openBulkDispatch()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> Bulk Send</div>
+            <div class="bc-more-item" onclick="toggleLoansMoreMenu(false);navigate('paid')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Paid Accounts <span id="paid-btn-count" style="background:rgba(34,197,94,0.18);color:var(--green);font-size:var(--text-xs);font-weight:700;padding:1px 5px;border-radius:var(--radius);margin-left:4px"></span></div>
+            <div class="bc-more-item" onclick="toggleLoansMoreMenu(false);openExportModal()"><span class="ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3v10M6 10l4 4 4-4"/><line x1="3" y1="17" x2="17" y2="17"/></svg></span> Export</div>
+          </div>
+        </div>
         <button class="btn btn-gold" onclick="openAddModal()">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>New
         </button>
@@ -7372,6 +7384,7 @@ function ptpAutoFlagMissed() {
       b.ptpOutcome  = 'missed';
       b.ptpBreached = true;
       b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
+      _maybeAutoEscalate(b);
       changed = true;
     }
   });
@@ -7662,8 +7675,18 @@ function renderDashActivityFeed() {
     seen.add(key); return true;
   });
 
-  const recent = deduped.slice(0, 10);
-  if (!recent.length) { el.innerHTML = ''; return; }
+  const recent = deduped.slice(0, 12);
+
+  const boltIcon = '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>';
+
+  if (!recent.length) {
+    el.innerHTML = `
+    <div class="ract-ticker">
+      <div class="ract-ticker-label">${boltIcon} Live</div>
+      <div class="ract-ticker-empty">No recent activity yet</div>
+    </div>`;
+    return;
+  }
 
   const colorMap = {
     green:  { bg: 'rgba(34,197,94,0.15)',  fg: 'var(--green)'  },
@@ -7674,21 +7697,24 @@ function renderDashActivityFeed() {
     gray:   { bg: 'rgba(255,255,255,0.06)',fg: 'var(--text3)'  }
   };
 
+  const items = recent.map(e => {
+    const c = colorMap[e.color] || colorMap.gray;
+    return `<span class="ract-ticker-item" onclick="openBorrowerDetail('${e.id}')">
+      <span class="ract-ticker-icon" style="background:${c.bg};color:${c.fg}">${e.icon}</span>
+      <span class="ract-ticker-text">${escapeHtml(e.text)}</span>
+      <span class="ract-ticker-time">${fmt(e.ms)}</span>
+    </span>`;
+  }).join('');
+
+  // Duplicate the item run once so the -50% translateX loop is seamless.
+  // Duration scales with content so longer lists don't fly past unreadably fast.
+  const duration = Math.max(20, recent.length * 6);
+
   el.innerHTML = `
-    <div class="ract-panel">
-      <div class="ract-header"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span> Recent Activity</div>
-      <div class="ract-list">
-        ${recent.map(e => {
-          const c = colorMap[e.color] || colorMap.gray;
-          return `
-        <div class="ract-row" onclick="openBorrowerDetail('${e.id}')">
-          <span class="ract-icon" style="background:${c.bg};color:${c.fg}">${e.icon}</span>
-          <div class="ract-body">
-            <div class="ract-text">${escapeHtml(e.text)}</div>
-            <div class="ract-time">${fmt(e.ms)}</div>
-          </div>
-        </div>`;
-        }).join('')}
+    <div class="ract-ticker">
+      <div class="ract-ticker-label">${boltIcon} Live</div>
+      <div class="ract-ticker-viewport">
+        <div class="ract-ticker-track" style="animation-duration:${duration}s">${items}${items}</div>
       </div>
     </div>`;
 }
@@ -7903,6 +7929,16 @@ async function renderDashboard() {
   const criticalToday = active.filter(b => getOdAge(b.startDate, b) >= 13);
   const attnRows = [];
 
+  if (state.tomorrowList && state.tomorrowList.ids.length) {
+    attnRows.push({
+      sev: 'blue',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>',
+      title: "Tomorrow's list is ready",
+      desc: state.tomorrowList.ids.length + ' priority accounts queued, ranked by urgency and contact likelihood.',
+      btnId: 'tomorrow-list-btn', btnLabel: 'View', btnClass: 'btn-ghost'
+    });
+  }
+
   if (agingTomorrow.length) {
     const _stageDay = (function(){var _s=(_activeAgent&&_activeAgent.stage)||'M2';var _b={M0:1,M1:6,M2:16,M3:41,M4:61};return _b[_s]||16;})();
     const _stageName = (_activeAgent&&_activeAgent.stage)||'M2';
@@ -7966,9 +8002,7 @@ async function renderDashboard() {
   const _sevBg = { red: 'rgba(239,68,68,0.12)', orange: 'rgba(249,115,22,0.12)', blue: 'rgba(96,165,250,0.12)' };
   let alertHtml = '';
   if (attnRows.length) {
-    alertHtml = '<div class="attn-panel">'
-      + '<div class="attn-panel-header"><span class="ico" style="width:15px;height:15px;color:var(--gold)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 16.5v.1"/><path d="M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span> Needs Attention</div>'
-      + attnRows.map(r =>
+    alertHtml = attnRows.map(r =>
         '<div class="attn-row">'
         + '<span class="attn-icon" style="color:' + _sevColorVar[r.sev] + ';background:' + _sevBg[r.sev] + '"><span class="ico">' + r.icon + '</span></span>'
         + '<div class="attn-body">'
@@ -7978,10 +8012,10 @@ async function renderDashboard() {
         + '</div>'
         + '<button class="btn ' + r.btnClass + ' btn-sm attn-action" id="' + r.btnId + '"' + (r.btnClass==='btn-ghost' ? ' style="border-color:' + _sevColorVar[r.sev] + ';color:' + _sevColorVar[r.sev] + '"' : '') + '>' + r.btnLabel + '</button>'
         + '</div>'
-      ).join('')
-      + '</div>';
+      ).join('');
   }
   document.getElementById('dash-alerts').innerHTML = alertHtml;
+  updateDashAlertsPanelVisibility();
   renderDashActionStrip(active);
   renderDashHero();
   renderM2TargetStrip();
@@ -7991,6 +8025,8 @@ async function renderDashboard() {
   if (zlb) zlb.addEventListener('click', function() { navigate('log'); });
   var glb = document.getElementById('gap-log-btn');
   if (glb) glb.addEventListener('click', function() { navigate('log'); });
+  var tlb = document.getElementById('tomorrow-list-btn');
+  if (tlb) tlb.addEventListener('click', function() { haptic('light'); openTomorrowList(); });
   // Wire alert buttons via delegation
   var ab = document.getElementById('alert-aging-btn');
   if (ab) ab.addEventListener('click', function() { haptic('light'); showBorrowersPopup('','',15); });
@@ -8073,6 +8109,8 @@ async function renderDashboard() {
       + '<a href="'+getWaLink(b, false)+'" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" onclick="event.stopPropagation();haptic(\'light\')" title="WhatsApp"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></a>'
       + '</div></div></div>';
   }).join('') || '<div class="empty-state">No partial payments yet</div>';
+
+  setDashPriorityTab(localStorage.getItem('dash_priority_tab') || 'due');
 
   const clustersEl = document.getElementById('dash-clusters');
   if (clustersEl) clustersEl.innerHTML = renderSmartClusters();
@@ -12915,6 +12953,7 @@ function autoExpirePtps() {
     b.ptpOutcome  = 'missed';
     b.ptpBreached = true;
     b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
+    _maybeAutoEscalate(b);
     changed = true;
   });
 
@@ -16993,15 +17032,29 @@ function toggleHitListPanel(show) {
   const p = document.getElementById('hit-list-panel');
   if (p) p.style.display = (show === false || p.style.display !== 'none') && show !== true ? 'none' : 'block';
 }
+function toggleHitListCollapse() {
+  const itemsEl = document.getElementById('hit-list-items');
+  const icoEl = document.getElementById('hit-list-collapse-ico');
+  if (!itemsEl) return;
+  const collapsing = itemsEl.style.display !== 'none';
+  itemsEl.style.display = collapsing ? 'none' : 'block';
+  if (icoEl) icoEl.style.transform = collapsing ? 'rotate(-90deg)' : '';
+  localStorage.setItem('hitlist_collapsed', collapsing ? '1' : '0');
+  haptic('light');
+}
 function renderHitList() {
   const hl = getHitList();
   const panel = document.getElementById('hit-list-panel');
   const countEl = document.getElementById('hit-list-count');
   const itemsEl = document.getElementById('hit-list-items');
+  const icoEl = document.getElementById('hit-list-collapse-ico');
   if (!panel) return;
   panel.style.display = hl.length > 0 ? 'block' : 'none';
   if (countEl) countEl.textContent = '(' + hl.length + '/10)';
   if (!itemsEl) return;
+  const collapsed = localStorage.getItem('hitlist_collapsed') === '1';
+  itemsEl.style.display = collapsed ? 'none' : 'block';
+  if (icoEl) icoEl.style.transform = collapsed ? 'rotate(-90deg)' : '';
   itemsEl.innerHTML = hl.map((id, idx) => {
     const b = state.borrowers.find(x => x.id === id);
     if (!b) return '';
@@ -17203,7 +17256,7 @@ function renderTreadmillAlert() {
   const allDay6 = state.borrowers.filter(b => !b.isPaid && getOdAge(b.startDate, b) === tDay);
   const el = document.getElementById('treadmill-alert');
   if (!el) return;
-  if (allDay6.length === 0) { el.style.display = 'none'; return; }
+  if (allDay6.length === 0) { el.style.display = 'none'; updateDashAlertsPanelVisibility(); return; }
   const total = allDay6.reduce((s,b) => s + getDueToday(b), 0);
   el.style.display = 'block';
   el.innerHTML = `
@@ -17224,6 +17277,7 @@ function renderTreadmillAlert() {
         </div>`).join('')}
       ${allDay6.length>8?`<span style="font-size:var(--text-sm);color:var(--text3);align-self:center">+${allDay6.length-8} more</span>`:''}
     </div>`;
+  updateDashAlertsPanelVisibility();
 }
 
 // ── PRIORITY SCORE ENGINE ──────────────────────────────
@@ -17337,6 +17391,84 @@ function logCallOutcome(id, outcome, btn) {
 let _waQueue = [];
 let _waQueueIdx = 0;
 
+// ── Borrowers page overflow menu (Bulk Send / Paid / Export) ──
+function toggleLoansMoreMenu(force) {
+  const el = document.getElementById('loans-more-menu');
+  if (!el) return;
+  const show = force === false ? false : (force === true ? true : el.style.display === 'none');
+  el.style.display = show ? 'block' : 'none';
+  if (show) {
+    setTimeout(() => document.addEventListener('click', _loansMoreMenuOutsideClick), 0);
+  } else {
+    document.removeEventListener('click', _loansMoreMenuOutsideClick);
+  }
+}
+function _loansMoreMenuOutsideClick(e) {
+  const wrap = document.getElementById('loans-more-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    toggleLoansMoreMenu(false);
+  }
+}
+
+// ── Needs Attention panel — merged Attention rows + Treadmill + Ranking Gap, collapsible ──
+function updateDashAlertsPanelVisibility() {
+  const card = document.getElementById('dash-alerts-card');
+  const body = document.getElementById('dash-alerts-body');
+  if (!card || !body) return;
+  const alertsEl = document.getElementById('dash-alerts');
+  const treadmillEl = document.getElementById('treadmill-alert');
+  const rankingEl = document.getElementById('ranking-gap-alert');
+  const rowCount = alertsEl ? alertsEl.querySelectorAll('.attn-row').length : 0;
+  const hasTreadmill = !!(treadmillEl && treadmillEl.style.display !== 'none' && treadmillEl.innerHTML.trim());
+  const hasRanking = !!(rankingEl && rankingEl.style.display !== 'none' && rankingEl.innerHTML.trim());
+  const count = rowCount + (hasTreadmill ? 1 : 0) + (hasRanking ? 1 : 0);
+  card.style.display = count > 0 ? 'block' : 'none';
+  const countEl = document.getElementById('dash-alerts-count');
+  if (countEl) countEl.textContent = count ? '(' + count + ')' : '';
+  const collapsed = localStorage.getItem('dash_attn_collapsed') === '1';
+  body.style.display = collapsed ? 'none' : 'block';
+  const ico = document.getElementById('dash-alerts-collapse-ico');
+  if (ico) ico.style.transform = collapsed ? 'rotate(-90deg)' : '';
+}
+function toggleDashAlertsCollapse() {
+  const collapsed = localStorage.getItem('dash_attn_collapsed') === '1';
+  localStorage.setItem('dash_attn_collapsed', collapsed ? '0' : '1');
+  haptic('light');
+  updateDashAlertsPanelVisibility();
+}
+
+// ── Priority card tab switch (Top Overdue / Highest Commitment) ──
+function toggleDashMoreMenu(force) {
+  const el = document.getElementById('dash-more-menu');
+  if (!el) return;
+  const show = force === false ? false : (force === true ? true : el.style.display === 'none');
+  el.style.display = show ? 'block' : 'none';
+  if (show) {
+    setTimeout(() => document.addEventListener('click', _dashMoreMenuOutsideClick), 0);
+  } else {
+    document.removeEventListener('click', _dashMoreMenuOutsideClick);
+  }
+}
+function _dashMoreMenuOutsideClick(e) {
+  const wrap = document.getElementById('dash-more-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    toggleDashMoreMenu(false);
+  }
+}
+function setDashPriorityTab(tab) {
+  const due = document.getElementById('dash-top-due');
+  const commit = document.getElementById('dash-top-commit');
+  const btnDue = document.getElementById('dash-pri-tab-due');
+  const btnCommit = document.getElementById('dash-pri-tab-commit');
+  if (!due || !commit) return;
+  const isDue = tab !== 'commit';
+  due.style.display = isDue ? 'block' : 'none';
+  commit.style.display = isDue ? 'none' : 'block';
+  if (btnDue) btnDue.className = isDue ? 'btn btn-gold btn-xs' : 'btn btn-ghost btn-xs';
+  if (btnCommit) btnCommit.className = isDue ? 'btn btn-ghost btn-xs' : 'btn btn-gold btn-xs';
+  localStorage.setItem('dash_priority_tab', isDue ? 'due' : 'commit');
+}
+
 // ── SMART CLUSTERS (Auto-group) ────────────────────────
 function renderSmartClusters() {
   const active = getActiveBorrowers();
@@ -17344,52 +17476,22 @@ function renderSmartClusters() {
   const pressure = active.filter(b => getOdAge(b.startDate, b) >= 8 && b.amountPaid === 0 && !b.promisedToPay);
   const escalate = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate, b) >= 13);
 
-  function clusterRows(list, max, clusterId) {
-    const shown = list.slice(0, max);
-    const rest  = list.slice(max);
-    return shown.map(b => {
-      const phone = b.phone.replace(/\s/g,'').replace('+','');
-      const ps = calcPriorityScore(b);
-      const pCls = ps>=8?'p-high':ps>=5?'p-mid':'p-low';
-      return `<div class="cluster-borrower-row" onclick="openBorrowerDetail('${b.id}');haptic('light')" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer">
-        <span class="priority-score ${pCls}" style="flex-shrink:0">${ps}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:var(--text-base);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.name.split(' ')[0]} <span style="font-size:var(--text-xs);color:var(--text3)">Day ${getOdAge(b.startDate, b)}</span></div>
-          <div style="font-size:var(--text-xs);color:var(--text3)">${fmtC(getDueToday(b))}</div>
-        </div>
-        <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="btn btn-green btn-xs" onclick="event.stopPropagation();openPayModal('${b.id}');haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span></button>
-          <a href="${getWaLink(b, false)}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp" onclick="event.stopPropagation();haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></a>
-          <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();addToHitList('${b.id}');haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span></button>
-        </div>
-      </div>`;
-    }).join('')
-    + (rest.length > 0 ? `<div style="padding:7px 0;font-size:var(--text-sm);color:var(--gold);cursor:pointer;text-align:center;font-weight:600" onclick="showClusterPopup('${clusterId}');haptic('light')">+${rest.length} more — tap to view all</div>` : '');
+  // Compact tap-to-expand summary — full borrower-level detail (with Pay/
+  // WhatsApp/Hit List actions) lives in showClusterPopup(), unchanged.
+  function chip(id, color, bg, icon, label, count) {
+    return `<div onclick="showClusterPopup('${id}')" style="flex:1;min-width:0;background:${bg};border:1px solid ${color}33;border-radius:var(--radius-md);padding:10px 8px;text-align:center;cursor:pointer">
+      <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:${color};line-height:1">${count}</div>
+      <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${icon} ${label}</div>
+    </div>`;
   }
 
-  return `
-    <div class="cluster-card high" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-weight:700;color:var(--green);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#22c55e" stroke="none"/></svg></span> High Probability <span style="font-weight:400;font-size:var(--text-sm);color:var(--text3)">${high.length}</span></div>
-        <span style="font-size:var(--text-xs);color:var(--text3)">Tap any row to open</span>
-      </div>
-      ${high.length ? clusterRows(high, 3, 'high') : '<div style="font-size:var(--text-sm);color:var(--text3);padding:4px 0">No accounts</div>'}
-    </div>
-    <div class="cluster-card pressure" style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-weight:700;color:var(--orange);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#f0a030" stroke="none"/></svg></span> Needs Pressure <span style="font-weight:400;font-size:var(--text-sm);color:var(--text3)">${pressure.length}</span></div>
-        <span style="font-size:var(--text-xs);color:var(--text3)">Overdue, no engagement</span>
-      </div>
-      ${pressure.length ? clusterRows(pressure, 3, 'pressure') : '<div style="font-size:var(--text-sm);color:var(--text3);padding:4px 0">No accounts</div>'}
-    </div>
-    <div class="cluster-card escalate">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-weight:700;color:var(--red);font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span> Escalation Ready <span style="font-weight:400;font-size:var(--text-sm);color:var(--text3)">${escalate.length}</span></div>
-        <span style="font-size:var(--text-xs);color:var(--text3)">Day 13+ or broken promise</span>
-      </div>
-      ${escalate.length ? clusterRows(escalate, 3, 'escalate') : '<div style="font-size:var(--text-sm);color:var(--text3);padding:4px 0">No accounts</div>'}
-    </div>`;
+  return `<div style="display:flex;gap:8px">`
+    + chip('high', 'var(--green)', 'rgba(34,197,94,0.08)', '🟢', 'High Prob.', high.length)
+    + chip('pressure', 'var(--orange)', 'rgba(249,115,22,0.08)', '🟠', 'Pressure', pressure.length)
+    + chip('escalate', 'var(--red)', 'rgba(239,68,68,0.08)', '🔴', 'Escalate', escalate.length)
+    + `</div>`;
 }
+
 
 
 
@@ -17397,9 +17499,9 @@ function showClusterPopup(cls) {
   haptic('light');
   const active = getActiveBorrowers();
   let list, title;
-  if (cls === 'high')     { list = active.filter(b => b.amountPaid > 0 && calcPriorityScore(b) <= 5);  title = '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#22c55e" stroke="none"/></svg></span> High Probability'; }
-  else if (cls === 'pressure') { list = active.filter(b => getOdAge(b.startDate, b) >= 8 && b.amountPaid === 0 && !b.promisedToPay); title = '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#f0a030" stroke="none"/></svg></span> Needs Pressure'; }
-  else { list = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate, b) >= 13); title = '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span> Escalation Ready'; }
+  if (cls === 'high')     { list = active.filter(b => b.amountPaid > 0 && calcPriorityScore(b) <= 5);  title = '🟢 High Probability'; }
+  else if (cls === 'pressure') { list = active.filter(b => getOdAge(b.startDate, b) >= 8 && b.amountPaid === 0 && !b.promisedToPay); title = '🟠 Needs Pressure'; }
+  else { list = active.filter(b => (b.promisedToPay && b.amountPaid === 0) || getOdAge(b.startDate, b) >= 13); title = '🔴 Escalation Ready'; }
 
   document.getElementById('modal-title').textContent = title + ' (' + list.length + ')';
   document.getElementById('modal-body').innerHTML = list.map(b => {
@@ -20841,6 +20943,7 @@ function checkRankingGapAlert() {
   const html = `<div style="flex:1;font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 9"/><path d="M15 18h6v-6"/></svg></span> You slipped from <strong>#${posPrev}</strong> to <strong style="color:var(--red)">#${posLatest}</strong> since your last scan. ${gapHtml}</div>
     <button class="btn btn-ghost btn-xs" onclick="dismissRankingAlert('${latest.date}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>`;
   targets.forEach(el => { el.style.display = 'flex'; el.innerHTML = html; });
+  updateDashAlertsPanelVisibility();
 }
 function dismissRankingAlert(date) {
   localStorage.setItem('ranking_gap_dismissed', date);
@@ -20848,6 +20951,7 @@ function dismissRankingAlert(date) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  updateDashAlertsPanelVisibility();
 }
 
 // ── INSTANT PAY — NO MODAL (item 10) ───────────────────
@@ -21781,6 +21885,107 @@ function openOdFeeModal(id) {
 }
 
 // ── F7: PTP Breach Checker ───────────────────────────────────
+function _maybeAutoEscalate(b) {
+  // Quiet automation: the 2nd broken promise is a materially different signal
+  // than the 1st — surface it immediately instead of waiting for the agent
+  // to notice on their own next time they scan the list.
+  if ((b.brokenPromiseCount || 0) >= 2 && !b.autoEscalateFlagged) {
+    b.autoEscalateFlagged = true;
+    if (!state.hitList) state.hitList = [];
+    if (!state.hitList.includes(b.id)) state.hitList.push(b.id);
+    _showAppNotification(
+      '⚠️ ' + b.name.split(' ')[0] + ': 2nd broken promise',
+      'Auto-added to Hit List — recommended escalation is now Level 10.',
+      { tag: 'auto-escalate-' + b.id, url: '?notif=borrower:' + b.id }
+    );
+  }
+}
+
+// ── Quiet automation: flag accounts 1-2 days from crossing into the next
+// stage, before it happens rather than after — so nothing crosses M2→M3
+// (or any other boundary) as a surprise the agent only notices afterward.
+function checkStageBoundaryApproaching() {
+  const lastCheck = localStorage.getItem('last_boundary_check');
+  const today = new Date().toISOString().split('T')[0];
+  if (lastCheck === today) return; // once per day is enough
+  localStorage.setItem('last_boundary_check', today);
+
+  const stageOrder = ['M0','M1','M2','M3','M4','M5'];
+  const approaching = getActiveBorrowers().filter(b => {
+    const od = getOdAge(b.startDate, b);
+    const stage = getAccountStage(b);
+    const idx = stageOrder.indexOf(stage.label);
+    if (idx === -1 || idx === stageOrder.length - 1) return false; // no next stage
+    const daysToNext = stage.odBand[1] - od; // days remaining in current band
+    return daysToNext >= 0 && daysToNext <= 1; // crosses today or tomorrow
+  });
+
+  if (!approaching.length) return;
+
+  if (!state.hitList) state.hitList = [];
+  approaching.forEach(b => { if (!state.hitList.includes(b.id)) state.hitList.push(b.id); });
+  saveState();
+
+  const names = approaching.slice(0, 2).map(b => b.name.split(' ')[0]).join(', ');
+  const extra = approaching.length > 2 ? ` +${approaching.length - 2} more` : '';
+  _showAppNotification(
+    '📈 ' + approaching.length + ' account' + (approaching.length!==1?'s':'') + ' crossing stages soon',
+    names + extra + ' — added to Hit List. Last chance at the current stage\'s terms.',
+    { tag: 'stage-boundary', url: '?notif=ptp' }
+  );
+}
+
+// ── Quiet automation: build tomorrow's priority call list tonight/on next
+// open, so it's ready before the agent even opens the app — ranked by
+// urgency (priority score) combined with contact-likelihood (whether this
+// borrower has ever actually engaged, from their call-time history).
+function buildTomorrowList() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (state.tomorrowList && state.tomorrowList.date === todayStr) return; // already built today
+
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const active = getActiveBorrowers();
+
+  const scored = active.map(b => {
+    const urgency = calcPriorityScore(b); // 0-10, existing logic
+    const hasEngaged = getBestCallHour(b) !== null; // ever paid/answered before
+    const ptpTomorrow = b.promisedToPay && (b.promiseDate||'').split(' ')[0] === tomorrow;
+    let score = urgency + (hasEngaged ? 2 : 0) + (ptpTomorrow ? 4 : 0);
+    return { id: b.id, score };
+  }).sort((a, b) => b.score - a.score).slice(0, 15);
+
+  state.tomorrowList = { date: todayStr, ids: scored.map(s => s.id) };
+  saveState();
+
+  if (scored.length) {
+    _showAppNotification(
+      '📋 Tomorrow\'s list is ready',
+      scored.length + ' priority accounts queued, ranked by urgency and contact likelihood.',
+      { tag: 'tomorrow-list', url: '?notif=ptp' }
+    );
+  }
+}
+
+function openTomorrowList() {
+  const list = state.tomorrowList;
+  if (!list || !list.ids.length) { toast('No list built yet — open the app again to generate one', 'info'); return; }
+  const borrowers = list.ids.map(id => state.borrowers.find(b => b.id === id)).filter(Boolean);
+  document.getElementById('modal-title').textContent = "Tomorrow's Priority List";
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:12px">Ranked by urgency + contact likelihood. Built ' + list.date + '.</div>'
+    + borrowers.map((b, i) => {
+        const od = getOdAge(b.startDate, b);
+        return '<div class="summary-row" style="cursor:pointer" onclick="closeModal();openBorrowerDetail(\''+b.id+'\')">'
+          + '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">'
+          + '<span style="font-family:var(--font-mono);font-size:var(--text-xs);color:var(--text3);min-width:16px">'+(i+1)+'</span>'
+          + '<div style="min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(b.name)+'</div>'
+          + '<div style="font-size:var(--text-xs);color:var(--text3)">Day '+od+' · '+fmtC(getDueToday(b))+'</div></div></div>'
+          + '</div>';
+      }).join('');
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
 function checkPtpBreaches() {
   if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
   const today = new Date().toISOString().split('T')[0];
@@ -21796,6 +22001,7 @@ function checkPtpBreaches() {
     b.ptpBreached = true;
     b.ptpOutcome  = 'missed';
     b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
+    _maybeAutoEscalate(b);
     changed = true;
   });
   if (changed) saveState();
@@ -23307,6 +23513,8 @@ async function loadStateForAgent() {
   checkAutoRollover(); // auto-rollover if calendar month changed since last session
   updateBadges();
   checkOdAdvance();
+  checkStageBoundaryApproaching();
+  buildTomorrowList();
   checkRankingGapAlert();
   checkPtpBreaches();
   updateDailyPill();
