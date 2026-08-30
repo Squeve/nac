@@ -3616,6 +3616,12 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
       </div>
     </div>
 
+    <!-- Smart Clusters — High Probability / Needs Pressure / Escalation Ready -->
+    <div class="card" id="dash-clusters-card">
+      <div class="card-header"><span class="card-title"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="12" cy="17" r="3"/></svg></span> Smart Clusters</span><span style="font-size:var(--text-xs);color:var(--text3)">tap a group</span></div>
+      <div class="card-body" id="dash-clusters"></div>
+    </div>
+
     <!-- Priority 2: Visual progress & urgency breakdown -->
     <div class="two-col">
       <div class="card">
@@ -5259,37 +5265,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ═══ AUTO EOD NOTIFICATION ══════════════════════════════════
-function _scheduleEodNotif() {
-  if (!('Notification' in window)) return;
-  const now = new Date();
-  const eod = new Date(now);
-  eod.setHours(17, 0, 0, 0);
-  if (now >= eod) eod.setDate(eod.getDate() + 1);
-  const msUntil = eod - now;
-  setTimeout(function() {
-    if (Notification.permission === 'granted') {
-      _showAppNotification('SqueveTrack: EOD Time', 'Time to log your collections and send your EOD report.', {
-        tag: 'sq-eod', url: '?notif=log', onFallbackClick: function() { navigate('log'); }
-      });
-    } else {
-      // Fallback: toast
-      toast('Time to log collections and send EOD report', 'info');
-    }
-    // Reschedule for tomorrow
-    _scheduleEodNotif();
-  }, msUntil);
-}
 
-function _requestNotifPermission() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().then(p => {
-      if (p === 'granted') { toast('EOD reminders enabled', 'success'); _scheduleEodNotif(); }
-    });
-  } else if (Notification.permission === 'granted') {
-    _scheduleEodNotif();
-  }
-}
 
 // ═══ PERFORMANCE SHARE CARD ═════════════════════════════════
 function openPerfCard() {
@@ -6774,22 +6750,6 @@ setInterval(() => {
 }, 60000);
 
 // ── Save: localStorage immediately + Supabase debounced ──────
-function _trackBorrowerScores() {
-  // Store today's scores for trend display
-  const today = new Date().toISOString().split('T')[0];
-  if (!state.scoreHistory) state.scoreHistory = {};
-  state.borrowers.forEach(b => {
-    if (!state.scoreHistory[b.id]) state.scoreHistory[b.id] = [];
-    const hist = state.scoreHistory[b.id];
-    const score = calcPriorityScore(b);
-    // Update or append today
-    const last = hist[hist.length-1];
-    if (last && last.d === today) last.s = score;
-    else hist.push({d: today, s: score});
-    // Keep only 14 days
-    if (hist.length > 14) state.scoreHistory[b.id] = hist.slice(-14);
-  });
-}
 
 // ── Debounced save: coalesces rapid successive calls into one write ──
 let _saveStateTimer   = null;
@@ -6985,14 +6945,6 @@ function saveScrollPosition(pageId) {
   if (main) _scrollPositions.set(pageId, main.scrollTop);
 }
 
-function restoreScrollPosition(pageId) {
-  const main = document.getElementById('main');
-  if (main && _scrollPositions.has(pageId)) {
-    requestAnimationFrame(() => {
-      main.scrollTop = _scrollPositions.get(pageId);
-    });
-  }
-}
 
 // Sync avatar and display name from state.agentProfile to localStorage
 function _syncLocalProfileFromState() {
@@ -7251,18 +7203,6 @@ function payGuide(b) {
   return '\n\nPAYMENT GUIDE:\nDial *714*674# > Enter loan number > Select ' + serial + ' (' + b.loanType + ') > Enter amount > Confirm payment.\n\nMake payment or contact us IMMEDIATELY.';
 }
 
-function getStageTonePrefix(b) {
-  const s = getAccountStage(b);
-  const prefixes = {
-    M0: 'REMINDER: ',
-    M1: 'URGENT: ',
-    M2: 'IMPORTANT — ',
-    M3: 'FORMAL NOTICE — ',
-    M4: 'FINAL WARNING — ',
-    M5: 'ENFORCEMENT NOTICE — ',
-  };
-  return prefixes[s.label] || '';
-}
 
 function getSmsMessage(b, useGenerous) {
   const name = getFirstName(b);
@@ -7398,8 +7338,6 @@ function statusBadge(status) {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────
-function renderDashAgedOut() { /* aged out moved to Settings */ }
-function toggleDashAgedOut() { /* aged out moved to Settings */ }
 
 
 // ── AUTO-FLAG MISSED PTPs ─────────────────────────────────────
@@ -8136,6 +8074,8 @@ async function renderDashboard() {
       + '</div></div></div>';
   }).join('') || '<div class="empty-state">No partial payments yet</div>';
 
+  const clustersEl = document.getElementById('dash-clusters');
+  if (clustersEl) clustersEl.innerHTML = renderSmartClusters();
 
   await renderDailyChart();
   renderStreakBadge();
@@ -8161,9 +8101,6 @@ function chartGreenColor() {
 }
 function chartRedColor() {
   return getComputedStyle(document.documentElement).getPropertyValue('--red').trim() || '#ef4444';
-}
-function chartBlueColor() {
-  return getComputedStyle(document.documentElement).getPropertyValue('--blue').trim() || '#60a5fa';
 }
 
 let _chartJSPromise = null;
@@ -8846,13 +8783,6 @@ function blSortChange(val) {
   renderLoansTable();
 }
 
-function sortLoans(col) {
-  if (loanSortCol === col) loanSortDir *= -1;
-  else { loanSortCol = col; loanSortDir = 1; }
-  localStorage.setItem('sort_col', loanSortCol);
-  localStorage.setItem('sort_dir', String(loanSortDir));
-  renderLoansTable();
-}
 
 // ── ANALYTICS ──────────────────────────────────────────
 // ── Analytics tab state ───────────────────────────────────────
@@ -10518,13 +10448,6 @@ function openExportModal() {
 
   setTimeout(function(){
     _expCount();
-    // close search results when tapping elsewhere
-    document.getElementById('modal-body')?.addEventListener('click', function(e){
-      if (!e.target.closest('.exp-search-wrap')) {
-        var r = document.getElementById('exp-search-results');
-        if (r) r.classList.remove('show');
-      }
-    });
     // sync count to export panel too
     var dl = document.getElementById('exp-dl-btn');
     if(dl) dl.addEventListener('click', function(){
@@ -10582,10 +10505,6 @@ function doExportWANumbers() {
   haptic('light');
 }
 
-function _expCheckbox(id, label, checked, wide) {
-  return '<label style="display:flex;align-items:center;gap:8px;font-size:var(--text-base);cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px' + (wide ? ';grid-column:1/-1' : '') + '">'
-    + '<input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + ' style="accent-color:var(--gold);flex-shrink:0"> <span>' + label + '</span></label>';
-}
 
 
 function toggleExportCol(el) {
@@ -11172,7 +11091,7 @@ async function scanCaseSheet(inputEl) {
   try {
     var _scanPromise = (_scanProvider === 'local')
       ? _runLocalOcr(file, statusEl)
-      : _runAiScan(file, statusEl);
+      : _runAiScan(file, statusEl, _caseScanPrompt());
 
     var rawText = await Promise.race([_scanPromise, _timeoutPromise]);
     clearTimeout(_scanTimeout);
@@ -12037,19 +11956,6 @@ function openPayModal(id) {
     <button class="btn btn-green" onclick="recordPayment('${id}')">Save Payment</button>
   `;
   document.getElementById('modal-overlay').classList.add('open');
-
-  // Event delegation for OD row (replaces setTimeout)
-  const modalBody = document.getElementById('modal-body');
-  const odClickHandler = function(e) {
-    const odRow = e.target.closest('#pay-od-row');
-    if (odRow && odRow.dataset.odid) {
-      const oid = odRow.dataset.odid;
-      _pushModal(() => openPayModal(oid));
-      openOdFeeModal(oid);
-      modalBody.removeEventListener('click', odClickHandler);
-    }
-  };
-  modalBody.addEventListener('click', odClickHandler);
 }
  
 function setPayAmount(amount) {
@@ -13175,21 +13081,6 @@ let seqMode = 'sms';
 // contacts to remove in copy/export review modal
 let reviewContacts = [];
 
-function resolveName(b, token) {
-  const parts = b.name.trim().split(/\s+/);
-  const first = parts[0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1] : '';
-  const middle = parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
-  switch(token) {
-    case '{name}': return b.name;
-    case '{firstname}': return first;
-    case '{lastname}': return last;
-    case '{middlename}': return middle || first;
-    case '{firstname} {lastname}': return (first + ' ' + last).trim();
-    case '{firstname} {middlename}': return (first + ' ' + (middle || last)).trim();
-    default: return b.name;
-  }
-}
 
 function insertNameVar() {
   const sel = document.getElementById('sms-name-format');
@@ -14785,157 +14676,15 @@ var ptpTab = 'morning';
 // Outcomes stored per-session: { borrowerId: 'paid'|'part paid'|'no answer'|'yet to pay'|'still on it'|custom }
 var ptpOutcomes = {};
 
-function _updateMemoSettings() {
-  var fmtM = document.getElementById('ptp-morning-format')?.value || '';
-  var fmtE = document.getElementById('ptp-eod-format')?.value || '';
-  var card = document.getElementById('ptp-memo-settings');
-  if (card) card.style.display = (fmtM === 'formal' || fmtE === 'formal') ? '' : 'none';
-}
 
-function openPtpShareModal(type) {
-  var ptps = getTodayPtps();
-  var isEod = type === 'eod';
-  var fmtSelId = isEod ? 'ptp-eod-format-m' : 'ptp-morning-format-m';
 
-  document.getElementById('modal-title').textContent = isEod ? 'Share EOD Summary' : 'Share Morning Report';
 
-  var fmtOptions = ['whatsapp','whatsapp_amounts','plain','numbered','table','bullet','sms','formal'];
-  var fmtLabels  = ['<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WhatsApp Bold','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WhatsApp + Amounts','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><line x1="8.5" y1="13" x2="15.5" y2="13"/><line x1="8.5" y1="17" x2="15.5" y2="17"/></svg></span> Plain Text','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="4" x2="8" y2="20"/><line x1="17" y1="4" x2="15" y2="20"/></svg></span> Numbered List','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> Compact Table','• Bullet Summary','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="11" y1="18.5" x2="13" y2="18.5"/></svg></span> SMS-Friendly','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span> Formal Memo'];
 
-  document.getElementById('modal-body').innerHTML =
-    '<div style="margin-bottom:12px">'
-    + '<label style="font-size:var(--text-sm);font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Format</label>'
-    + '<select id="' + fmtSelId + '" class="filter-select" style="width:100%;margin-top:6px;font-size:var(--text-md)">'
-    + fmtOptions.map(function(v,i){ return '<option value="' + v + '">' + fmtLabels[i] + '</option>'; }).join('')
-    + '</select>'
-    + '</div>'
-    + (isEod
-      ? '<div style="margin-bottom:12px"><label style="font-size:var(--text-sm);font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Agent Name</label>'
-        + '<input type="text" class="form-input" id="share-agent-name" style="margin-top:6px" placeholder="Your name" value="' + (document.getElementById('ptp-agent-name')?.value||'') + '">'
-        + '</div>'
-        + '<div style="margin-bottom:12px"><label style="font-size:var(--text-sm);font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Supervisor Name</label>'
-        + '<input type="text" class="form-input" id="share-supervisor-name" style="margin-top:6px" placeholder="Supervisor name" value="' + (document.getElementById('ptp-supervisor-name')?.value||'') + '">'
-        + '</div>'
-      : '')
-    + '<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);padding:12px;font-family:var(--font-mono);font-size:var(--text-base);white-space:pre-wrap;line-height:1.6;color:var(--text2);min-height:100px;max-height:40vh;overflow-y:auto" id="share-preview">'
-    + (isEod ? buildEodText(ptps) : buildMorningText(ptps))
-    + '</div>';
 
-  // Live-update preview on format change
-  setTimeout(function() {
-    var sel = document.getElementById(fmtSelId);
-    if (sel) sel.addEventListener('change', function() {
-      var prev = document.getElementById('share-preview');
-      if (!prev) return;
-      // Temporarily sync names if formal
-      if (sel.value === 'formal') {
-        var an = document.getElementById('share-agent-name');
-        var sn = document.getElementById('share-supervisor-name');
-        if (an) { var inp = document.getElementById('ptp-agent-name'); if (inp) inp.value = an.value; }
-        if (sn) { var inp2 = document.getElementById('ptp-supervisor-name'); if (inp2) inp2.value = sn.value; }
-      }
-      prev.textContent = isEod
-        ? _buildPtpText(ptps, sel.value, true)
-        : _buildPtpText(ptps, sel.value, false);
-    });
-  }, 0);
-
-  document.getElementById('modal-footer').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
-    + '<button class="btn btn-ghost btn-sm" id="share-copy-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Copy</button>'
-    + '<button class="btn btn-gold btn-sm" id="share-wa-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WhatsApp</button>';
-
-  document.getElementById('modal-overlay').classList.add('open');
-
-  setTimeout(function() {
-    var copyBtn = document.getElementById('share-copy-btn');
-    var waBtn   = document.getElementById('share-wa-btn');
-    function getText() {
-      var sel = document.getElementById(fmtSelId);
-      var fmt = sel ? sel.value : 'whatsapp';
-      return _buildPtpText(ptps, fmt, isEod);
-    }
-    if (copyBtn) copyBtn.onclick = function() {
-      var t = getText();
-      navigator.clipboard.writeText(t).then(function(){ toast('Copied!','success'); }).catch(function(){
-        // Clipboard API unavailable — show selectable textarea so user can copy manually
-        var overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:24px';
-        overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:20px;width:100%;max-width:480px">'
-          + '<div style="font-size:var(--text-md);font-weight:700;color:var(--text);margin-bottom:10px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Copy this text</div>'
-          + '<textarea readonly style="width:100%;height:200px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);color:var(--text);font-family:var(--font-mono);font-size:var(--text-base);padding:10px;resize:none;white-space:pre-wrap;box-sizing:border-box">' + t + '</textarea>'
-          + '<div style="font-size:var(--text-sm);color:var(--text3);margin:8px 0 14px">Select all (Ctrl+A / ⌘A) and copy</div>'
-          + '<button style="width:100%;padding:10px;background:var(--gold-grad);color:#000;border:none;border-radius:var(--radius-md);font-weight:700;font-size:var(--text-md);cursor:pointer">Close</button>'
-          + '</div>';
-        overlay.querySelector('textarea').addEventListener('focus', function() { this.select(); });
-        overlay.querySelector('button').onclick = function() { document.body.removeChild(overlay); };
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });
-        document.body.appendChild(overlay);
-        setTimeout(function() { overlay.querySelector('textarea').focus(); }, 50);
-      });
-    };
-    if (waBtn) waBtn.onclick = function() { window.open('https://wa.me/?text='+encodeURIComponent(getText()),'_blank'); };
-  }, 0);
-}
-
-function switchPtpTab(tab) {
-  ptpTab = tab;
-  document.getElementById('ptp-panel-morning').style.display = tab === 'morning' ? '' : 'none';
-  document.getElementById('ptp-panel-eod').style.display     = tab === 'eod'     ? '' : 'none';
-  document.getElementById('ptp-tab-morning').className = tab === 'morning' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
-  document.getElementById('ptp-tab-eod').className     = tab === 'eod'     ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
-  var main = document.getElementById('main');
-  if (main) main.scrollTop = 0;
-  renderPtp();
-}
-
-function getTodayPtps() {
-  const today = new Date().toISOString().split('T')[0];
-  return state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today));
-}
-
-function groupPtpsByTime(ptps) {
-  // Group by promise time. No time = 'Close of Day'
-  const groups = {};
-  ptps.forEach(b => {
-    const parts = (b.promiseDate || '').split(' ');
-    const timeStr = parts[1] || '';
-    const key = timeStr || 'COD';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(b);
-  });
-  // Sort keys: time slots first (asc), then COD last
-  const sorted = Object.keys(groups).sort((a, b) => {
-    if (a === 'COD') return 1;
-    if (b === 'COD') return -1;
-    return a.localeCompare(b);
-  });
-  return sorted.map(k => ({ time: k, items: groups[k] }));
-}
-
-function formatTimeLabel(timeKey) {
-  if (timeKey === 'COD') return '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 119.5 4 7 7 0 0020 14.5z"/></svg></span> *Close of Day*';
-  // Format "14:00" → "🕑 *2PM*"
-  const [h, m] = timeKey.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  const mStr = m ? ':' + String(m).padStart(2,'0') : '';
-  const emoji = ['<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>',
-                  '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>','<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>'][h % 24] || '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>';
-  return emoji + ' *' + h12 + mStr + period + '*';
-}
 
 function getFirstName(b) { return b.name.trim().split(/\s+/)[0]; }
 
-function buildMorningText(ptps) {
-  const fmt = (document.getElementById('ptp-morning-format')?.value) || 'whatsapp';
-  return _buildPtpText(ptps, fmt, false);
-}
 
-function buildEodText(ptps) {
-  const fmt = (document.getElementById('ptp-eod-format')?.value) || 'whatsapp';
-  return _buildPtpText(ptps, fmt, true);
-}
 
 // Converts +233XXXXXXXXX → 0XXXXXXXXX for local display in reports
 // Works for any +XX / +XXX country prefix as long as number is 9+ digits after prefix
@@ -14948,140 +14697,6 @@ function localPhone(raw) {
   return digits.replace(/^\+/, '');
 }
 
-function _buildPtpText(ptps, fmt, isEod) {
-  const today = new Date().toLocaleDateString('en-GB', {day:'numeric', month:'long'});
-  const fullDate = new Date().toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-  const groups = groupPtpsByTime(ptps);
-  const outcomeEmoji = { paid:'\u2705', 'part paid':'\ud83d\udd36', 'no answer':'\ud83d\udcf5', 'yet to pay':'\u23f3', 'still on it':'\ud83d\udd04' };
-  const header = isEod ? 'PTPs \u2013 Today (EOD Summary)' : 'PTPs \u2013 Today';
-  const totalCount = ptps.length;
-
-  function getOutcome(b) {
-    const o = ptpOutcomes[b.id] || '';
-    return { text: o, emoji: outcomeEmoji[o.toLowerCase()] || '' };
-  }
-  function line(b, num) {
-    const phone = localPhone(b.phone);
-    const note = b.promiseNote || '';
-    const { text: outText, emoji: outEmoji } = getOutcome(b);
-    const outSuffix = isEod && outText ? ' \u2192 ' + outText + (outEmoji ? ' ' + outEmoji : '') : '';
-    const noteSuffix = !isEod && note ? ' (' + note + ')' : '';
-    if (fmt === 'whatsapp')  return '\u25aa\ufe0f ' + getFirstName(b) + ' (' + phone + ')' + (note && !isEod ? ' \u2013 _' + note + '_' : '') + (isEod && outText ? ' -> _' + outText + '_ ' + (outEmoji||'') : '');
-    if (fmt === 'plain')     return '- ' + b.name + ' | ' + phone + noteSuffix + outSuffix;
-    if (fmt === 'numbered')  return num + '. ' + getFirstName(b) + ' (' + phone + ')' + noteSuffix + outSuffix;
-    if (fmt === 'table')     return (getFirstName(b)+'              ').slice(0,14) + (phone+'              ').slice(0,14) + (isEod && outText ? outText : note || '');
-    if (fmt === 'formal')    return '   ' + num + '. ' + b.name + ' \u2014 ' + phone + noteSuffix + outSuffix;
-    return '';
-  }
-
-  var n = 0, text = '';
-  var NL = '\n';
-  var divider = '\u2500'.repeat(40);
-
-  if (!groups.length) {
-    if (fmt === 'formal') return 'MEMORANDUM' + NL + 'TO: Supervisor' + NL + 'FROM: Collection Agent' + NL + 'DATE: ' + fullDate + NL + 'SUBJECT: ' + header + NL + NL + 'No PTPs recorded for today.';
-    return (fmt === 'whatsapp' ? '*\ud83d\udccc ' + header + ' (' + today + ')*' + NL + '---' : header.toUpperCase() + ' \u2014 ' + today) + NL + NL + 'No PTPs recorded for today.';
-  }
-
-  if (fmt === 'whatsapp_amounts' || fmt === 'bullet' || fmt === 'sms') {
-    var totalAmt = ptps.reduce(function(s2,b2){ return s2 + getDueToday(b2); }, 0);
-    if (fmt === 'whatsapp_amounts') {
-      text = '*' + (isEod ? 'PTPs EOD' : 'PTPs') + ' – ' + today + ' (' + totalCount + ' PTPs)*' + NL + '---';
-      groups.forEach(function(g) {
-        text += NL + NL + formatTimeLabel(g.time) + NL;
-        g.items.forEach(function(b) {
-          var phone = localPhone(b.phone);
-          var amt = isEod ? '' : ' | *' + fmtC(getDueToday(b)) + '*';
-          var out = getOutcome(b);
-          var outSuffix = isEod && out.text ? ' -> _' + out.text + '_ ' + (out.emoji||'') : '';
-          text += '▪️ ' + getFirstName(b) + ' (' + phone + ')' + amt + outSuffix + NL;
-        });
-      });
-      if (!isEod) text += NL + '*Total expected: ' + fmtC(totalAmt) + '*';
-    } else if (fmt === 'bullet') {
-      text = (isEod ? 'PTPs EOD SUMMARY' : 'DAILY PTPs') + ' — ' + today + NL;
-      groups.forEach(function(g) {
-        var lbl = g.time === 'COD' ? 'Close of Day' : g.time;
-        text += NL + '  • ' + lbl + ':' + NL;
-        g.items.forEach(function(b) {
-          var phone = localPhone(b.phone);
-          var out = getOutcome(b);
-          text += '    ◦ ' + getFirstName(b) + ' (' + phone + ')' + (isEod && out.text ? ' — ' + out.text : '') + NL;
-        });
-      });
-      text += NL + 'Count: ' + totalCount;
-    } else if (fmt === 'sms') {
-      text = (isEod ? 'PTP EOD ' : 'PTPs ') + today + ':';
-      groups.forEach(function(g) {
-        var lbl = g.time === 'COD' ? 'COD' : g.time;
-        text += NL + lbl + ': ';
-        var names = g.items.map(function(b) {
-          var out = getOutcome(b);
-          return getFirstName(b) + (isEod && out.text ? '(' + out.text.substring(0,3) + ')' : '');
-        });
-        text += names.join(', ');
-      });
-      if (!isEod) text += NL + 'Total: ' + totalCount + ' PTPs';
-    }
-  } else if (fmt === 'whatsapp') {
-    text = '*\ud83d\udccc ' + header + ' (' + today + ')*' + NL + '---';
-    groups.forEach(function(g) {
-      text += NL + NL + formatTimeLabel(g.time) + NL;
-      g.items.forEach(function(b) { text += line(b, 0) + NL; });
-    });
-  } else if (fmt === 'plain') {
-    text = header.toUpperCase() + ' \u2014 ' + today + ' (' + totalCount + ' customers)' + NL + divider;
-    groups.forEach(function(g) {
-      var lbl = g.time === 'COD' ? 'CLOSE OF DAY' : g.time;
-      text += NL + NL + '[' + lbl + ']' + NL;
-      g.items.forEach(function(b) { text += line(b, 0) + NL; });
-    });
-  } else if (fmt === 'numbered') {
-    text = header.toUpperCase() + ' \u2014 ' + today;
-    groups.forEach(function(g) {
-      var lbl = g.time === 'COD' ? 'CLOSE OF DAY' : g.time;
-      text += NL + NL + lbl + ':' + NL;
-      g.items.forEach(function(b) { n++; text += line(b, n) + NL; });
-    });
-    text += NL + NL + 'TOTAL: ' + totalCount + ' PTP' + (totalCount !== 1 ? 's' : '');
-  } else if (fmt === 'table') {
-    text = header.toUpperCase() + ' \u2014 ' + today + NL + NL;
-    text += ('NAME          PHONE         ' + (isEod ? 'OUTCOME' : 'NOTE')) + NL;
-    text += divider + NL;
-    groups.forEach(function(g) {
-      var lbl = g.time === 'COD' ? 'CLOSE OF DAY' : g.time;
-      text += NL + '[' + lbl + ']' + NL;
-      g.items.forEach(function(b) { text += line(b, 0) + NL; });
-    });
-    text += NL + divider + NL + 'Total: ' + totalCount;
-  } else if (fmt === 'formal') {
-    var paid_c   = Object.values(ptpOutcomes).filter(function(o){return o.toLowerCase()==='paid';}).length;
-    var part_c   = Object.values(ptpOutcomes).filter(function(o){return o.toLowerCase()==='part paid';}).length;
-    var noans_c  = Object.values(ptpOutcomes).filter(function(o){return o.toLowerCase()==='no answer';}).length;
-    var pend_c   = ptps.filter(function(b){return !ptpOutcomes[b.id];}).length;
-    var agentName = document.getElementById('ptp-agent-name')?.value?.trim() || 'Collection Agent';
-    var supervisorName = document.getElementById('ptp-supervisor-name')?.value?.trim() || 'Supervisor / Team Lead';
-    text = 'MEMORANDUM' + NL;
-    text += 'TO:      ' + supervisorName + NL;
-    text += 'FROM:    ' + agentName + NL;
-    text += 'DATE:    ' + fullDate + NL;
-    text += 'SUBJECT: Daily PTP ' + (isEod ? 'EOD Summary Report' : 'Report (12PM Submission)') + NL;
-    text += divider + NL + NL;
-    text += 'The following customers have ' + (isEod ? "been reviewed for today's collection cycle:" : 'committed to payment for today:') + NL;
-    groups.forEach(function(g) {
-      var lbl = g.time === 'COD' ? 'Close of Day' : g.time;
-      text += NL + 'Payment Time: ' + lbl + NL;
-      g.items.forEach(function(b) { n++; text += line(b, n) + NL; });
-    });
-    text += NL + 'Total PTPs: ' + totalCount + NL + NL;
-    if (isEod) {
-      text += 'Paid:       ' + paid_c + NL + 'Part Paid:  ' + part_c + NL + 'No Answer:  ' + noans_c + NL + 'Pending:    ' + pend_c;
-    } else {
-      text += 'Submitted by: Collection Agent' + NL + 'Time: ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    }
-  }
-  return text.trim();
-}
 
 
 
@@ -15201,75 +14816,12 @@ function openGlobalSearch() {
 
 
 // Auto-save PTP snapshot when leaving PTP page
-function savePtpSnapshot() {
-  var ptps = getTodayPtps();
-  if (!ptps.length) return;
-  var today = new Date().toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
-  if (!state.ptpHistory) state.ptpHistory = [];
-  // Don't duplicate same date
-  var existing = state.ptpHistory.findIndex(function(d){ return d.date === today; });
-  var entry = {
-    date: today,
-    total: ptps.length,
-    met: ptps.filter(function(b){ return getStatus(b) === 'Paid'; }).length,
-    entries: ptps.map(function(b) {
-      return { name: b.name, phone: b.phone, time: (b.promiseDate||'').split(' ')[1]||'', outcome: ptpOutcomes[b.id] || '' };
-    })
-  };
-  if (existing >= 0) state.ptpHistory[existing] = entry;
-  else state.ptpHistory.unshift(entry);
-  // Keep last 60 days
-  if (state.ptpHistory.length > 60) state.ptpHistory = state.ptpHistory.slice(0, 60);
-  saveState();
-}
 
 // ── PTP STATS (Conversion Rate) ────────────────────────
 
 
 // ── COLLECTION FORECAST ────────────────────────────────
-function _buildForecastHtml() {
-  var now = new Date();
-  var daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-  var dayOfMonth  = now.getDate();
-  var daysLeft    = daysInMonth - dayOfMonth;
-  var logTotal    = state.dailyLog.reduce(function(s,e){ return s+(Number(e.collected)||0); }, 0);
-  var activeDays  = state.dailyLog.filter(function(e){ return (e.collected||0)>0; }).length;
-  var avgDaily    = activeDays > 0 ? logTotal / activeDays : 0;
-  var projected   = logTotal + (avgDaily * daysLeft);
-  var target      = state.monthlyTarget || 0;
-  var ptpPotential = getTodayPtps().reduce(function(s,b){ return s+getDueToday(b); }, 0);
-  var projWithPtp = projected + ptpPotential;
-  var pct         = target > 0 ? Math.min(100, (projected/target*100)).toFixed(1) : 0;
-  var barCol      = pct >= 100 ? 'var(--green)' : pct >= 70 ? 'var(--gold)' : 'var(--red)';
-  var scenarios = [
-    { label: 'Pessimistic (50% of avg)', val: logTotal + avgDaily*0.5*daysLeft },
-    { label: 'Current pace (avg daily)', val: projected },
-    { label: 'With today PTPs', val: projWithPtp },
-    { label: 'Optimistic (150% of avg)', val: logTotal + avgDaily*1.5*daysLeft },
-  ];
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">'
-    + '<div style="text-align:center;background:var(--surface2);border-radius:var(--radius-md);padding:10px"><div style="font-family:var(--font-mono);font-weight:700;font-size:var(--text-2xl)">' + fmtC(Math.round(logTotal)) + '</div><div style="font-size:var(--text-xs);color:var(--text3)">Collected</div></div>'
-    + '<div style="text-align:center;background:var(--surface2);border-radius:var(--radius-md);padding:10px"><div style="font-family:var(--font-mono);font-weight:700;font-size:var(--text-2xl);color:var(--gold)">' + fmtC(Math.round(avgDaily)) + '</div><div style="font-size:var(--text-xs);color:var(--text3)">Daily Avg</div></div>'
-    + '<div style="text-align:center;background:var(--surface2);border-radius:var(--radius-md);padding:10px"><div style="font-family:var(--font-mono);font-weight:700;font-size:var(--text-2xl)">' + daysLeft + '</div><div style="font-size:var(--text-xs);color:var(--text3)">Days Left</div></div>'
-    + '</div>'
-    + (target > 0 ? '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:var(--text-base)"><span>Projected vs Target</span><span style="font-family:var(--font-mono);color:' + barCol + '">' + pct + '%</span></div>'
-      + '<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + barCol + ';border-radius:4px"></div></div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:4px">Target: ' + fmtC(target) + ' · ' + (projected>=target?'<span style="color:var(--green)">On track!</span>':'Short by <span style="color:var(--red)">' + fmtC(Math.round(target-projected)) + '</span>') + '</div>'
-      + '</div>' : '<div style="font-size:var(--text-base);color:var(--text3);margin-bottom:10px">Set a monthly target on the Dashboard to see projection.</div>')
-    + '<div style="font-size:var(--text-base);font-weight:600;color:var(--text2);margin-bottom:6px">Scenarios for month end:</div>'
-    + scenarios.map(function(s) {
-        var sc = target>0?Math.min(100,(s.val/target*100)).toFixed(0):null;
-        var col = sc>=100?'var(--green)':sc>=70?'var(--gold)':'var(--red)';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:var(--text-base)">'
-          + '<span style="color:var(--text2)">' + s.label + '</span>'
-          + '<span style="font-family:var(--font-mono);font-weight:700">' + fmtC(Math.round(s.val)) + (sc?'<span style="font-size:var(--text-xs);color:'+col+';margin-left:4px">'+sc+'%</span>':'') + '</span></div>';
-      }).join('');
-}
 
-function renderForecast() {
-  var el = document.getElementById('forecast-body');
-  if (el) el.innerHTML = _buildForecastHtml();
-}
 
 // ── PORTFOLIO SEGMENTS ─────────────────────────────────
 // ── Changelog ────────────────────────────────────────────────────
@@ -17275,86 +16827,7 @@ function openChangelog() {
 
 // ── Analytics Segments collapse toggle ───────────────────────
 let _analyticsSegsOpen = false;
-function toggleAnalyticsSegments() {
-  _analyticsSegsOpen = !_analyticsSegsOpen;
-  const el  = document.getElementById('analytics-segments');
-  const chv = document.getElementById('analytics-seg-chevron');
-  if (!el) return;
-  if (_analyticsSegsOpen) {
-    el.style.maxHeight = el.scrollHeight + 60 + 'px';
-    setTimeout(function() {
-      if (_analyticsSegsOpen) { el.style.maxHeight = '2000px'; el.style.overflowY = 'auto'; }
-    }, 360);
-    if (chv) chv.style.transform = 'rotate(90deg)';
-    renderSegments();   // render on first open
-  } else {
-    el.style.overflowY = 'hidden';
-    el.style.maxHeight = el.scrollHeight + 'px';
-    requestAnimationFrame(function() { el.style.maxHeight = '0'; });
-    if (chv) chv.style.transform = '';
-  }
-  haptic('light');
-}
 
-function renderSegments() {
-  // Target: analytics-segments panel (primary) or legacy segments-body page
-  var el = document.getElementById('analytics-segments') || document.getElementById('segments-body');
-  if (!el) return;
-
-  var active = getActiveBorrowers();
-
-  function getSegment(b) {
-    var score = 0;
-    var ratio = b.loanDue > 0 ? (b.amountPaid||0)/b.loanDue : 0;
-    var od = getOdAge(b.startDate, b);
-    if (ratio >= 0.5) score += 3; else if (ratio > 0) score += 1;
-    if (b.promisedToPay) score += 2;
-    var _sr=getAgentDayRange(),_smin=_sr[0],_srng=Math.max(1,_sr[1]-_smin),_sp=(od-_smin)/_srng;
-    if (_sp <= 0.40) score += 2; else if (_sp <= 0.70) score += 1;
-    if (b.amountPaid > 0) score += 1;
-    if (score >= 6) return 'A';
-    if (score >= 3) return 'B';
-    return 'C';
-  }
-
-  var segs = { A:[], B:[], C:[] };
-  active.forEach(function(b){ segs[getSegment(b)].push(b); });
-
-  var segDefs = {
-    A:{ label:'Tier A — High Likelihood', color:'var(--green)', bg:'rgba(34,197,94,0.07)',
-        desc:'Partial payers, promised, early OD. Most likely to pay with gentle contact.' },
-    B:{ label:'Tier B — Moderate',        color:'var(--gold)',  bg:'rgba(240,160,48,0.06)',
-        desc:'Some engagement or mid-range OD. May need multiple follow-ups.' },
-    C:{ label:'Tier C — High Risk',       color:'var(--red)',   bg:'rgba(239,68,68,0.07)',
-        desc:'No payment, no promise, late OD. Escalation recommended.' }
-  };
-
-  el.innerHTML = Object.keys(segDefs).map(function(tier) {
-    var list = segs[tier];
-    var d    = segDefs[tier];
-    var total = list.reduce(function(s,b){ return s+getDueToday(b); },0);
-    var rows  = list.length === 0
-      ? '<div style="font-size:var(--text-sm);color:var(--text3);font-style:italic;padding:8px 0">No accounts in this tier</div>'
-      : list.map(function(b){
-          var ratio = b.loanDue>0 ? Math.round((b.amountPaid||0)/b.loanDue*100) : 0;
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick=\"openBorrowerDetail(\\\''+b.id+'\\\')\">'
-            +'<div style="min-width:0">'
-            +'<div style="font-size:var(--text-base);font-weight:600;color:var(--text)">'+escapeHtml(b.name)+'</div>'
-            +'<div style="font-size:var(--text-xs);color:var(--text3)">Day '+getOdAge(b.startDate, b)+' &middot; Paid '+ratio+'%'+(b.promisedToPay?' &middot; <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>':'')+'</div>'
-            +'</div>'
-            +'<div style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:'+d.color+';flex-shrink:0;margin-left:8px">'+fmtC(getDueToday(b))+'</div>'
-            +'</div>';
-        }).join('');
-    return '<div style="margin-bottom:14px;background:'+d.bg+';border:1px solid '+d.color.replace('var(','').replace(')','')+'22;border-radius:var(--radius);overflow:hidden">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">'
-      +'<span style="font-size:var(--text-base);font-weight:700;color:'+d.color+'">'+d.label+'</span>'
-      +'<span style="font-size:var(--text-sm);color:var(--text3)">'+list.length+' &middot; '+fmtC(total)+'</span>'
-      +'</div>'
-      +'<div style="font-size:var(--text-sm);color:var(--text3);padding:6px 14px 4px">'+d.desc+'</div>'
-      +'<div style="padding:0 14px 8px">'+rows+'</div>'
-      +'</div>';
-  }).join('');
-}
 
 
 // ── FILTER + NAVIGATE HELPER ───────────────────────────}
@@ -17408,11 +16881,6 @@ function applyTheme(theme) {
   }
 }
 
-function toggleTheme() {
-  haptic('light');
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
-  applyTheme(current === 'dark' ? 'light' : 'dark');
-}
 
 // ── SUPABASE SETUP HELPERS ─────────────────────────────
 function checkSetupNeeded() {
@@ -17671,27 +17139,6 @@ function fireConfetti() {
 }
 
 // ── EOD REPORT (One-Tap) ───────────────────────────────
-function generateEODReport() {
-  const today = new Date().toISOString().split('T')[0];
-  const todayLog = state.dailyLog.find(e => e.date === today);
-  const collected = todayLog ? (todayLog.collected||0) : 0;
-  const active = getActiveBorrowers();
-  const paid = state.borrowers.filter(b => getStatus(b) === 'Paid');
-  const partial = state.borrowers.filter(b => getStatus(b) === 'Partial');
-  const ptpToday = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today));
-  const ptpHonoured = ptpToday.filter(b => b.amountPaid > 0);
-  const totalOutstanding = active.reduce((s,b) => s + getRemaining(b), 0);
-  const date = new Date().toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
-  const text = `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span> *EOD COLLECTION REPORT*\n*${date}*\nAgent: ${(_activeAgent?.name||state.agentProfile?.name||"Agent")}\nSupervisor: ${(state.agentProfile?.supervisor||"")}\n\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span> Collected Today: *${fmtC(collected)}*\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><path d="M2.5 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M14.5 20c.2-2.7 2-5 4.8-5"/></svg></span> Active Accounts: ${active.length}\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Fully Paid Today: ${paid.length}\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> Partial Payment: ${partial.length}\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> PTPs Set: ${ptpToday.length}\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span> PTPs Honoured: ${ptpHonoured.length}\n<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/><path d="M3 4l3 3M21 4l-3 3"/></svg></span> Total Outstanding: ${fmtC(totalOutstanding)}\n\n_Sent from SqueveTrack_`;
-  document.getElementById('modal-title').textContent = 'EOD Report';
-  document.getElementById('modal-body').innerHTML =
-    `<div class="report-output" style="font-size:var(--text-base);white-space:pre-wrap;user-select:all">${text}</div>`;
-  document.getElementById('modal-footer').innerHTML =
-    `<button class="btn btn-ghost" onclick="closeModal()">Close</button>
-     <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(\`${text.replace(/`/g,"'")}\`).then(()=>toast('Copied!','success'))"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Copy</button>
-     <a href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" class="eod-btn" style="font-size:var(--text-base);padding:7px 14px;text-decoration:none">WhatsApp <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span></a>`;
-  document.getElementById('modal-overlay').classList.add('open');
-}
 
 // ── COLLECTION GAP WIDGET ──────────────────────────────
 
@@ -17748,7 +17195,6 @@ function importBackup() {
   document.body.removeChild(inp);
 }
 
-function renderGapWidget() { /* removed — info shown in target section */ }
 
 // ── TREADMILL ALERT (Day 6 new entries) ────────────────
 function renderTreadmillAlert() {
@@ -17890,38 +17336,6 @@ function logCallOutcome(id, outcome, btn) {
 // ── WHATSAPP QUEUE BUILDER ─────────────────────────────
 let _waQueue = [];
 let _waQueueIdx = 0;
-function startWaQueue(ids) {
-  _waQueue = ids; _waQueueIdx = 0;
-  sendNextInWaQueue();
-}
-function sendNextInWaQueue() {
-  if (_waQueueIdx >= _waQueue.length) { toast('WhatsApp queue complete', 'success'); return; }
-  const b = state.borrowers.find(x => x.id === _waQueue[_waQueueIdx]);
-  if (!b) { _waQueueIdx++; sendNextInWaQueue(); return; }
-  const phone = b.phone.replace(/\s/g,'').replace('+','');
-  const msg = getSmsMessage(b, false).replace('{name}', getFirstName(b));
-  const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
-  window.open(url, '_blank');
-  _waQueueIdx++;
-  toast(`Sent ${_waQueueIdx} of ${_waQueue.length} —`, 'info');
-  document.getElementById('wa-queue-progress') && (document.getElementById('wa-queue-progress').textContent = `${_waQueueIdx} of ${_waQueue.length} sent`);
-  if (_waQueueIdx < _waQueue.length) {
-    document.getElementById('modal-body').querySelector && showWaQueueModal();
-  }
-}
-function showWaQueueModal() {
-  document.getElementById('modal-title').textContent = 'WhatsApp Queue';
-  document.getElementById('modal-body').innerHTML =
-    `<div class="wa-queue-progress" id="wa-queue-progress">${_waQueueIdx} of ${_waQueue.length} sent</div>
-     <div style="font-size:var(--text-md);color:var(--text2);margin-bottom:10px">Next in queue:</div>
-     ${_waQueue.slice(_waQueueIdx, _waQueueIdx+3).map(id => {
-       const b = state.borrowers.find(x => x.id === id);
-       return b ? `<div class="wa-queue-item"><span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></span><div><div style="font-weight:600;font-size:var(--text-base)">${escapeHtml(b.name)}</div><div style="font-size:var(--text-xs);color:var(--text3)">${escapeHtml(b.phone)}</div></div></div>` : '';
-     }).join('')}`;
-  document.getElementById('modal-footer').innerHTML =
-    `<button class="btn btn-ghost" onclick="closeModal()">Stop Queue</button>
-     <button class="eod-btn" onclick="sendNextInWaQueue()">Send Next ▶</button>`;
-}
 
 // ── SMART CLUSTERS (Auto-group) ────────────────────────
 function renderSmartClusters() {
@@ -18844,55 +18258,8 @@ function _renderRankingHistory(pane, {history, myName, findMe, myPos}) {
   });
 }
 
-function buildLeagueTable(scan, myName, tabType) {
-  if (!scan) return '<div style="color:var(--text3);font-size:var(--text-base);padding:8px">No data</div>';
-  return scan.agents.map((a,i) => {
-    const isMe = myName && a.name.toLowerCase().includes(myName);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.06);border-left:3px solid var(--gold);':''}">
-      <span style="font-family:var(--font-mono);color:var(--text3);min-width:20px;font-size:var(--text-sm)">${i+1}</span>
-      <span style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:400}">${escapeHtml(a.name)}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</span>
-      <span style="font-family:var(--font-mono);font-size:var(--text-base);color:${isMe?'var(--gold)':'var(--text2)'};font-weight:${isMe?700:400}">${a.pct}%</span>
-    </div>`;
-  }).join('');
-}
 
-function switchLeagueTab(tabType) {
-  const history = state.rankingHistory || [];
-  const scans = {
-    proj:    [...history].filter(s=>s.type==='projected').sort((a,b)=>b.date.localeCompare(a.date))[0],
-    monthly: [...history].filter(s=>s.type==='monthly').sort((a,b)=>b.date.localeCompare(a.date))[0],
-    daily:   [...history].filter(s=>s.type==='daily').sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time))[0],
-  };
-  const myName = (localStorage.getItem('ranking_my_name') || '').toLowerCase();
-  const el = document.getElementById('league-table-body');
-  if (el) el.innerHTML = buildLeagueTable(scans[tabType], myName, tabType);
-  ['proj','monthly','daily'].forEach(t => {
-    const btn = document.getElementById('lb-tab-'+t);
-    if (btn) btn.className = t === tabType ? 'btn btn-gold btn-xs' : 'btn btn-ghost btn-xs';
-  });
-  haptic('light');
-}
 
-function _renderRankingChart(myName) {
-  const history = (state.rankingHistory || []);
-  const ctx = document.getElementById('chart-ranking');
-  if (!ctx) return;
-  const daily   = [...history].filter(s=>s.type==='daily').sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
-  const monthly = [...history].filter(s=>s.type==='monthly').sort((a,b)=>a.date.localeCompare(b.date));
-  const myPct   = scan => { const me=scan.agents.find(a=>a.name.toLowerCase().includes(myName)); return me?parseFloat(me.pct):null; };
-  updateOrCreateChart('ranking', ctx, {
-    type:'line',
-    data:{ labels:daily.map(s=>s.date.slice(5)+(s.isEOD?' EOD':' '+s.time)),
-      datasets:[
-        { label:'Daily %',   data:daily.map(myPct),   borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.08)', tension:0.4, pointRadius:3, spanGaps:true },
-        { label:'Monthly %', data:monthly.length>0?daily.map(s=>{const m=monthly.filter(ms=>ms.date<=s.date).sort((a,b)=>b.date.localeCompare(a.date))[0];return m?myPct(m):null;}):[], borderColor:'#a78bfa', tension:0.4, pointRadius:3, spanGaps:true, borderDash:[4,2] },
-      ]},
-    options:{ responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,labels:{color:chartTextColor(),font:{size:10}}}},
-      scales:{x:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9}}},
-        y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},callback:v=>v+'%'}}}}
-  });
-}
 
 // ── SUPERVISOR REPORTS PAGE ────────────────────────────
 function renderReportsPage() {
@@ -19124,34 +18491,6 @@ function previewRankingImage(input) {
 
 
 // ── DASHBOARD FORECAST CARD — show projected amount ────
-function renderForecastOnDashboard() {
-  const fBody = document.getElementById('dash-forecast-body');
-  if (!fBody) return;
-  const now = new Date();
-  const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-  const dl = dim - now.getDate();
-  const logTotal = state.dailyLog.reduce((s,e) => s+(Number(e.collected)||0), 0);
-  const activeDays = state.dailyLog.filter(e => (e.collected||0) > 0).length;
-  const avg = activeDays > 0 ? logTotal / activeDays : 0;
-  const projected = Math.round(logTotal + avg * dl);
-  const target = state.monthlyTarget || 0;
-  const pct = target > 0 ? Math.min(100, projected / target * 100) : 0;
-  const col = pct >= 100 ? 'var(--green)' : pct >= 70 ? 'var(--gold)' : 'var(--red)';
-  fBody.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div>
-        <div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:2px">Projected month-end</div>
-        <div style="font-family:var(--font-mono);font-size:var(--text-5xl);font-weight:800;color:${col}">${fmtC(projected)}</div>
-        ${target > 0 ? `<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">${pct.toFixed(0)}% of target · ${dl} days left</div>` : '<div style="font-size:var(--text-sm);color:var(--text3)">Set a target to see % progress</div>'}
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:var(--text-xs);color:var(--text3)">Daily average</div>
-        <div style="font-family:var(--font-mono);font-size:var(--text-lg);font-weight:700;color:var(--gold)">${fmtC(Math.round(avg))}</div>
-        <div style="font-size:var(--text-xs);color:var(--text3);margin-top:2px">${dl} days remain</div>
-      </div>
-    </div>
-    ${target > 0 ? `<div style="margin-top:10px;background:var(--border);border-radius:4px;height:6px;overflow:hidden"><div style="width:${Math.min(100,pct).toFixed(0)}%;height:100%;background:${col};border-radius:4px;transition:width 0.6s ease"></div></div>` : ''}`;
-}
 
 // ── PAGE TRANSITIONS — enhanced ────────────────────────
 (function() {
@@ -20369,7 +19708,6 @@ function refreshPtpReminders() {
 }
 
 // Legacy alias kept so any older callsites don't break
-function sendPtpReminders() { schedulePtpReminders(); }
 
 function enablePtpReminders() {
   // Toggle off
@@ -20518,18 +19856,6 @@ function ptpShowHistoryDay(date) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-function _getPtpConversionRate(days) {
-  const history = state.ptpHistory || [];
-  const cutoff = new Date(Date.now() - days*86400000).toISOString().split('T')[0];
-  const relevant = history.filter(d => d.date >= cutoff);
-  if (!relevant.length) return null;
-  let totalSet = 0, totalPaid = 0;
-  relevant.forEach(d => {
-    totalSet  += (d.ptpCount || 0);
-    totalPaid += (d.paid || 0) + Math.round((d.partial||0)*0.5);
-  });
-  return totalSet > 0 ? Math.round(totalPaid / totalSet * 100) : 0;
-}
 
 function buildPtpStatsHtml2() {
   const history = state.ptpHistory || [];
@@ -20946,22 +20272,6 @@ function _ptpOpenFormatModal(type) {
   }, 30);
 }
 
-function ptpShowShareModal(title, txt) {
-  const safe = txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>').replace(/\*(.*?)\*/g,'<b>$1</b>');
-  const encoded = encodeURIComponent(txt);
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML =
-    '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-base);line-height:1.8;max-height:300px;overflow-y:auto;user-select:all">' + safe + '</div>';
-  document.getElementById('modal-footer').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
-    + '<button class="btn btn-ghost btn-sm" id="ptp-copy-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> Copy</button>'
-    + '<a href="https://wa.me/?text=' + encoded + '" target="_blank" class="eod-btn" style="font-size:var(--text-base);padding:7px 14px;text-decoration:none">WhatsApp <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></span></a>';
-  document.getElementById('modal-overlay').classList.add('open');
-  setTimeout(() => {
-    const btn = document.getElementById('ptp-copy-btn');
-    if (btn) btn.onclick = () => navigator.clipboard.writeText(txt).then(() => toast('Copied!','success'));
-  }, 50);
-}
 
 // Update badges
 function updatePtpBadge() {
@@ -20974,9 +20284,6 @@ function updatePtpBadge() {
 }
 
 // Aliases for backward compat
-function renderPtp() { switchPtpHub('morning'); }
-function renderPtpHistory() { switchPtpHub('history'); }
-function renderPtpStats() { switchPtpHub('stats'); }
 
 
 
@@ -21190,7 +20497,7 @@ async function _preprocessImage(file) {
 }
 
 // ── AI SCAN (Gemini / Claude / OpenAI) ───────────────────────
-async function _runAiScan(file, statusEl) {
+async function _runAiScan(file, statusEl, promptText) {
   var provider = _scanProvider;
   var key = getProviderKey(provider);
   if (!key) throw new Error(provider + ' API key not set — tap provider above and enter your key');
@@ -21198,7 +20505,7 @@ async function _runAiScan(file, statusEl) {
 
   var base64   = await _fileToBase64(file);
   var mimeType = file.type || 'image/png';
-  var prompt   = _aiScanPrompt();
+  var prompt   = promptText || _aiScanPrompt();
 
   if (provider === 'gemini') {
     if (statusEl) statusEl.innerHTML = '⏳ Sending to Gemini...';
@@ -21493,9 +20800,6 @@ function _fileToBase64(file) {
 // Backwards compat
 function saveApiKeyFromDash(val) {
   if (val) saveProviderKey('claude', val.trim());
-}
-function toggleRankingKeyVisibility() {
-  toggleKeyVis('ranking-claude-key', document.getElementById('rank-key-toggle'));
 }
 
 
@@ -21797,14 +21101,6 @@ function updateTemplatePerfFromPayment(borrowerId) {
   });
   saveState();
 }
-function getTemplateRanking() {
-  if (!state.templatePerf) return {};
-  const result = {};
-  Object.entries(state.templatePerf).forEach(([tid, p]) => {
-    result[tid] = p.sent > 0 ? Math.round((p.paid / p.sent) * 100) : 0;
-  });
-  return result;
-}
 
 // ── SMART REPLY SUGGESTIONS (item 34) ──────────────────
 function getSmartReplySuggestions(b) {
@@ -22028,22 +21324,7 @@ function startWaQueuePersonalised(ids) {
 
 
 
-function toggleApiKeyBar() {
-  const bar = document.getElementById('api-key-bar');
-  if (!bar) return;
-  const isHidden = bar.style.display === 'none' || bar.style.display === '';
-  bar.style.display = isHidden ? 'flex' : 'none';
-  if (isHidden) {
-    const saved = localStorage.getItem('claude_api_key') || CLAUDE_API_KEY || '';
-    const input = document.getElementById('dash-api-key');
-    if (input && saved) input.value = saved;
-    haptic('light');
-  }
-}
 // saveApiKeyFromDash moved to multi-provider scan system
-function getActiveApiKey() {
-  return localStorage.getItem('claude_api_key') || (typeof CLAUDE_API_KEY !== 'undefined' ? CLAUDE_API_KEY : '');
-}
 
 // Master borrower popup — shows filtered list in a modal instead of navigating
 function showBorrowersPopup(status, loanType, odAge, odMin, odMax, ptpFilter, minRatio) {
@@ -25007,76 +24288,7 @@ async function settingsConfirmDelete(){
 
 
 // ── Agent deletion ────────────────────────────────────────────
-function promptDeleteAgent(id, name, isActive) {
-  if (isActive) {
-    // Can't delete active agent — must lock first
-    document.getElementById('modal-title').textContent = 'Cannot Delete Active Session';
-    document.getElementById('modal-body').innerHTML =
-      '<div style="font-size:var(--text-md);color:var(--text2);line-height:1.8">'
-      + 'You are currently signed in as <strong>' + name + '</strong>.<br><br>'
-      + 'To delete this agent, first tap <strong><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/></svg></span> Lock App</strong> from the drawer, '
-      + 'then delete from the lock screen.</div>';
-    document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">OK</button>';
-    document.getElementById('modal-overlay').classList.add('open');
-    return;
-  }
-  // Confirm deletion
-  document.getElementById('modal-title').textContent = 'Delete Agent';
-  document.getElementById('modal-body').innerHTML =
-    '<div style="font-size:var(--text-md);color:var(--text2);line-height:1.8;margin-bottom:14px">'
-    + 'This will permanently delete <strong>' + name + '</strong> and all their data '
-    + 'from this device and Supabase.<br><br>'
-    + '<span style="color:var(--red);font-weight:600">This cannot be undone.</span></div>'
-    + '<div class="form-group"><label>Type DELETE to confirm</label>'
-    + '<input type="text" class="form-input" id="delete-confirm-input" placeholder="DELETE" autocomplete="off" style="font-family:var(--font-mono);letter-spacing:1px"></div>';
-  document.getElementById('modal-footer').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'
-    + '<button class="btn btn-red" onclick="deleteAgent(\'' + id + '\')">Delete Permanently</button>';
-  document.getElementById('modal-overlay').classList.add('open');
-  haptic('light');
-}
 
-async function deleteAgent(id) {
-  const confirmEl = document.getElementById('delete-confirm-input');
-  if (!confirmEl || confirmEl.value.trim().toUpperCase() !== 'DELETE') {
-    confirmEl?.classList.add('shake');
-    setTimeout(() => confirmEl?.classList.remove('shake'), 400);
-    toast('Type DELETE to confirm', 'error');
-    haptic('medium');
-    return;
-  }
-
-  closeModal();
-  const agents = getAgentList();
-  const agent = agents.find(a => a.id === id);
-  if (!agent) return;
-
-  // 1. Remove from localStorage (agent list + their state)
-  const filteredAgents = agents.filter(a => a.id !== id);
-  saveAgentList(filteredAgents);
-  localStorage.removeItem('squevetrack_' + id);
-
-  // 2. Delete from Supabase
-  const db = initSupabase();
-  if (db) {
-    try {
-      await db.from('app_state').delete().eq('id', 'agent_' + id);
-// (main stamp removed — slug-based system)
-    } catch(e) { console.warn('Supabase delete error:', e); }
-  }
-
-  haptic('pay');
-  toast(agent.name + ' deleted', 'success');
-  renderLockAgentList();
-
-  // If no agents left, show "Add New Agent" prompt
-  if (!filteredAgents.length) {
-    setTimeout(() => {
-      document.getElementById('lock-pin-section').style.display = 'none';
-      _pinTarget = null;
-    }, 100);
-  }
-}
 
 function lockApp() {
   clearSession();
@@ -25136,9 +24348,14 @@ function initAutoLock() {
   // Set dropdown value when settings page opens (called from renderSettingsPage)
   const sel = document.getElementById('auto-lock-select');
   if (sel) sel.value = String(saved);
-  // Wire user activity events to reset the timer
-  const events = ['touchstart','mousedown','keydown','scroll','click'];
-  events.forEach(ev => document.addEventListener(ev, resetAutoLockTimer, { passive: true }));
+  // Wire user activity events to reset the timer — guarded so repeat calls
+  // to initAutoLock() (it runs again on every unlock) don't keep stacking
+  // more copies of these 5 listeners onto `document` forever.
+  if (!window._alActivityListenersBound) {
+    window._alActivityListenersBound = true;
+    const events = ['touchstart','mousedown','keydown','scroll','click'];
+    events.forEach(ev => document.addEventListener(ev, resetAutoLockTimer, { passive: true }));
+  }
   // Track when the tab goes to background — mobile browsers throttle/suspend
   // setTimeout while backgrounded, so a pending lock timer may never actually
   // fire while the screen is off. Record the moment we go hidden, then on
