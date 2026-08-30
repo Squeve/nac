@@ -2544,6 +2544,54 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 .settings-row.danger { color: var(--red); }
 .settings-row.danger:hover { background: rgba(239,68,68,0.06); }
 
+/* ═══ SETTINGS MEGA-SECTIONS (premium collapsible groups) ═══ */
+.settings-mega { margin-bottom: 14px; }
+.settings-mega-header {
+  display:flex; align-items:center; justify-content:space-between; width:100%;
+  background: linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border2); border-radius: 16px;
+  padding: 14px 16px; cursor: pointer; text-align:left; font-family:var(--font-body);
+  transition: border-color 0.15s;
+  box-shadow: inset 0 1px 0 var(--border-hi), 0 2px 14px rgba(0,0,0,0.22);
+}
+.settings-mega-header:hover { border-color: rgba(240,160,48,0.35); }
+.settings-mega.open .settings-mega-header { border-radius: 16px 16px 0 0; border-bottom-color: var(--border); }
+.settings-mega-left { display:flex; align-items:center; gap:12px; min-width:0; }
+.settings-mega-icon { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.settings-mega-icon svg { width:18px; height:18px; }
+.settings-mega-title { font-size:var(--text-lg); font-weight:700; color:var(--text); font-family:var(--font-head); letter-spacing:0.2px; }
+.settings-mega-sub { font-size:var(--text-sm); color:var(--text3); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.settings-mega-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.settings-mega-count { font-size:var(--text-2xs); font-weight:700; padding:2px 8px; border-radius:20px; background:rgba(240,160,48,0.14); color:var(--gold); white-space:nowrap; }
+.settings-mega-chevron { color:var(--text3); flex-shrink:0; transition:transform 0.25s; }
+.settings-mega.open .settings-mega-chevron { transform:rotate(180deg); color:var(--gold); }
+.settings-mega-body { border:1px solid var(--border2); border-top:none; border-radius:0 0 16px 16px; overflow:hidden; background:var(--surface); padding-top:2px; }
+#settings-mega-body-appearance { overflow: visible; }
+.settings-mega-body .settings-group { border:none; border-radius:0; box-shadow:none; margin-bottom:0; }
+.settings-mega-body .settings-group + .settings-group { border-top:1px solid var(--border); }
+
+/* ═══ CHANGE PIN MODAL — premium ═══ */
+.cp-pin-icon-wrap { width:60px; height:60px; border-radius:50%; margin:4px auto 14px; display:flex; align-items:center; justify-content:center; transition:background 0.25s, box-shadow 0.25s; }
+.cp-pin-icon-wrap svg { width:26px; height:26px; }
+.cp-pin-steps { display:flex; justify-content:center; gap:6px; margin-bottom:16px; }
+.cp-pin-step-dot { width:6px; height:6px; border-radius:50%; background:var(--border2); transition:all 0.25s; }
+.cp-pin-step-dot.active { width:20px; border-radius:4px; background:var(--gold); }
+.cp-pin-step-dot.done { width:6px; background:var(--green); }
+.cp-pin-instruction { font-size:var(--text-lg); font-weight:700; color:var(--text); margin-bottom:3px; font-family:var(--font-head); }
+.cp-pin-subtext { font-size:var(--text-sm); color:var(--text3); margin-bottom:22px; }
+.cp-pin-dots { display:flex; justify-content:center; gap:14px; padding:14px; background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius-lg); max-width:200px; margin:0 auto 22px; }
+.cp-pin-dot { width:13px; height:13px; border-radius:50%; background:var(--border2); transition:all 0.16s ease; }
+.cp-pin-dot.filled { background:var(--gold); box-shadow:0 0 0 4px rgba(240,160,48,0.18), 0 0 12px rgba(240,160,48,0.55); transform:scale(1.08); }
+.cp-pin-dot.error { background:var(--red) !important; box-shadow:0 0 0 4px rgba(239,68,68,0.18) !important; }
+.cp-pin-dot.success { background:var(--green) !important; box-shadow:0 0 0 4px rgba(34,197,94,0.18) !important; }
+@keyframes cp-pin-shake { 10%,90%{transform:translateX(-1px)} 20%,80%{transform:translateX(2px)} 30%,50%,70%{transform:translateX(-6px)} 40%,60%{transform:translateX(6px)} }
+.cp-pin-dots.shake { animation:cp-pin-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+.cp-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:260px; margin:0 auto; }
+.cp-num-key { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius-lg); padding:16px 0; font-size:var(--text-2xl); font-weight:600; font-family:var(--font-body); color:var(--text); cursor:pointer; transition:transform 0.1s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color:transparent; }
+.cp-num-key:active { background:rgba(240,160,48,0.16); border-color:var(--gold); transform:scale(0.92); }
+.cp-num-key.cp-num-back { color:var(--text3); font-size:var(--text-xl); }
+.cp-pin-error { font-size:var(--text-base); color:var(--red); min-height:20px; margin-top:16px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:5px; }
+
 /* ═══ PREMIUM FEATURES CSS ═════════════════════════════════ */
 
 /* AMOLED theme */
@@ -4433,8 +4481,19 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
     <div id="settings-agent-card" style="margin-bottom:6px"></div>
     <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="settingsLoadAvatar(this)">
 
-    <!-- Preferences -->
-    <p class="settings-section-label">Preferences</p>
+    <!-- Appearance -->
+    <div class="settings-mega" data-section="appearance" data-default-open="1">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('appearance')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(160,120,240,0.15);color:#a78bfa"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 2v16M2 10h16" opacity=".4"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Appearance</div>
+            <div class="settings-mega-sub">Theme, card style, haptics</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-appearance">
     <div class="settings-group" style="overflow:visible">
       <!-- Theme -->
       <div class="settings-row" style="cursor:default">
@@ -4554,24 +4613,23 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
           <span id="haptic-knob" style="position:absolute;left:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
         </label>
       </div>
-      <!-- Monthly Target -->
-      <div class="settings-row" style="cursor:default;flex-wrap:wrap;row-gap:10px">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Monthly Target</div>
-          <div class="settings-row-label-sub">Collection goal in GHS</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;width:100%;padding-left:44px">
-          <input type="number" id="settings-target-input" class="form-input" style="flex:1;padding:8px 12px;font-size:var(--text-md);font-family:var(--font-mono)" placeholder="e.g. 50000" min="0">
-          <button class="btn btn-gold btn-sm" onclick="settingsSaveTarget()" style="flex-shrink:0">Save</button>
-        </div>
+    </div>
       </div>
     </div>
 
     <!-- Security -->
-    <p class="settings-section-label">Security</p>
+    <div class="settings-mega" data-section="security" data-default-open="1">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('security')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(240,160,48,0.14);color:var(--gold)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2C9.24 2 7 4.24 7 7v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-2V7c0-2.76-2.24-5-5-5z"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Security &amp; Access</div>
+            <div class="settings-mega-sub">Lock, PIN, biometrics, sessions</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-security">
     <div class="settings-group">
       <button class="settings-row" id="bio-settings-row" onclick="settingsToggleBiometric()">
         <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
@@ -4641,60 +4699,37 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         </select>
       </div>
     </div>
-
-    <!-- Undo History -->
-    <p class="settings-section-label">Undo History</p>
-    <div class="settings-group" id="undo-history-panel">
-      <div id="undo-history-body" style="padding:4px 0"></div>
+      </div>
     </div>
 
-    <!-- Aged Out Accounts -->
-    <p class="settings-section-label">Aged Out Accounts</p>
-    <div class="settings-group">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsAgedOut()">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span></div>
+    <!-- Collection Rules -->
+    <div class="settings-mega" data-section="rules" data-default-open="0">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('rules')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(240,160,48,0.14);color:var(--gold)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg></span>
           <div>
-            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-aged-count">0 accounts</div>
-            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Auto-removed past stage range · tap to expand</div>
+            <div class="settings-mega-title">Collection Rules</div>
+            <div class="settings-mega-sub">Target, discount, thresholds</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-red btn-xs" id="settings-aged-clear-btn" onclick="event.stopPropagation();settingsClearAgedOut()" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5a1 1 0 011-1h4a1 1 0 011 1V7"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Clear</button>
-          <span id="settings-aged-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-rules">
+    <div class="settings-group" style="margin-top:14px">
+      <!-- Monthly Target -->
+      <div class="settings-row" style="cursor:default;flex-wrap:wrap;row-gap:10px">
+        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Monthly Target</div>
+          <div class="settings-row-label-sub">Collection goal in GHS</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;padding-left:44px">
+          <input type="number" id="settings-target-input" class="form-input" style="flex:1;padding:8px 12px;font-size:var(--text-md);font-family:var(--font-mono)" placeholder="e.g. 50000" min="0">
+          <button class="btn btn-gold btn-sm" onclick="settingsSaveTarget()" style="flex-shrink:0">Save</button>
         </div>
       </div>
-      <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
-    </div>
-
-    <!-- Monthly History -->
-    <p class="settings-section-label">Monthly History</p>
-    <div class="settings-group">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span></div>
-          <div>
-            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
-            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
-          </div>
-        </div>
-        <span id="settings-monthly-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
-      </div>
-      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
-    </div>
-
-    <!-- Data -->
-    <p class="settings-section-label">Data &amp; Sync</p>
-    <div class="settings-group">
-      <div class="settings-row" style="cursor:default;flex-direction:column;align-items:stretch;gap:0;padding:0">
-        <div id="health-body" style="padding:14px 18px"></div>
-      </div>
-    </div>
-
-
-    <!-- Notifications & behaviour -->
-    <p class="settings-section-label">Behaviour</p>
-    <div class="settings-group">
       <!-- Default discount -->
       <div class="settings-row" style="cursor:default">
         <div class="settings-row-icon" style="background:rgba(252,192,68,0.12);color:var(--gold2)">
@@ -4736,9 +4771,88 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         </label>
       </div>
     </div>
+      </div>
+    </div>
+
+    <!-- Archives & History -->
+    <div class="settings-mega" data-section="archives" data-default-open="0">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('archives')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(167,139,250,0.14);color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M4 9v9a2 2 0 002 2h12a2 2 0 002-2V9"/><line x1="9" y1="13" x2="15" y2="13"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Archives &amp; History</div>
+            <div class="settings-mega-sub">Undo, aged-out, monthly records</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-archives">
+    <!-- Undo History -->
+    <p class="settings-section-label" style="padding-top:14px">Undo History</p>
+    <div class="settings-group" id="undo-history-panel">
+      <div id="undo-history-body" style="padding:4px 0"></div>
+    </div>
+
+    <!-- Aged Out Accounts -->
+    <p class="settings-section-label">Aged Out Accounts</p>
+    <div class="settings-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsAgedOut()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span></div>
+          <div>
+            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-aged-count">0 accounts</div>
+            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Auto-removed past stage range · tap to expand</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-red btn-xs" id="settings-aged-clear-btn" onclick="event.stopPropagation();settingsClearAgedOut()" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5a1 1 0 011-1h4a1 1 0 011 1V7"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Clear</button>
+          <span id="settings-aged-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+        </div>
+      </div>
+      <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+    </div>
+
+    <!-- Monthly History -->
+    <p class="settings-section-label">Monthly History</p>
+    <div class="settings-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span></div>
+          <div>
+            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
+            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
+          </div>
+        </div>
+        <span id="settings-monthly-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+      </div>
+      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+    </div>
+      </div>
+    </div>
+
+    <!-- Data & Backup -->
+    <div class="settings-mega" data-section="data" data-default-open="0">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('data')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(96,165,250,0.14);color:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Data &amp; Backup</div>
+            <div class="settings-mega-sub">Sync status, export, restore</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-data">
+    <!-- Data & Sync -->
+    <p class="settings-section-label" style="padding-top:14px">Data &amp; Sync</p>
+    <div class="settings-group">
+      <div class="settings-row" style="cursor:default;flex-direction:column;align-items:stretch;gap:0;padding:0">
+        <div id="health-body" style="padding:14px 18px"></div>
+      </div>
+    </div>
 
     <!-- Data management -->
-    <p class="settings-section-label">Data</p>
+    <p class="settings-section-label">Backup &amp; Export</p>
     <div class="settings-group">
       <button class="settings-row" onclick="settingsForceSync()">
         <div class="settings-row-icon" style="background:rgba(34,197,94,0.12);color:var(--green)">
@@ -4801,9 +4915,26 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         <span class="settings-chevron">›</span>
       </button>
     </div>
+      </div>
+    </div>
+
     <!-- About -->
-    <p class="settings-section-label">About</p>
-    <div class="settings-group">
+    <div class="settings-mega" data-section="about" data-default-open="0">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('about')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:var(--gold-grad)"><span style="font-family:var(--font-head);font-size:var(--text-sm);font-weight:800;color:#000">ST</span></span>
+          <div>
+            <div class="settings-mega-title">About</div>
+            <div class="settings-mega-sub">App info, changelog, manual</div>
+          </div>
+        </div>
+        <div class="settings-mega-right">
+          <span class="settings-mega-count">v2.1.0</span>
+          <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+        </div>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-about">
+    <div class="settings-group" style="margin-top:14px">
       <div class="settings-row" id="about-st-row" style="cursor:default" title="Long-press 3s for admin">
         <div class="settings-row-icon" style="background:var(--gold-grad)">
           <span style="font-family:var(--font-head);font-size:var(--text-base);font-weight:800;color:#000">ST</span>
@@ -4844,10 +4975,12 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         <span class="settings-chevron">›</span>
       </button>
     </div>
+      </div>
+    </div>
 
     <!-- Danger -->
-    <p class="settings-section-label" style="color:rgba(239,68,68,0.7)">Danger Zone</p>
-    <div class="settings-group" style="border-color:rgba(239,68,68,0.2)">
+    <p class="settings-section-label" style="color:rgba(239,68,68,0.7);padding-top:24px">Danger Zone</p>
+    <div class="settings-group" style="border-color:rgba(239,68,68,0.25);box-shadow:inset 0 1px 0 var(--border-hi), 0 2px 16px rgba(239,68,68,0.08)">
       <button class="settings-row danger" onclick="settingsDeleteAccount()">
         <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><rect x="5" y="6" width="10" height="11" rx="1"/><line x1="8" y1="10" x2="8" y2="15"/><line x1="12" y1="10" x2="12" y2="15"/></svg>
@@ -17391,16 +17524,39 @@ function logCallOutcome(id, outcome, btn) {
 let _waQueue = [];
 let _waQueueIdx = 0;
 
+// ── Settings page: premium collapsible mega-sections ──
+function toggleSettingsMega(key, force) {
+  const wrap = document.querySelector('.settings-mega[data-section="' + key + '"]');
+  if (!wrap) return;
+  const body = document.getElementById('settings-mega-body-' + key);
+  const isOpen = wrap.classList.contains('open');
+  const open = force === undefined ? !isOpen : force;
+  wrap.classList.toggle('open', open);
+  if (body) body.style.display = open ? 'block' : 'none';
+  localStorage.setItem('settings_mega_' + key, open ? '1' : '0');
+  haptic('light');
+}
+function initSettingsMegaState() {
+  document.querySelectorAll('.settings-mega[data-section]').forEach(function(wrap) {
+    const key = wrap.getAttribute('data-section');
+    const saved = localStorage.getItem('settings_mega_' + key);
+    const defaultOpen = wrap.getAttribute('data-default-open') === '1';
+    const open = saved !== null ? saved === '1' : defaultOpen;
+    wrap.classList.toggle('open', open);
+    const body = document.getElementById('settings-mega-body-' + key);
+    if (body) body.style.display = open ? 'block' : 'none';
+  });
+}
+
 // ── Borrowers page overflow menu (Bulk Send / Paid / Export) ──
 function toggleLoansMoreMenu(force) {
   const el = document.getElementById('loans-more-menu');
   if (!el) return;
   const show = force === false ? false : (force === true ? true : el.style.display === 'none');
   el.style.display = show ? 'block' : 'none';
+  document.removeEventListener('click', _loansMoreMenuOutsideClick); // guard against duplicate bindings
   if (show) {
     setTimeout(() => document.addEventListener('click', _loansMoreMenuOutsideClick), 0);
-  } else {
-    document.removeEventListener('click', _loansMoreMenuOutsideClick);
   }
 }
 function _loansMoreMenuOutsideClick(e) {
@@ -17443,10 +17599,9 @@ function toggleDashMoreMenu(force) {
   if (!el) return;
   const show = force === false ? false : (force === true ? true : el.style.display === 'none');
   el.style.display = show ? 'block' : 'none';
+  document.removeEventListener('click', _dashMoreMenuOutsideClick); // guard against duplicate bindings
   if (show) {
     setTimeout(() => document.addEventListener('click', _dashMoreMenuOutsideClick), 0);
-  } else {
-    document.removeEventListener('click', _dashMoreMenuOutsideClick);
   }
 }
 function _dashMoreMenuOutsideClick(e) {
@@ -24007,6 +24162,7 @@ function renderSettingsPage() {
     }
     // "Developed by" is hardcoded — Shadrack Agyei Arthur
   })();
+  initSettingsMegaState();
 }
 
 function openProfileEditModal() {
@@ -24380,48 +24536,78 @@ function settingsSaveTarget() {
 }
 
 
+const CP_STEPS = {
+  verify_current: { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C9.24 2 7 4.24 7 7v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-2V7c0-2.76-2.24-5-5-5z"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>', bg: 'rgba(240,160,48,0.14)', color: 'var(--gold)', title: 'Verify Your Identity', sub: 'Enter your current PIN to continue', step: 0 },
+  set:            { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5"/><path d="M11.5 11.5L21 21M17 17l3-3M14 14l2.5-2.5"/></svg>', bg: 'rgba(96,165,250,0.14)', color: 'var(--blue)', title: 'Choose a New PIN', sub: 'Pick a 4-digit code you\'ll remember', step: 1 },
+  confirm:        { icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg>', bg: 'rgba(167,139,250,0.14)', color: 'var(--purple)', title: 'Confirm New PIN', sub: 'Enter it once more to lock it in', step: 2 }
+};
+function _cpRenderStepChrome(mode) {
+  const cfg = CP_STEPS[mode];
+  if (!cfg) return;
+  const iconWrap = document.getElementById('cp-icon-wrap');
+  const instrEl  = document.getElementById('settings-pin-instruction');
+  const subEl    = document.getElementById('cp-subtext');
+  if (iconWrap) { iconWrap.style.background = cfg.bg; iconWrap.style.color = cfg.color; iconWrap.innerHTML = cfg.icon; }
+  if (instrEl) instrEl.textContent = cfg.title;
+  if (subEl) subEl.textContent = cfg.sub;
+  for (let i = 0; i < 3; i++) {
+    const d = document.getElementById('cp-step-' + i);
+    if (!d) continue;
+    d.classList.remove('active', 'done');
+    if (i < cfg.step) d.classList.add('done');
+    else if (i === cfg.step) d.classList.add('active');
+  }
+}
 function settingsChangePin() {
   if(!_activeAgent) return;
   _pinTarget=_activeAgent; _pinBuffer=''; _pinSetBuffer=''; _pinMode='verify_current';
   document.getElementById('modal-title').textContent='Change PIN';
   document.getElementById('modal-body').innerHTML=
-    '<div style="text-align:center;padding:10px 0">'
-    +'<div id="settings-pin-instruction" style="font-size:var(--text-md);color:var(--text2);margin-bottom:20px">Enter your current PIN.</div>'
-    +'<div style="display:flex;justify-content:center;gap:12px;margin-bottom:20px">'
-    +'<div class="pin-dot" id="modal-pindot-0"></div><div class="pin-dot" id="modal-pindot-1"></div>'
-    +'<div class="pin-dot" id="modal-pindot-2"></div><div class="pin-dot" id="modal-pindot-3"></div>'
+    '<div style="text-align:center;padding:6px 0 4px">'
+    +'<div class="cp-pin-icon-wrap" id="cp-icon-wrap"></div>'
+    +'<div class="cp-pin-steps"><span class="cp-pin-step-dot" id="cp-step-0"></span><span class="cp-pin-step-dot" id="cp-step-1"></span><span class="cp-pin-step-dot" id="cp-step-2"></span></div>'
+    +'<div id="settings-pin-instruction" class="cp-pin-instruction"></div>'
+    +'<div id="cp-subtext" class="cp-pin-subtext"></div>'
+    +'<div class="cp-pin-dots" id="cp-pin-dots">'
+    +'<div class="cp-pin-dot" id="modal-pindot-0"></div><div class="cp-pin-dot" id="modal-pindot-1"></div>'
+    +'<div class="cp-pin-dot" id="modal-pindot-2"></div><div class="cp-pin-dot" id="modal-pindot-3"></div>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto 12px">'
+    +'<div class="cp-numpad">'
     +[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k,i)=>i===9?'<div></div>'
-      :'<button class="pin-key" data-spk="'+k+'" onclick="settingsPinPress(this.dataset.spk)">'+k+'</button>').join('')
+      :'<button class="cp-num-key'+(k==='⌫'?' cp-num-back':'')+'" data-spk="'+k+'" onclick="settingsPinPress(this.dataset.spk)">'+k+'</button>').join('')
     +'</div>'
-    +'<div id="settings-pin-error" style="font-size:var(--text-base);color:var(--red);min-height:18px"></div></div>';
+    +'<div id="settings-pin-error" class="cp-pin-error"></div></div>';
   document.getElementById('modal-footer').innerHTML='<button class="btn btn-ghost" onclick="closeModal();_pinBuffer=\'\';_pinSetBuffer=\'\';_pinMode=\'unlock\'">Cancel</button>';
-  document.getElementById('modal-overlay').classList.add('open'); haptic('light');
+  document.getElementById('modal-overlay').classList.add('open');
+  _cpRenderStepChrome('verify_current');
+  haptic('light');
 }
 
 function settingsPinPress(k) {
   const errEl=document.getElementById('settings-pin-error');
+  const dotsWrap=document.getElementById('cp-pin-dots');
   if(k==='⌫')_pinBuffer=_pinBuffer.slice(0,-1); else if(_pinBuffer.length<4)_pinBuffer+=String(k);
-  for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.toggle('filled',i<_pinBuffer.length);}
+  haptic(k==='⌫'?'light':'light');
+  for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d){d.classList.toggle('filled',i<_pinBuffer.length);d.classList.remove('error','success');}}
   if(_pinBuffer.length===4){setTimeout(async()=>{
     if(_pinMode==='verify_current'){
       const hash = await hashPin(_pinBuffer,_pinTarget.id);
       if(hash === _pinTarget.pinHash){
         _pinBuffer=''; _pinMode='set';
         if(errEl) errEl.textContent='';
-        const instrEl = document.getElementById('settings-pin-instruction');
-        if(instrEl) instrEl.textContent='Enter a new 4-digit PIN.';
-        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d){d.classList.remove('filled','error','success');}}
+        _cpRenderStepChrome('set');
       }else{
         _pinBuffer='';
         if(errEl) errEl.textContent='Incorrect current PIN — try again';
-        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
-        haptic('medium');
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d){d.classList.remove('filled');d.classList.add('error');}}
+        if(dotsWrap){dotsWrap.classList.remove('shake');void dotsWrap.offsetWidth;dotsWrap.classList.add('shake');}
+        haptic('error');
+        setTimeout(()=>{for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('error');}},400);
       }
     }else if(_pinMode==='set'){_pinSetBuffer=_pinBuffer;_pinBuffer='';_pinMode='confirm';
-      if(errEl)errEl.textContent='Enter the same PIN again to confirm';
-      for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
+      for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d){d.classList.remove('filled','error','success');}}
+      _cpRenderStepChrome('confirm');
     }else if(_pinMode==='confirm'){
       if(_pinBuffer===_pinSetBuffer){
         const hash=await hashPin(_pinBuffer,_pinTarget.id);
@@ -24431,13 +24617,21 @@ function settingsPinPress(k) {
         const db=initSupabase();if(db){try{
           await db.from('app_state').upsert({id:'agent_'+_pinTarget.id,data:{...state,_pinHash:hash},updated_at:new Date().toISOString()});
         }catch{}}
-        closeModal();haptic('pay');toast('PIN changed','success');
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.add('success');}
+        for(let i=0;i<3;i++){const s=document.getElementById('cp-step-'+i);if(s){s.classList.remove('active');s.classList.add('done');}}
+        haptic('success');
+        setTimeout(()=>{closeModal();toast('PIN changed','success');},350);
         _pinBuffer='';_pinSetBuffer='';_pinMode='unlock';
       }else{
         _pinBuffer='';_pinSetBuffer='';_pinMode='set';
         if(errEl)errEl.textContent='PINs did not match — try again';
-        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('filled');}
-        haptic('medium');
+        for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d){d.classList.remove('filled');d.classList.add('error');}}
+        if(dotsWrap){dotsWrap.classList.remove('shake');void dotsWrap.offsetWidth;dotsWrap.classList.add('shake');}
+        haptic('error');
+        setTimeout(()=>{
+          for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.remove('error');}
+          _cpRenderStepChrome('set');
+        },400);
       }
     }
   },100);}
@@ -26822,12 +27016,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   font-size:var(--text-6xl);
   font-weight: 400;
   display: flex; align-items: center; justify-content: center;
-  transition: filter 0.08s ease;
+  transition: filter 0.08s ease, transform 0.08s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   min-width: 0;
 }
-.calc-btn:active { filter: brightness(1.4); }
+.calc-btn:active { filter: brightness(1.4); transform: scale(0.93); }
 
 .calc-btn.func  { background: #a5a5a5; color: #000; font-weight: 600; font-size: 21px; }
 .calc-btn.op    { background: #ff9f0a; color: #fff; font-size: 34px; font-weight: 200; }
@@ -26928,6 +27122,8 @@ const DECOY_SECRET = '1047';
   var cOp      = null;
   var cNew     = true;   // next digit starts fresh
   var iBuf     = '';     // digit buffer for secret detection
+  var cLastOp      = null; // for repeat-equals (authentic iOS behaviour)
+  var cLastOperand = null;
 
   // ── helpers ──────────────────────────────────────
 
@@ -26972,6 +27168,7 @@ const DECOY_SECRET = '1047';
 
   function calcReset() {
     cVal = '0'; cPrev = null; cOp = null; cNew = true; iBuf = '';
+    cLastOp = null; cLastOperand = null;
     setDisp('0'); opHL(null);
     if (acBtn) acBtn.textContent = 'AC';
   }
@@ -27005,12 +27202,13 @@ const DECOY_SECRET = '1047';
 
     // ─ AC / C ─
     if (btn === 'AC') {
-      calcReset(); return;
+      calcReset(); haptic('light'); return;
     }
     if (btn === 'C') {
       cVal = '0'; cNew = true;
       setDisp('0');
       if (acBtn) acBtn.textContent = 'AC';
+      haptic('light');
       return;
     }
 
@@ -27018,6 +27216,7 @@ const DECOY_SECRET = '1047';
     if (btn === '+/-') {
       var n = parseFloat(cVal);
       if (!isNaN(n) && n !== 0) { cVal = String(-n); setDisp(cVal); }
+      haptic('light');
       return;
     }
 
@@ -27025,6 +27224,7 @@ const DECOY_SECRET = '1047';
     if (btn === '%') {
       var n = parseFloat(cVal);
       if (!isNaN(n)) { cVal = fmtNum(n / 100); setDisp(cVal); iBuf = ''; }
+      haptic('light');
       return;
     }
 
@@ -27039,19 +27239,27 @@ const DECOY_SECRET = '1047';
       cOp = btn; cNew = true; iBuf = '';
       opHL(btn);
       if (acBtn) acBtn.textContent = 'C';
+      haptic('light');
       return;
     }
 
     // ─ equals ─
     if (btn === '=') {
       opHL(null);
-      if (iBuf === DECOY_SECRET) { hideDecoy(); return; }
+      if (iBuf === DECOY_SECRET) { haptic('unlock'); hideDecoy(); return; }
       if (cOp && cPrev !== null) {
+        cLastOp = cOp; cLastOperand = parseFloat(cVal);
         var res = doMath(cPrev, parseFloat(cVal), cOp);
         cVal = fmtNum(res); setDisp(cVal);
         cOp = null; cPrev = null; cNew = true;
+      } else if (cLastOp && cLastOperand !== null && cVal !== 'Error') {
+        // Authentic iOS behaviour: repeated "=" re-applies the last operation
+        var res2 = doMath(parseFloat(cVal), cLastOperand, cLastOp);
+        cVal = fmtNum(res2); setDisp(cVal);
+        cNew = true;
       }
       iBuf = '';
+      haptic('light');
       return;
     }
 
@@ -27061,6 +27269,7 @@ const DECOY_SECRET = '1047';
       if (cNew) { cVal = '0.'; cNew = false; }
       else if (!cVal.includes('.')) cVal += '.';
       setDisp(cVal);
+      haptic('light');
       return;
     }
 
@@ -27072,10 +27281,11 @@ const DECOY_SECRET = '1047';
       cNew = false;
     } else {
       cVal = (cVal === '0' && btn !== '.') ? btn
-           : (cVal.replace(/[-.]/, '').length < 9 ? cVal + btn : cVal);
+           : (cVal.replace(/[-.]/g, '').length < 9 ? cVal + btn : cVal);
     }
     setDisp(cVal);
     if (acBtn) acBtn.textContent = 'C';
+    haptic('light');
   };
 
   // ─ keyboard support (desktop) ────────────────────
