@@ -6390,6 +6390,23 @@ function initSupabase() {
   } catch(e) { return null; }
 }
 
+// ── Network timeout guard ─────────────────────────────────────
+// A fully-offline device fails fetch() fast — this isn't about that case.
+// A slow/flaky connection (weak signal, captive portal, DNS hanging) can
+// leave a Supabase call neither resolving nor rejecting for minutes, since
+// the client sets no fetch timeout of its own. Any UI awaiting that call
+// (skeleton loaders, "Saving..." status, a modal waiting to close) gets
+// stuck indefinitely. This races any promise against a hard deadline so
+// the app always falls back to local/cached state instead of hanging.
+function withTimeout(promise, ms, label) {
+  ms = ms || 8000;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timeout' + (label ? ':' + label : ''))), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // ── Sync status indicator ─────────────────────────────────────
 function setSyncStatus(status) {
   const map = {
@@ -6499,7 +6516,7 @@ async function _pushToSupabaseIncremental() {
     const agents  = getAgentList();
     const myAgent = agents.find(a => a.id === _activeAgent?.id);
     const pinHash = myAgent?.pinHash || state._pinHash || null;
-    await _db.from('app_state').upsert({
+    await withTimeout(_db.from('app_state').upsert({
   id: getSupabaseId(),
   data: { 
     ...currentState, 
@@ -6508,7 +6525,7 @@ async function _pushToSupabaseIncremental() {
     _lastLocalSave: currentState._lastLocalSave
   },
   updated_at: new Date().toISOString()
-});
+}), 10000, 'pushIncremental');
     _lastFullState = JSON.parse(JSON.stringify(currentState));
     _lastKnownHash = currentHash;
     setSyncStatus('saved');
@@ -6655,11 +6672,10 @@ async function loadState() {
   if (_db) {
     try {
       setSyncStatus('loading');
-      const { data, error } = await _db
-        .from('app_state')
-        .select('data')
-        .eq('id', getSupabaseId())
-        .single();
+      const { data, error } = await withTimeout(
+        _db.from('app_state').select('data').eq('id', getSupabaseId()).single(),
+        8000, 'loadState'
+      );
       if (!error && data && data.data) {
         const remoteData = data.data;
 
@@ -6817,11 +6833,10 @@ async function pullRemoteState() {
   }
   
   try {
-    const { data, error } = await _db
-      .from('app_state')
-      .select('data')
-      .eq('id', getSupabaseId())
-      .single();
+    const { data, error } = await withTimeout(
+      _db.from('app_state').select('data').eq('id', getSupabaseId()).single(),
+      8000, 'pullRemoteState'
+    );
     if (error) throw error;
     if (!data || !data.data) return;
 
@@ -6958,7 +6973,7 @@ async function _pushToSupabase(retries = 3) {
       const myAgent = agents.find(a => a.id === _activeAgent?.id);
       const pinHash = myAgent?.pinHash || state._pinHash || null;
       const nowTs = new Date().toISOString();
-      const { error } = await _db.from('app_state').upsert({
+      const { error } = await withTimeout(_db.from('app_state').upsert({
         id: getSupabaseId(),
         data: {
           ...state,
@@ -6973,7 +6988,7 @@ async function _pushToSupabase(retries = 3) {
           }
         },
         updated_at: nowTs
-      });
+      }), 10000, 'pushToSupabase-attempt' + attempt);
       if (error) throw error;
       setSyncStatus('saved');
       setTimeout(() => setSyncStatus('saved'), 2000);
@@ -23781,7 +23796,7 @@ async function _runWeeklyBackup(manual) {
   if (_db) {
     try {
       const backupId = getSupabaseId() + '_backup_' + stamp;
-      const { error } = await _db.from('app_state').upsert({ id: backupId, data: payload });
+      const { error } = await withTimeout(_db.from('app_state').upsert({ id: backupId, data: payload }), 10000, 'weeklyBackup');
       cloudOk = !error;
       if (error) console.warn('Weekly backup Supabase upsert failed:', error.message);
     } catch (e) { console.warn('Weekly backup Supabase error:', e); }
