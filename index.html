@@ -27299,8 +27299,15 @@ const DECOY_SECRET = '1047';
 
   function fmtNum(n) {
     if (n === 'Error') return 'Error';
-    var r = parseFloat((+n).toPrecision(10));
-    return String(r);
+    var num = +n;
+    if (!isFinite(num)) return 'Error';
+    var r = parseFloat(num.toPrecision(10));
+    var s = String(r);
+    // A real calculator never leaks raw JS scientific notation (e.g. "1e+21")
+    // onto the display — treat anything that would need it as overflow,
+    // same as how a genuine calculator shows "Error" past its digit limit.
+    if (s.indexOf('e') !== -1) return 'Error';
+    return s;
   }
 
   // ── reset (called each time decoy is shown) ───────
@@ -27344,7 +27351,7 @@ const DECOY_SECRET = '1047';
       calcReset(); haptic('light'); return;
     }
     if (btn === 'C') {
-      cVal = '0'; cNew = true;
+      cVal = '0'; cNew = true; iBuf = '';
       setDisp('0');
       if (acBtn) acBtn.textContent = 'AC';
       haptic('light');
@@ -27355,6 +27362,7 @@ const DECOY_SECRET = '1047';
     if (btn === '+/-') {
       var n = parseFloat(cVal);
       if (!isNaN(n) && n !== 0) { cVal = String(-n); setDisp(cVal); }
+      iBuf = ''; // negating means this isn't a bare secret-code entry anymore
       haptic('light');
       return;
     }
@@ -27408,6 +27416,7 @@ const DECOY_SECRET = '1047';
       if (cNew) { cVal = '0.'; cNew = false; }
       else if (!cVal.includes('.')) cVal += '.';
       setDisp(cVal);
+      iBuf = ''; // a decimal number (e.g. "10.47") is never the bare secret code
       haptic('light');
       return;
     }
