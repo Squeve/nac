@@ -5135,6 +5135,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
       <div class="page-sub" id="msg-bank-sub">300+ stage‑specific collection messages</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn btn-gold btn-sm" onclick="msgBankOpenGenerate()" title="Describe what you need and get a matching message — no AI call, matched against your own bank" style="font-size:var(--text-base)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg></span> Generate</button>
       <button class="btn btn-ghost btn-sm" onclick="msgBankSurpriseMe()" title="Random message from current filter" style="font-size:var(--text-base)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/></svg></span> Surprise Me</button>
       <button class="btn btn-ghost btn-sm" onclick="msgBankOpenAddCustom()" title="Add your own message" style="font-size:var(--text-base)">＋ New</button>
       <button class="btn btn-gold" id="msg-fav-btn" onclick="msgBankOpenFavorite()" title="Your saved favorites"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3L3 9.4l6.4-.6z"/></svg></span> Favorites</button>
@@ -6327,7 +6328,53 @@ const MESSAGE_BANK = [
 
   { "id": "m5_25", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "severe", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","critical stage"], "body": "[Name], your account is at its most critical stage before formal legal handover. A partial payment today, however small, is still meaningfully better than nothing and will be documented. Dial *714*674# immediately.\n\nLoanBase Recovery Team." },
   { "id": "m5_26", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","final opportunity"], "body": "[Name], this is close to the final opportunity to act on this account voluntarily. If full settlement is out of reach right now, send whatever partial amount you can before this moves fully into legal recovery. Dial *714*674#.\n\nLoanBase Recovery Team." },
-  { "id": "m5_27", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","good faith"], "body": "[Name], we would still rather work with a partial payment from you today than proceed purely through legal and credit bureau channels. Show good faith now. Dial *714*674#.\n\nLoanBase Recovery Team." }
+  { "id": "m5_27", "stage": "M5", "subStage": "Day 61 to Day 89", "tone": "extreme", "title": "Partial Payment Encouragement", "legalRefs": ["Act 726","Act 1052"], "tags": ["partial payment","good faith"], "body": "[Name], we would still rather work with a partial payment from you today than proceed purely through legal and credit bureau channels. Show good faith now. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  // ====================== Broken Promise / PTP Breach (12 messages) ======================
+  { "id": "ptp_m2_01", "stage": "M2", "subStage": "PTP Breach", "tone": "direct", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","Act 726"], "tags": ["broken promise","ptp breached","gave your word"], "body": "[Name], you gave your word that you would pay and that date has passed with no payment. A broken promise moves your file into active review under Act 1052. Restore your standing now. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m2_02", "stage": "M2", "subStage": "PTP Breach", "tone": "direct", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 726","Act 1052"], "tags": ["broken promise","commitment not honoured"], "body": "[Name], we scheduled your payment based on the date you gave us. That date has come and gone. Under Act 726 repeated missed promises become part of your credit history. Honour your word today. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m2_03", "stage": "M2", "subStage": "PTP Breach", "tone": "direct", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","Act 726"], "tags": ["broken promise","good faith"], "body": "[Name], the arrangement you proposed was accepted in good faith. It has not been kept. Your file is now flagged for a broken commitment. This is reversible only if you act immediately. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "ptp_m3_01", "stage": "M3", "subStage": "PTP Breach", "tone": "serious", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","CI 47"], "tags": ["broken promise","pattern","ptp breached"], "body": "[Name], this is the second date you have set for payment that has passed without funds received. Under Act 1052 a pattern of broken commitments is treated differently from a single missed payment. Your file has moved to formal recovery. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m3_02", "stage": "M3", "subStage": "PTP Breach", "tone": "serious", "title": "Broken Promise – Trust Breach", "legalRefs": ["CI 47","Act 726"], "tags": ["broken promise","pattern","accelerated recovery"], "body": "[Name], a promise to pay carries weight in how your case is handled, and yours has been broken more than once. CI 47 permits accelerated recovery steps once a pattern of non performance is established, and that pattern is now on your file. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m3_03", "stage": "M3", "subStage": "PTP Breach", "tone": "serious", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 726","Act 1052"], "tags": ["broken promise","trust breached twice"], "body": "[Name], we held off on further action because you gave us a date. That date is gone. Trust that is broken twice is not extended a third time without consequence. Settle now under Act 726 before the next stage begins. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "ptp_m4_01", "stage": "M4", "subStage": "PTP Breach", "tone": "severe", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","CI 47"], "tags": ["broken promise","evidence of unwillingness"], "body": "[Name], every date you have proposed for payment has passed without funds. At this stage a broken promise is treated as evidence of unwillingness to pay, not inability, which changes how your file is handled under Act 1052 and CI 47. Dial *714*674# before the next step is taken.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m4_02", "stage": "M4", "subStage": "PTP Breach", "tone": "severe", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 651","Act 1052"], "tags": ["broken promise","evidence for proceedings"], "body": "[Name], commitments made and broken at this stage are noted directly in your recovery file as evidence for legal proceedings under Act 651. This is your opportunity to change that record before it is finalised. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m4_03", "stage": "M4", "subStage": "PTP Breach", "tone": "severe", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","CI 47"], "tags": ["broken promise","no further dates"], "body": "[Name], we do not extend further deadlines after repeated broken promises, and your file already reflects this pattern. The only way to change the outcome from here is payment, not another date. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "ptp_m5_01", "stage": "M5", "subStage": "PTP Breach", "tone": "extreme", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","Act 29"], "tags": ["broken promise","case file","no further dates"], "body": "[Name], every commitment you have made to pay has been broken. At this stage that pattern is documented as part of the case file being prepared under Act 1052 and Act 29. There will be no further dates offered. Dial *714*674# now.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m5_02", "stage": "M5", "subStage": "PTP Breach", "tone": "extreme", "title": "Broken Promise – Trust Breach", "legalRefs": ["PNDCL 152","Act 1052"], "tags": ["broken promise","repeated pattern"], "body": "[Name], this file shows a clear and repeated pattern of broken promises. That record does not help you in any proceeding that follows under PNDCL 152. The only remaining action that changes anything is payment, today. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "ptp_m5_03", "stage": "M5", "subStage": "PTP Breach", "tone": "extreme", "title": "Broken Promise – Trust Breach", "legalRefs": ["Act 1052","Act 726"], "tags": ["broken promise","chapter closed"], "body": "[Name], we have accepted your word multiple times and it has not been honoured. That chapter is closed. What happens next is determined entirely by whether payment is received today. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  // ====================== Settlement Offer (10 messages) ======================
+  { "id": "settle_m3_01", "stage": "M3", "subStage": "Settlement Window", "tone": "serious", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052","Act 726"], "tags": ["settlement","discount","reduced payoff"], "body": "[Name], your balance has been growing under added charges for weeks now. Before it grows further, your recovery officer can discuss a reduced one time settlement to close this account. Contact us directly, then dial *714*674# to complete it.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m3_02", "stage": "M3", "subStage": "Settlement Window", "tone": "serious", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052"], "tags": ["settlement","discount","lump sum"], "body": "[Name], continuing to carry this balance costs you more every week it remains open under Act 1052. A discounted lump sum arrangement may be available to close your file now instead of later. Speak with your recovery officer today.\n\nLoanBase Recovery Team." },
+
+  { "id": "settle_m4_01", "stage": "M4", "subStage": "Settlement Window", "tone": "severe", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052","CI 47"], "tags": ["settlement","discount","before legal steps"], "body": "[Name], at this stage the balance owed is substantially higher than the original loan. Your recovery officer is authorised to discuss a reduced settlement figure to close this file before further legal steps proceed under Act 1052. Contact us today.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m4_02", "stage": "M4", "subStage": "Settlement Window", "tone": "severe", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["CI 47"], "tags": ["settlement","limited window","discount"], "body": "[Name], this is a limited window to settle your account for less than the full amount currently owed. Once legal action under CI 47 formally begins this option is withdrawn. Speak with your recovery officer now.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m4_03", "stage": "M4", "subStage": "Settlement Window", "tone": "severe", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 651"], "tags": ["settlement","one time payoff","discount"], "body": "[Name], the longer this file remains open the more it costs you under Act 651 and the added charges already applied. A one time reduced payoff can close it permanently. Contact your recovery officer to agree a figure, then dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m4_04", "stage": "M4", "subStage": "Settlement Window", "tone": "severe", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052"], "tags": ["settlement","discount","rather close this"], "body": "[Name], we would rather close this account today than pursue the full balance through the courts. A discounted settlement is on the table for a limited time. Contact your recovery officer directly to discuss it.\n\nLoanBase Recovery Team." },
+
+  { "id": "settle_m5_01", "stage": "M5", "subStage": "Settlement Window", "tone": "extreme", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052","Act 29"], "tags": ["settlement","final opportunity","discount"], "body": "[Name], this is the final opportunity to settle this file for less than the total amount owed before it proceeds exactly as documented under Act 1052 and Act 29. Contact your recovery officer today to discuss a closing figure.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m5_02", "stage": "M5", "subStage": "Settlement Window", "tone": "extreme", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["PNDCL 152"], "tags": ["settlement","last chance","discount"], "body": "[Name], once this file is submitted for the next stage under PNDCL 152 no settlement discount will be offered again. This is the last chance to close it for less than what is currently owed. Contact us now.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m5_03", "stage": "M5", "subStage": "Settlement Window", "tone": "extreme", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 1052"], "tags": ["settlement","short time only","discount"], "body": "[Name], we would still prefer to close this account today over pursuing every legal instrument already prepared. A reduced settlement remains available for a short time only. Speak with your recovery officer immediately.\n\nLoanBase Recovery Team." },
+  { "id": "settle_m5_04", "stage": "M5", "subStage": "Settlement Window", "tone": "extreme", "title": "Settlement Offer – Reduced Payoff", "legalRefs": ["Act 29","Act 1052"], "tags": ["settlement","final discounted offer"], "body": "[Name], every legal mechanism on this file is ready to proceed. Before that happens, a final discounted settlement offer is on the table. This will not be repeated once the next stage begins. Contact your recovery officer today.\n\nLoanBase Recovery Team." },
+
+  // ====================== Final Warning – Field Visit (10 messages) ======================
+  // Sits between "field visits are authorised" (M2/M3) and "a field visit has been
+  // scheduled/conducted" (M4/M5) — the last preventable moment before it stops being one.
+  { "id": "fw_m3_01", "stage": "M3", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","final warning","24 hours","last chance"], "body": "[Name], this is your final warning before a field recovery visit is scheduled to your registered home address. You still have time to prevent it, but not much. Pay in full or contact us within the next 24 hours. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m3_02", "stage": "M3", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","last point","no reversing"], "body": "[Name], once this file passes to field recovery status there is no reversing it before the visit occurs. Right now, today, is the last point at which payment stops that process entirely. Under Act 1052 this decision is yours alone to make. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m3_03", "stage": "M3", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052","CI 47"], "tags": ["field visit warning","no further notice","action not message"], "body": "[Name], no further notice will be sent after this one. The next contact regarding this account will be a field recovery officer at your registered address, not a message. Stop it now. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m3_04", "stage": "M3", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052","CI 47"], "tags": ["field visit warning","one step away","automatic"], "body": "[Name], your file is one step from being handed to field recovery. That step happens automatically if payment is not received today. There is no message after this warning, it is action. Dial *714*674#.\n\nLoanBase Recovery Team." },
+
+  { "id": "fw_m4_01", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052","CI 47"], "tags": ["field visit warning","not yet dispatched","last window"], "body": "[Name], a field recovery visit to your registered home address is being finalised right now. It has not been dispatched yet. This is the only window left to stop it before it is. Dial *714*674# immediately.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m4_02", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","before dispatch","paperwork complete"], "body": "[Name], the paperwork for your field recovery visit is complete and awaiting dispatch. Payment received before dispatch cancels it. Payment received after does not. Act now. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m4_03", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","your decision","few hours left"], "body": "[Name], we do not want to send someone to your home. That decision is entirely in your hands for the next few hours. After that it is no longer a choice we are offering. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m4_04", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","without exception","reached this point"], "body": "[Name], every account that reaches this exact point and is not settled proceeds to a field visit without exception. Yours has reached this point. Settle now under Act 1052 or expect a visit. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m4_05", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052","CI 47"], "tags": ["field visit warning","one final time","courtesy not repeated"], "body": "[Name], this message is being sent instead of dispatching a field officer, one final time. That courtesy is not repeated. Pay today or the next step at your address proceeds without further warning. Dial *714*674#.\n\nLoanBase Recovery Team." },
+  { "id": "fw_m4_06", "stage": "M4", "subStage": "Final Warning – Field Visit", "tone": "severe", "title": "Final Warning – Field Visit", "legalRefs": ["Act 1052"], "tags": ["field visit warning","phone or a knock","still available"], "body": "[Name], the choice today is between a phone screen and a knock at your door. Both resolve this account. Only one of them is still available to you. Dial *714*674# now.\n\nLoanBase Recovery Team." }
 ];
   
 // ── STATE ──────────────────────────────────────────────
@@ -6748,6 +6795,10 @@ function migrateState(s) {
   if (!s.templatePerf)      s.templatePerf = {};
   if (!s.scoreHistory)      s.scoreHistory = [];
   if (!s.messageBank || !s.messageBank.length) s.messageBank = (typeof MESSAGE_BANK !== 'undefined' ? MESSAGE_BANK : []);
+  // Built-in bank is app-shipped reference data, not user data — always resync it
+  // to whatever ships in this build so new/updated messages actually show up for
+  // returning users instead of being stuck on whatever was cached at first save.
+  if (typeof MESSAGE_BANK !== 'undefined' && MESSAGE_BANK.length) s.messageBank = MESSAGE_BANK;
   if (!s.msgFavorites) {
     // One-time pull from the old device-only localStorage list so nobody loses
     // favorites already picked before this moved into synced state.
@@ -6971,8 +7022,8 @@ async function loadState() {
   showSkeletons(false);
 
  // ─── ALWAYS ATTACH THE MESSAGE BANK TO THE LIVE STATE ───
-  if (state && (!state.messageBank || !state.messageBank.length)) {
-  state.messageBank = window.MESSAGE_BANK || [];
+  if (state && typeof MESSAGE_BANK !== 'undefined' && MESSAGE_BANK.length) {
+  state.messageBank = MESSAGE_BANK;
 }
 }
 
@@ -7028,8 +7079,9 @@ async function pullRemoteState() {
           return;
         }
         state = migrateState(remoteState);
-        if (!state.messageBank || !state.messageBank.length) {
-          state.messageBank = (typeof MESSAGE_BANK !== 'undefined' ? MESSAGE_BANK : []);
+        // Built-in bank always resyncs to this build's data — see comment at initState defaults.
+        if (typeof MESSAGE_BANK !== 'undefined' && MESSAGE_BANK.length) {
+          state.messageBank = MESSAGE_BANK;
         }
         _lastFullState = JSON.parse(JSON.stringify(state));
         _lastKnownHash = await _hashState(state);
@@ -7560,17 +7612,56 @@ function getSmsMessage(b, useGenerous) {
   const isMidStage    = stagePct < 0.66;   // first two-thirds
   // isLateStage = stagePct >= 0.66 (last third — most aggressive)
 
+  // Field-visit warning tier — sits between "escalation is coming" (M3) and
+  // "a visit has actually been scheduled" (M5/Message Bank). Only fires in the
+  // last third of M3 or M4, mirroring the Message Bank's "Final Warning – Field
+  // Visit" category so Dispatch and Message Bank stay in step.
+  const agentStage = _activeAgent && _activeAgent.stage;
+  const isM3 = agentStage === 'M3';
+  const isM4 = agentStage === 'M4';
+  const isM5 = agentStage === 'M5';
+
+  // Broken-promise awareness — checked ahead of stage/day position, since a
+  // broken commitment is a sharper signal than how far through the stage the
+  // account happens to be. brokenPromiseCount persists across every new promise
+  // date (see ptpAutoFlagMissed), so a chronic breacher gets a distinctly harder
+  // message than a first-time one instead of being lumped together.
+  const isBreached     = !!b.ptpBreached;
+  const isRepeatBreach = isBreached && (b.brokenPromiseCount||0) >= 2;
+  const breachCount    = b.brokenPromiseCount || 1;
+
   if (isPartial) {
     if (useGenerous) {
-      // Partial payer + generous mode: acknowledge payment, then offer discount
       const saving = fmtC(Math.round(_getOdFeeCached(b) * (1 - (state.discountRate||0.30))));
+      if (isRepeatBreach) {
+        return name + ', ' + breachCount + ' promises to pay have now been broken on this account, despite the partial payments made. This is the last discount available before that pattern alone justifies full legal recovery. Pay ' + genAmount + ' (saving ' + saving + ') today.' + guide;
+      }
+      if (isBreached) {
+        return name + ', your partial payment was received, but the promise you made to clear the rest was not honoured. As a final gesture of good faith, we will accept ' + genAmount + ' (saving ' + saving + ') instead of ' + fullAmount + ' today.' + guide;
+      }
+      // Partial payer + generous mode: acknowledge payment, then offer discount
       if (isEarlyStage) {
         return name + ', we acknowledge your recent payment on your ' + type + ' loan. As a goodwill gesture, we are offering you a ONE-TIME discount to clear your remaining balance. Settle today for ' + genAmount + ' instead of ' + fullAmount + ' and save ' + saving + ' in penalty fees. This offer is valid TODAY ONLY.' + guide;
       }
       if (isMidStage) {
         return name + ', your partial payment has been noted. Despite your account being overdue, we are offering a discounted settlement of ' + genAmount + ' (saving you ' + saving + ') instead of the full ' + fullAmount + '. Pay today to close your account and avoid further escalation. This is a limited offer.' + guide;
       }
+      if (isM5) {
+        return name + ', your account is under active field recovery and automatic deduction. As a last gesture before that process concludes, we will accept ' + genAmount + ' (saving ' + saving + ') instead of the full ' + fullAmount + '. This does not pause what is already in motion.' + guide;
+      }
+      if (isM4) {
+        return name + ', your partial payment was acknowledged. However your ' + type + ' loan remains CRITICALLY OVERDUE and a field recovery visit to your registered address is being finalised. As a final gesture before dispatch, we will accept ' + genAmount + ' (saving ' + saving + ') instead of the full ' + fullAmount + '. This offer expires in 24 HOURS, after which the visit proceeds regardless.' + guide;
+      }
+      if (isM3) {
+        return name + ', your partial payment was acknowledged. Your ' + type + ' loan remains CRITICALLY OVERDUE and this is the final warning before a field recovery visit is scheduled to your registered address. As a last gesture, we will accept ' + genAmount + ' (saving ' + saving + ') instead of the full ' + fullAmount + '. You have 24 HOURS to prevent that step.' + guide;
+      }
       return name + ', your partial payment was acknowledged. However your ' + type + ' loan remains CRITICALLY OVERDUE. As a final gesture before legal recovery, we will accept ' + genAmount + ' (saving ' + saving + ') instead of the full ' + fullAmount + '. This offer expires in 24 HOURS. Pay immediately or contact us.' + guide;
+    }
+    if (isRepeatBreach) {
+      return name + ', you have broken ' + breachCount + ' promises on this account despite making partial payments. Your remaining balance of ' + amount + ' is now handled as a pattern of non-performance, not a one-time missed payment.' + guide;
+    }
+    if (isBreached) {
+      return name + ', your partial payment was received, but the promise you made to clear the rest was not honoured. Your ' + type + ' loan balance of ' + amount + ' remains unpaid. Settle today to avoid this being treated as a pattern.' + guide;
     }
     if (isEarlyStage) {
       return name + ', we acknowledge your recent payment on your ' + type + ' loan account. However, your remaining balance of ' + amount + ' is still outstanding and must be settled TODAY. Daily penalty charges continue to accrue until your account is fully cleared. Do not delay.' + guide;
@@ -7578,26 +7669,65 @@ function getSmsMessage(b, useGenerous) {
     if (isMidStage) {
       return name + ', despite your partial payment, your ' + type + ' loan balance of ' + amount + ' remains UNPAID and overdue. This account is now under review for escalation. You must settle the full outstanding amount TODAY to prevent formal recovery proceedings from being initiated.' + guide;
     }
+    if (isM5) {
+      return name + ', your ' + type + ' loan balance of ' + amount + ' remains unpaid and this account is under active field recovery, with automatic deduction already in place. Settling in full today is the only way to stop what is already in motion.' + guide;
+    }
+    if (isM4) {
+      return name + ', your partial payment was acknowledged, but your ' + type + ' loan balance of ' + amount + ' remains CRITICALLY OVERDUE and a field recovery visit to your registered address is being finalised. Settle in full within 24 HOURS or the next contact will be an officer at your door, not a message.' + guide;
+    }
+    if (isM3) {
+      return name + ', your partial payment was acknowledged, but your ' + type + ' loan balance of ' + amount + ' is CRITICALLY OVERDUE. This is the final warning before a field recovery visit is scheduled to your registered address. Settle in full within 24 HOURS to prevent it.' + guide;
+    }
     return name + ', your partial payment has been noted. However, your ' + type + ' loan balance of ' + amount + ' is CRITICALLY OVERDUE. This account has been flagged for immediate legal recovery. You have 24 HOURS to settle in full before formal proceedings begin. This is your final notice.' + guide;
   }
 
   if (useGenerous) {
     // All OD days get the discount message — tone escalates with urgency
     const saving = fmtC(Math.round(_getOdFeeCached(b) * (1 - (state.discountRate||0.30))));
+    if (isRepeatBreach) {
+      return name + ', ' + breachCount + ' promises to pay have now been broken on this account. This is the last discount we will offer before broken promises alone justify full legal recovery. Pay ' + genAmount + ' (saving ' + saving + ') today.' + guide;
+    }
+    if (isBreached) {
+      return name + ', your last promise to pay was not honoured. As one final gesture of good faith, we will accept ' + genAmount + ' (saving ' + saving + ') instead of ' + fullAmount + ' today.' + guide;
+    }
     if (isEarlyStage) {
       return name + ', as a goodwill gesture, we are offering you a ONE-TIME discount on your ' + type + ' loan. Settle your account today for ' + genAmount + ' instead of the full ' + fullAmount + ' and save ' + saving + ' in penalty fees. This offer is valid TODAY ONLY and will not be extended.' + guide;
     }
     if (isMidStage) {
       return name + ', this is your FINAL opportunity to settle your ' + type + ' loan at a discounted rate. Pay ' + genAmount + ' today (saving ' + saving + ') to clear your account before formal recovery proceedings are initiated. After today, the full overdue balance of ' + fullAmount + ' plus additional legal costs will apply. Do not miss this.' + guide;
     }
+    if (isM5) {
+      return name + ', this account is under active field recovery with automatic deduction already in place. As a last gesture before that process concludes, we will accept ' + genAmount + ' (saving you ' + saving + ') as full and final settlement.' + guide;
+    }
+    if (isM4) {
+      return name + ', LAST OFFER BEFORE A FIELD VISIT IS DISPATCHED. We are prepared to accept ' + genAmount + ' (saving you ' + saving + ') as full and final settlement of your ' + type + ' loan before a field recovery officer is sent to your registered address. This concession expires within 24 hours. After that the visit proceeds regardless.' + guide;
+    }
+    if (isM3) {
+      return name + ', FINAL WARNING BEFORE FIELD VISIT IS SCHEDULED. We are prepared to accept ' + genAmount + ' (saving you ' + saving + ') as full and final settlement of your ' + type + ' loan. You have 24 hours to act before this file is handed to field recovery.' + guide;
+    }
     return name + ', LAST OFFER BEFORE LEGAL ACTION. We are prepared to accept ' + genAmount + ' (saving you ' + saving + ') as full and final settlement of your ' + type + ' loan before formal recovery begins. This concession expires within 24 hours. After this, you will be liable for the full amount of ' + fullAmount + ' plus all legal and recovery costs. Act now.' + guide;
   }
 
+  if (isRepeatBreach) {
+    return name + ', this is not the first promise you have broken on this account. ' + breachCount + ' promises made, ' + breachCount + ' broken. Your ' + type + ' loan of ' + amount + ' is now handled as a pattern of non-performance, not a missed payment.' + guide;
+  }
+  if (isBreached) {
+    return name + ', you promised to pay and that did not happen. Your ' + type + ' loan of ' + amount + ' remains unpaid. Settle today to avoid this being treated as a pattern rather than a one-time miss.' + guide;
+  }
   if (isEarlyStage) {
     return name + ', your ' + type + ' loan repayment of ' + amount + ' is now OVERDUE. Every day of non-payment attracts additional penalty charges on your account. You are required to make full payment TODAY. Failure to do so will result in escalation and further fees being applied to your outstanding balance.' + guide;
   }
   if (isMidStage) {
     return name + ', your ' + type + ' loan of ' + amount + ' remains UNPAID and continues to accrue daily penalty charges. This account is under active review and is approaching escalation. You MUST settle this balance in full TODAY. Further delay will result in formal recovery action being taken without additional notice.' + guide;
+  }
+  if (isM5) {
+    return name + ', your ' + type + ' loan of ' + amount + ' remains unpaid. This account is under active field recovery, with automatic deduction already in place and no further warnings scheduled. Settling in full today is the only way to stop what is already in motion.' + guide;
+  }
+  if (isM4) {
+    return name + ', FINAL WARNING BEFORE FIELD VISIT. Your ' + type + ' loan of ' + amount + ' remains unpaid and a field recovery visit to your registered address is being finalised. This is the last window to stop it before dispatch. Pay in full within 24 HOURS or expect a visit, not another message.' + guide;
+  }
+  if (isM3) {
+    return name + ', FINAL WARNING BEFORE A FIELD VISIT IS SCHEDULED. Your ' + type + ' loan of ' + amount + ' remains unpaid. No further notice will be sent after this one — the next contact regarding this account will be a field recovery officer at your registered address. You have 24 HOURS to prevent that.' + guide;
   }
   return name + ', FINAL NOTICE. Your ' + type + ' loan of ' + amount + ' is CRITICALLY OVERDUE. This account has been referred for formal legal recovery. You have 24 HOURS to make full payment before proceedings are initiated. Once legal action begins, you will be responsible for all associated costs in addition to your outstanding balance. Make payment or contact us IMMEDIATELY.' + guide;
 }
@@ -7711,6 +7841,17 @@ function ptpAutoFlagMissed() {
       b.ptpOutcome  = 'missed';
       b.ptpBreached = true;
       b.brokenPromiseCount = (b.brokenPromiseCount||0) + 1;
+      // Persist this breach into history immediately, at the moment it's detected —
+      // not later when a new promise date overwrites the live flags. This is what
+      // keeps a broken promise visible on the borrower's Activity timeline forever,
+      // even after b.ptpBreached itself gets cleared by the next promise.
+      if (!b.promiseHistory) b.promiseHistory = [];
+      b.promiseHistory.push({
+        rescheduled: new Date().toISOString(),
+        brokenDate: promDate,
+        outcome: 'broken',
+        note: 'Promise broken — payment not received by ' + promDate
+      });
       _maybeAutoEscalate(b);
       changed = true;
     }
@@ -9824,8 +9965,8 @@ function copyDispatchMsg(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (!b) return;
   const useGenerous = dispatchMode === 'generous';
-  navigator.clipboard.writeText(getSmsMessage(b, useGenerous)).then(() => {
-    toast('Message copied', 'success');
+  _copyTextSafe(getSmsMessage(b, useGenerous)).then(ok => {
+    toast(ok ? 'Message copied' : 'Could not copy — try again', ok ? 'success' : 'error');
   });
 }
 
@@ -12209,6 +12350,7 @@ function _openBorrowerDetailFill(id) {
     + liveActivityHtml
     + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">'
     + (b.promisedToPay ? '<div style="font-size:var(--text-sm);color:var(--purple);margin-bottom:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> Promise: ' + (b.promiseDate||'today') + (b.promiseNote?' — '+b.promiseNote:'') + '</div>' : '')
+    + ((b.brokenPromiseCount||0) > 0 ? '<div style="font-size:var(--text-sm);color:#ef4444;margin-bottom:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span> ' + b.brokenPromiseCount + ' broken promise' + (b.brokenPromiseCount > 1 ? 's' : '') + ' on record</div>' : '')
     + (b.notes ? '<div style="font-size:var(--text-sm);color:var(--gold);margin-bottom:8px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span> ' + b.notes + '</div>' : '')
     + (badges ? '<div style="margin-bottom:8px">' + badges + '</div>' : '')
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">'
@@ -22023,10 +22165,14 @@ function openBorrowerTimeline(id) {
     events.push({ date: b.promiseDate.split(' ')[0], time: '09:00', type: 'ptp', icon: '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>',
       label: 'Promise to Pay — ' + b.promiseDate, sub: b.promiseNote || '' });
   }
-  if (b.ptpBreached) {
-    events.push({ date: b.promiseDate?.split(' ')[0]||'', time: '23:59', type: 'breach', icon: '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span>',
-      label: 'PTP Breached — payment not made as promised', sub: 'Escalation recommended' });
-  }
+  // Broken promises — pulled from persisted history so every past breach stays
+  // on this timeline even after a new promise date is set. (Previously this only
+  // checked the live b.ptpBreached flag, which silently erased the record the
+  // moment a new promise overwrote it.)
+  (b.promiseHistory || []).filter(h => h.outcome === 'broken').forEach(h => {
+    events.push({ date: h.brokenDate || (h.rescheduled||'').split('T')[0] || '', time: '23:59', type: 'breach', icon: '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span>',
+      label: 'PTP Breached — payment not made as promised', sub: h.note || 'Escalation recommended' });
+  });
 
   // Notes
   if (b.notes) events.push({ date: '', time: '', type: 'note', icon: '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span>', label: b.notes, sub: 'Account note' });
@@ -25251,7 +25397,10 @@ const MSG_CATEGORY_META = {
   'Serious Default – Legal & Consequential':  { short: 'Serious Default', color: '#f97316' },
   'Severe Default – Full Legal Enforcement':  { short: 'Severe Default',  color: '#ef4444' },
   'Extreme Delinquency – Total Enforcement':  { short: 'Extreme',     color: '#991b1b' },
-  'Partial Payment Encouragement':            { short: 'Partial Payment', color: '#a78bfa' }
+  'Partial Payment Encouragement':            { short: 'Partial Payment', color: '#a78bfa' },
+  'Broken Promise – Trust Breach':            { short: 'Broken Promise',  color: '#e11d48' },
+  'Settlement Offer – Reduced Payoff':        { short: 'Settlement Offer', color: '#0ea5e9' },
+  'Final Warning – Field Visit':              { short: 'Final Warning',   color: '#7c2d12' }
 };
 
 function msgBankClearFilters() {
@@ -25481,6 +25630,41 @@ async function msgBankShareText(text, title) {
   }
 }
 
+// Robust clipboard copy — navigator.clipboard.writeText() can silently reject
+// (permissions policy, non-secure context, some in-app webviews), which
+// previously left every copy button below doing nothing with zero feedback.
+// This tries the modern API first, falls back to a hidden-textarea execCommand
+// copy if that fails, and always resolves so callers can show a real toast
+// either way instead of assuming success.
+function _copyTextSafe(text) {
+  return new Promise((resolve) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => resolve(true)).catch(() => resolve(_copyTextFallback(text)));
+    } else {
+      resolve(_copyTextFallback(text));
+    }
+  });
+}
+
+function _copyTextFallback(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    console.error('_copyTextFallback failed', e);
+    return false;
+  }
+}
+
 // Quick-copy a message body straight from the list card, no need to open the detail modal
 function msgBankCopyFromCard(msgId, type) {
   let msg = type === 'custom'
@@ -25488,7 +25672,7 @@ function msgBankCopyFromCard(msgId, type) {
     : (state.messageBank||[]).find(m => m.id === msgId);
   if (!msg) msg = [...(state.messageBank||[]), ...(state.customMessages||[])].find(m => m.id === msgId);
   if (!msg) return;
-  navigator.clipboard.writeText(msg.body).then(() => toast('Message copied!', 'success'));
+  _copyTextSafe(msg.body).then(ok => toast(ok ? 'Message copied!' : 'Could not copy — try Share instead', ok ? 'success' : 'error'));
   haptic('light');
 }
 
@@ -25623,7 +25807,7 @@ function openMessageDetail(msgId, type) {
   setTimeout(() => {
     document.getElementById('mb-copy-btn').onclick = () => {
       const text = document.getElementById('mb-body-display').textContent;
-      navigator.clipboard.writeText(text).then(() => toast('Message copied!', 'success'));
+      _copyTextSafe(text).then(ok => toast(ok ? 'Message copied!' : 'Could not copy — try Share instead', ok ? 'success' : 'error'));
     };
     document.getElementById('mb-share-btn').onclick = () => {
       const text = document.getElementById('mb-body-display').textContent;
@@ -25837,6 +26021,170 @@ function msgBankDeleteCustom(id) {
   renderMessageBank();
   toast('Custom message deleted', 'info');
   haptic('light');
+}
+
+// ── Generate Message From Request ────────────────────────────
+// Pure keyword/rule matching over the existing message bank — no AI call,
+// no network request. Free text (parsed for "day N" + keyword overlap
+// against each message's tags/title/body/tone) plus optional stage/
+// category/tone dropdowns as a fallback or a narrowing filter.
+const MSG_GEN_STAGE_BANDS = { M0:[0,0], M1:[1,5], M2:[6,15], M3:[16,40], M4:[41,60], M5:[61,89] };
+
+function _msgGenParseDay(lowerText) {
+  const m = lowerText.match(/day\s*(\d{1,3})/) || lowerText.match(/(\d{1,3})\s*days?\b/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function _msgGenStageFromDay(day) {
+  if (day === null || isNaN(day)) return null;
+  for (const stage in MSG_GEN_STAGE_BANDS) {
+    const band = MSG_GEN_STAGE_BANDS[stage];
+    if (day >= band[0] && day <= band[1]) return stage;
+  }
+  return day > 89 ? 'M5' : null;
+}
+
+function _msgGenScore(msg, words, dayStage) {
+  let score = 0;
+  const tags = (msg.tags || []).map(t => t.toLowerCase());
+  const tone = (msg.tone || '').toLowerCase();
+  const hay  = (tags.join(' ') + ' ' + (msg.title||'') + ' ' + (msg.body||'') + ' ' + tone).toLowerCase();
+  words.forEach(w => {
+    if (w.length < 3) return;
+    if (tags.includes(w))      score += 3;
+    else if (w === tone)       score += 4;
+    else if (hay.includes(w))  score += 1;
+  });
+  if (dayStage && msg.stage === dayStage) score += 5;
+  return score;
+}
+
+function msgBankOpenGenerate() {
+  document.getElementById('modal-title').textContent = '✨ Generate a Message';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:var(--text-xs);color:var(--text3)">Describe what you need — matched against your own message bank. No AI, works fully offline.</div>
+      <textarea id="mg-request" placeholder="e.g. day 5 overdue, firm tone, mention MoMo, partial payment" rows="3" class="form-input" style="font-size:var(--text-base);resize:vertical"></textarea>
+      <div style="font-size:var(--text-xs);color:var(--text3);margin-top:2px">Or use these — applied if the text above is blank, and to sharpen results either way:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="mg-stage" class="bl-chip-sel" style="flex:1;min-width:110px;border-radius:var(--radius-md);padding:8px 10px">
+          <option value="">Any stage</option>
+          <option value="M0">M0 – Pre‑Due</option><option value="M1">M1 – Day 1‑5</option>
+          <option value="M2">M2 – Day 6‑15</option><option value="M3">M3 – Day 16‑40</option>
+          <option value="M4">M4 – Day 41‑60</option><option value="M5">M5 – Day 61‑89</option>
+        </select>
+        <select id="mg-category" class="bl-chip-sel" style="flex:1;min-width:140px;border-radius:var(--radius-md);padding:8px 10px">
+          <option value="">Any category</option>
+          ${Object.keys(MSG_CATEGORY_META).map(t => '<option value="' + t + '">' + MSG_CATEGORY_META[t].short + '</option>').join('')}
+        </select>
+        <select id="mg-tone" class="bl-chip-sel" style="flex:1;min-width:110px;border-radius:var(--radius-md);padding:8px 10px">
+          <option value="">Any tone</option>
+          <option value="sweet">Sweet</option><option value="gentle">Gentle</option>
+          <option value="direct">Direct</option><option value="serious">Serious</option>
+          <option value="severe">Severe</option><option value="extreme">Extreme</option>
+        </select>
+      </div>
+      <input id="mg-name" placeholder="Borrower name (optional — fills [Name] in the preview)" class="form-input" style="font-size:var(--text-base)">
+      <div id="mg-result" style="display:none;margin-top:6px;padding:12px;border:1px solid var(--border2);border-radius:var(--radius-md);background:var(--bg2)">
+        <div id="mg-result-meta" style="font-size:var(--text-xs);color:var(--text3);margin-bottom:6px"></div>
+        <div id="mg-result-body" style="font-size:var(--text-base);line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-ghost" id="mg-another-btn" style="display:none" onclick="msgBankGenerateNext()">Try Another</button>
+    <button class="btn btn-ghost" id="mg-copy-btn" style="display:none" onclick="msgBankGenerateCopy()">Copy</button>
+    <button class="btn btn-gold" onclick="msgBankGenerateRun()">Generate</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light');
+}
+
+function msgBankGenerateRun() {
+  try {
+    const reqText  = (document.getElementById('mg-request')?.value || '').trim();
+    const stageSel = document.getElementById('mg-stage')?.value || '';
+    const catSel   = document.getElementById('mg-category')?.value || '';
+    const toneSel  = document.getElementById('mg-tone')?.value || '';
+
+    const custom = (state.customMessages || []).map(m => ({ ...m, _custom: true }));
+    let pool = [...(state.messageBank || []), ...custom];
+
+    if (stageSel) pool = pool.filter(m => m.stage === stageSel);
+    if (catSel)   pool = pool.filter(m => m.title === catSel);
+    if (toneSel)  pool = pool.filter(m => m.tone === toneSel);
+
+    if (!pool.length) {
+      toast('No messages match those filters — try loosening them', 'error');
+      return;
+    }
+
+    let words = [];
+    let dayStage = null;
+    if (reqText) {
+      const lower = reqText.toLowerCase();
+      words = lower.split(/[^a-z0-9']+/).filter(Boolean);
+      if (!stageSel) {
+        dayStage = _msgGenStageFromDay(_msgGenParseDay(lower));
+        if (dayStage) {
+          const narrowed = pool.filter(m => m.stage === dayStage);
+          if (narrowed.length) pool = narrowed;
+        }
+      }
+    }
+
+    let ranked;
+    if (words.length) {
+      ranked = pool.map(m => ({ m, s: _msgGenScore(m, words, dayStage) }))
+                   .sort((a, b) => b.s - a.s)
+                   .map(x => x.m);
+    } else {
+      ranked = [...pool].sort(() => Math.random() - 0.5); // no text — vary results each click
+    }
+
+    window._mgResults = ranked;
+    window._mgIndex = 0;
+    _msgGenRenderResult();
+    haptic('medium');
+  } catch (e) {
+    console.error('msgBankGenerateRun failed', e);
+    toast('Could not generate a message — please try again', 'error');
+  }
+}
+
+function msgBankGenerateNext() {
+  try {
+    if (!window._mgResults || !window._mgResults.length) return;
+    window._mgIndex = (window._mgIndex + 1) % window._mgResults.length;
+    _msgGenRenderResult();
+    haptic('light');
+  } catch (e) { console.error('msgBankGenerateNext failed', e); }
+}
+
+function _msgGenRenderResult() {
+  const msg = (window._mgResults || [])[window._mgIndex || 0];
+  const box = document.getElementById('mg-result');
+  if (!msg || !box) return;
+  const name = document.getElementById('mg-name')?.value?.trim();
+  const body = name ? msg.body.replace(/\[Name\]/g, name) : msg.body;
+  const metaEl    = document.getElementById('mg-result-meta');
+  const metaTitle = (MSG_CATEGORY_META[msg.title] && MSG_CATEGORY_META[msg.title].short) || msg.title || '';
+  const count     = window._mgResults.length;
+  if (metaEl) metaEl.textContent = (msg.stage || '') + ' · ' + metaTitle + (count > 1 ? ' · Match ' + ((window._mgIndex||0)+1) + ' of ' + count : '');
+  document.getElementById('mg-result-body').textContent = body;
+  box.style.display = 'block';
+  document.getElementById('mg-copy-btn').style.display = '';
+  document.getElementById('mg-another-btn').style.display = count > 1 ? '' : 'none';
+}
+
+function msgBankGenerateCopy() {
+  try {
+    const box = document.getElementById('mg-result-body');
+    if (!box || !box.textContent) return;
+    _copyTextSafe(box.textContent).then(ok => toast(ok ? 'Message copied!' : 'Could not copy — try again', ok ? 'success' : 'error'));
+    haptic('medium');
+  } catch (e) { console.error('msgBankGenerateCopy failed', e); }
 }
 
 // ── Suggest Messages for a Borrower ─────────────────────────
