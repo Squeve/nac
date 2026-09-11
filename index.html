@@ -6981,7 +6981,7 @@ async function loadState() {
         _lastFullState = JSON.parse(JSON.stringify(state));
         _lastKnownHash = await _hashState(state);
         _syncLocalProfileFromState();
-        localStorage.setItem(getStateKey(), JSON.stringify(state)); // warm cache
+        localStorage.setItem(getStateKey(), JSON.stringify(_stateForSync(state))); // warm cache
 
         // One-time phone normalisation
         const migrationFlag = localStorage.getItem('sq_phone_migration_done_' + loadingForAgentId);
@@ -7226,7 +7226,14 @@ function _doSaveState() {
   _invalidateActiveBorrowersCache();
   const key     = getStateKey();
   const agentId = _activeAgent?.id || null;
-  const json    = JSON.stringify(state);
+  // Strip messageBank the same way _stateForSync does for Supabase — it's
+  // built-in reference data, not user data, and was being redundantly
+  // JSON.stringify'd, encrypted, and written to both localStorage and
+  // IndexedDB on nearly every single save (payments, edits, PTP updates —
+  // this runs far more often than the debounced remote sync does), adding
+  // real CPU cost on every save on top of the storage bloat.
+  const stateToStore = _stateForSync(state);
+  const json    = JSON.stringify(stateToStore);
   const _persist = function(payload) {
     let lsOk = true;
     try {
@@ -7236,7 +7243,7 @@ function _doSaveState() {
       console.warn('localStorage.setItem failed (quota or private mode?) — falling back to IndexedDB only', e);
     }
     if (window.indexedDB) {
-      _saveStateToIndexedDB(key, state).catch(function(idbErr) {
+      _saveStateToIndexedDB(key, stateToStore).catch(function(idbErr) {
         console.warn(idbErr);
         if (!lsOk) toast('Save failed — storage may be full. Free up space or export a backup.', 'error');
       });
