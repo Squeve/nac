@@ -11184,10 +11184,17 @@ function doExportCSV() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = 'SqueveTrack-' + month + (descriptor||'') + '.csv';
+  a.download = 'SqueveTrack-' + _agentFileTag() + month + (descriptor||'') + '.csv';
   a.click(); URL.revokeObjectURL(url);
   closeModal();
   toast('CSV downloaded — ' + borrowers.length + ' accounts', 'success');
+}
+
+function _agentFileTag() {
+  const name = (_activeAgent && _activeAgent.name) || '';
+  const first = name.trim().split(/\s+/)[0] || '';
+  const clean = first.replace(/[^a-zA-Z0-9]/g, '');
+  return clean ? clean + '-' : '';
 }
 
 function _getExportData() {
@@ -11369,7 +11376,7 @@ function doExportXLSX() {
   });
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-  XLSX.writeFile(wb, 'SqueveTrack-' + month + (descriptor||'') + '.xlsx');
+  XLSX.writeFile(wb, 'SqueveTrack-' + _agentFileTag() + month + (descriptor||'') + '.xlsx');
   closeModal();
   toast('XLSX downloaded (' + borrowers.length + ' accounts)', 'success');
 }
@@ -11540,7 +11547,7 @@ function doExportPDF(mode) {
     // Popup blocked — download the HTML file directly
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = 'SqueveTrack-Report-' + month.replace(' ', '-') + '.html';
+    a.download = 'SqueveTrack-' + _agentFileTag() + 'Report-' + month.replace(' ', '-') + '.html';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -17980,12 +17987,18 @@ function fireConfetti() {
 function exportBackup() {
   const now = new Date();
   const stamp = now.toISOString().split('T')[0];
-  const payload = JSON.stringify({ version: 2, exportedAt: now.toISOString(), agent: _activeAgent?.name || 'unknown', state }, null, 2);
+  // Same messageBank exclusion as the local save and Supabase sync — it's
+  // built-in reference data (already in this file's own source), not user
+  // data, and importBackup() below already correctly repopulates it via
+  // migrateState() regardless of whether it's in the file. Excluding it here
+  // means backup files are ~175KB smaller and faster to email/share, with
+  // zero loss — nothing about "your data" actually lives in that field.
+  const payload = JSON.stringify({ version: 2, exportedAt: now.toISOString(), agent: _activeAgent?.name || 'unknown', state: _stateForSync(state) }, null, 2);
   const blob = new Blob([payload], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = 'SqueveTrack-backup-' + stamp + '.json';
+  a.download = 'SqueveTrack-' + _agentFileTag() + 'backup-' + stamp + '.json';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -22173,7 +22186,7 @@ function generatePdfExport() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'SqueveTrack-Report-' + new Date().toISOString().split('T')[0] + '.html';
+  a.download = 'SqueveTrack-' + _agentFileTag() + 'Report-' + new Date().toISOString().split('T')[0] + '.html';
   a.click();
   URL.revokeObjectURL(url);
   haptic('pay');
@@ -24454,7 +24467,7 @@ async function _silentPreRolloverBackup(monthStr) {
       exportedAt: new Date().toISOString(),
       agent: (_activeAgent && _activeAgent.name) || 'unknown',
       reason: 'pre-rollover: ' + monthStr,
-      state: JSON.parse(JSON.stringify(state)) // deep clone now, before the wipe that follows
+      state: JSON.parse(JSON.stringify(_stateForSync(state))) // deep clone now, before the wipe that follows — messageBank stripped first so there's nothing wasteful to clone
     };
     await withTimeout(_db.from('app_state').upsert({ id: backupId, data: payload }), 10000, 'preRolloverBackup');
   } catch (e) {
@@ -24465,7 +24478,7 @@ async function _silentPreRolloverBackup(monthStr) {
 async function _runWeeklyBackup(manual) {
   const now   = new Date();
   const stamp = now.toISOString().split('T')[0];
-  const payload = { version: 2, exportedAt: now.toISOString(), agent: _activeAgent?.name || 'unknown', state };
+  const payload = { version: 2, exportedAt: now.toISOString(), agent: _activeAgent?.name || 'unknown', state: _stateForSync(state) };
   const json  = JSON.stringify(payload, null, 2);
 
   // 1) Snapshot to Supabase under its own id — never touches the live row,
@@ -24483,7 +24496,7 @@ async function _runWeeklyBackup(manual) {
   // 2) Local file — via Web Share (lets the agent pick Email/Gmail/WhatsApp)
   //    if the browser supports sharing files, else a straight download.
   const blob = new Blob([json], { type: 'application/json' });
-  const file = new File([blob], 'SqueveTrack-backup-' + stamp + '.json', { type: 'application/json' });
+  const file = new File([blob], 'SqueveTrack-' + _agentFileTag() + 'backup-' + stamp + '.json', { type: 'application/json' });
   let shared = false;
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
