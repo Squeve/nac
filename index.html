@@ -5628,15 +5628,14 @@ function sharePerfCard() {
 }
 
 function _getStreakCount() {
-  const logs = [...state.dailyLog].sort((a,b)=>b.date.localeCompare(a.date));
-  let streak = 0;
-  let d = new Date();
-  for (const entry of logs) {
-    const dStr = d.toISOString().split('T')[0];
-    if (entry.date === dStr && (entry.collected||0) > 0) { streak++; d.setDate(d.getDate()-1); }
-    else if (entry.date < dStr) break;
-  }
-  return streak;
+  // Was a separate, buggier reimplementation of the same streak logic —
+  // it broke immediately if today hadn't been logged yet (very common: any
+  // time this runs before that day's collections are entered), showing "0
+  // day streak" on the shareable performance card even with a real streak
+  // going back weeks. calcStreak() already handles this correctly (checks
+  // yesterday instead of giving up), so this just delegates to it now
+  // instead of keeping two copies of the same logic to drift out of sync.
+  return calcStreak();
 }
 
 // ═══ CALL TIME HEATMAP ══════════════════════════════════════
@@ -12487,7 +12486,7 @@ function _openBorrowerDetailFill(id) {
       </div>
       <div class="bd-hero-quick">
         <span style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:700;color:${odColor}">Day ${od}</span>
-        <span class="priority-score ${pCls}" title="Priority">${pScore}</span>
+        <span onclick="event.stopPropagation();showPriorityBreakdown('${b.id}')" title="Tap to see why" style="cursor:pointer;padding:8px;margin:-8px;display:inline-flex"><span class="priority-score ${pCls}">${pScore}</span></span>
         <span style="font-size:var(--text-xs);font-weight:700;color:${stColor};background:${stColor}22;padding:1px 6px;border-radius:var(--radius-md)">${st}</span>
       </div>
     </div>`
@@ -18107,6 +18106,60 @@ function calcPriorityScore(b) {
   return Math.min(10, score);
 }
 
+// ── PRIORITY SCORE BREAKDOWN ────────────────────────────
+// Mirrors calcPriorityScore's exact logic line-for-line, so "why this score"
+// can never drift out of sync with the real number — this is the same
+// calculation, just also recording each contributing line as it runs instead
+// of only keeping the running total.
+function getPriorityBreakdown(b) {
+  const factors = [];
+  const od = getOdAge(b.startDate, b);
+  const [minDay, maxDay] = getAgentDayRange();
+  const range = Math.max(1, maxDay - minDay);
+  const stagePct = Math.min(1, Math.max(0, (od - minDay) / range));
+  const stagePts = Math.round(stagePct * 4);
+  factors.push({ label: 'Stage urgency (Day ' + od + ', ' + Math.round(stagePct*100) + '% through this stage)', pts: stagePts });
+
+  const rem = getRemaining(b);
+  if (rem > 2000)      factors.push({ label: 'Large balance outstanding (over ₵2,000)', pts: 3 });
+  else if (rem > 1000) factors.push({ label: 'Balance outstanding (over ₵1,000)', pts: 2 });
+  else if (rem > 500)  factors.push({ label: 'Balance outstanding (over ₵500)', pts: 1 });
+  else                 factors.push({ label: 'Balance outstanding (₵' + Math.round(rem) + ', under ₵500)', pts: 0 });
+
+  if (b.ptpBreached && b.amountPaid === 0)          factors.push({ label: 'Broken promise, nothing paid yet', pts: 3 });
+  else if (b.promisedToPay && b.amountPaid === 0)   factors.push({ label: 'Promise still pending, nothing paid yet', pts: 2 });
+  else if (b.ptpBreached || b.promisedToPay)         factors.push({ label: 'No promise/breach penalty (partial payment already made)', pts: 0 });
+  else                                               factors.push({ label: 'No active promise on file', pts: 0 });
+
+  if (!b.amountPaid) factors.push({ label: 'No payment made at all yet', pts: 1 });
+  else               factors.push({ label: 'At least one payment made', pts: 0 });
+
+  const rawTotal = factors.reduce((s,f) => s + f.pts, 0);
+  const capped   = Math.min(10, rawTotal);
+  return { factors, rawTotal, capped };
+}
+
+function showPriorityBreakdown(id) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  const { factors, rawTotal, capped } = getPriorityBreakdown(b);
+  document.getElementById('modal-title').textContent = 'Priority Score — ' + capped + '/10';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${factors.map(f => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);background:var(--surface2)">
+          <span style="font-size:var(--text-sm);color:var(--text2)">${escapeHtml(f.label)}</span>
+          <span style="font-family:var(--font-mono);font-weight:700;font-size:var(--text-sm);color:${f.pts>0?'var(--gold)':'var(--text3)'};flex-shrink:0">${f.pts>0?'+':''}${f.pts}</span>
+        </div>
+      `).join('')}
+      ${rawTotal > 10 ? '<div style="font-size:var(--text-xs);color:var(--text3);text-align:center;margin-top:2px">Raw total ' + rawTotal + ', capped at 10</div>' : ''}
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">Close</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light');
+}
+
 // ── BORROWER BADGES (star / warning) ───────────────────
 function getBorrowerBadges(b) {
   const badges = [];
@@ -22321,7 +22374,7 @@ function waqRenderModal() {
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Stop</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="window._waqIdx++;waqRenderModal()">Skip <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
-    + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:#25d366;color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="setTimeout(function(){window._waqIdx++;waqRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> Open WA & Next ▶</a>';
+    + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:#25d366;color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="markDispatchContacted(\'' + b.id + '\');setTimeout(function(){window._waqIdx++;waqRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> Open WA & Next ▶</a>';
 }
 
 function startWaQueuePersonalised(ids) {
@@ -22350,7 +22403,11 @@ function showBorrowersPopup(status, loanType, odAge, odMin, odMax, ptpFilter, mi
   if (odAge) rows = rows.filter(r => r.odAge === parseInt(odAge));
   if (odMin) rows = rows.filter(r => r.odAge >= parseInt(odMin));
   if (odMax) rows = rows.filter(r => r.odAge <= parseInt(odMax));
-  if (ptpFilter === 'due')      rows = rows.filter(r => r.promisedToPay && r.promiseDate && r.promiseDate.startsWith(today) && !r.isPaid);
+  // lastPtpDate persists even after a promise is paid off (see getTodayPtps2's
+  // comment) — filtering on the live promiseDate/promisedToPay pair here meant
+  // a borrower who paid during today's session would vanish from this "PTP
+  // Due Today" popup immediately, understating who was actually worked today.
+  if (ptpFilter === 'due')      rows = rows.filter(r => r.lastPtpDate && r.lastPtpDate.startsWith(today) && !r.isPaid);
   if (ptpFilter === 'breached') rows = rows.filter(r => r.ptpBreached && !r.isPaid);
   if (minRatio) rows = rows.filter(r => !r.isPaid && r.loanDue > 0 && (r.amountPaid / r.loanDue) >= parseFloat(minRatio));
   rows = rows.sort((a,b) => b.dueToday - a.dueToday);
@@ -23026,7 +23083,13 @@ function renderPtpSuccessRate() {
   if (!el) return;
   const all = state.borrowers || [];
   const withPtp = all.filter(b => b.promisedToPay || b.ptpBreached || (b.promiseHistory||[]).length);
-  const kept    = withPtp.filter(b => b.amountPaid > 0 && !b.ptpBreached);
+  // Was b.amountPaid > 0 && !b.ptpBreached — the same lifetime-payment-as-proxy
+  // bug already found and fixed in the Reports module and PTP History earlier:
+  // a borrower who paid something once, months ago, on an unrelated promise,
+  // and simply never had another active promise since (so never got flagged
+  // "breached" either) counted as having "kept" their promise here. Checking
+  // actual promiseHistory entries for a real outcome:'paid' record instead.
+  const kept    = withPtp.filter(b => (b.promiseHistory||[]).some(h => h.outcome === 'paid'));
   const breached = all.filter(b => b.ptpBreached).length;
   const active   = withPtp.filter(b => b.promisedToPay && !b.ptpBreached && !b.isPaid).length;
   const total    = withPtp.length;
