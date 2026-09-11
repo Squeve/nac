@@ -7699,9 +7699,10 @@ function getSmsMessage(b, useGenerous) {
 
   // Field-visit warning tier — sits between "escalation is coming" (M3) and
   // "a visit has actually been scheduled" (M5/Message Bank). Only fires in the
-  // last third of M3 or M4, mirroring the Message Bank's "Final Warning – Field
-  // Visit" category so Dispatch and Message Bank stay in step.
+  // last third of M3 or M4, mirroring the Message Bank's "Final Warning –
+  // Legal & Bureau Referral" category so Dispatch and Message Bank stay in step.
   const agentStage = _activeAgent && _activeAgent.stage;
+  const isM0 = agentStage === 'M0';
   const isM3 = agentStage === 'M3';
   const isM4 = agentStage === 'M4';
   const isM5 = agentStage === 'M5';
@@ -7798,6 +7799,16 @@ function getSmsMessage(b, useGenerous) {
   }
   if (isBreached) {
     return name + ', you promised to pay and that did not happen. Your ' + type + ' loan of ' + amount + ' remains unpaid. Settle today to avoid this being treated as a pattern rather than a one-time miss.' + guide;
+  }
+  if (isM0) {
+    // M0 spans two genuinely different days: -1 (Pre-Due, due tomorrow) and
+    // 0 (Due Today) — see STAGE_CONFIG.M0.days:[-1,0]. These aren't the same
+    // moment and shouldn't share one message; "coming up soon" is vague for
+    // someone whose payment is due literally today.
+    if (od < 0) {
+      return name + ', a friendly reminder that your ' + type + ' loan repayment of ' + amount + ' is due tomorrow. Paying on time keeps your account in great standing and keeps you eligible for repeat and higher-value loans.' + guide;
+    }
+    return name + ', your ' + type + ' loan repayment of ' + amount + ' is due TODAY. Paying now keeps your account in great standing and keeps you eligible for repeat and higher-value loans.' + guide;
   }
   if (isEarlyStage) {
     return name + ', your ' + type + ' loan repayment of ' + amount + ' is now OVERDUE. Every day of non-payment attracts additional penalty charges on your account. You are required to make full payment TODAY. Failure to do so will result in escalation and further fees being applied to your outstanding balance.' + guide;
