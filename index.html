@@ -6634,6 +6634,19 @@ function _stateForSync(s) {
 // (skeleton loaders, "Saving..." status, a modal waiting to close) gets
 // stuck indefinitely. This races any promise against a hard deadline so
 // the app always falls back to local/cached state instead of hanging.
+// Real call-log entries store timestamp as toLocaleString('en-GB') —
+// "13/09/2026, 14:30:00" — which new Date(...) cannot reliably parse back:
+// DD/MM ordering is ambiguous to JS's native parser (it commonly assumes
+// MM/DD, so "13/09" silently becomes Invalid Date since there's no 13th
+// month). Anywhere that needs real date math on a callLog timestamp needs
+// this explicit parse instead of handing the string straight to new Date().
+function _parseGBTimestamp(s) {
+  if (!s) return null;
+  const m = String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6]||0));
+}
+
 function withTimeout(promise, ms, label) {
   ms = ms || 8000;
   let timer;
@@ -8189,10 +8202,16 @@ function renderDashActivityFeed() {
 
     // ── Calls — only real agent-initiated calls, not WA taps ──
     (b.callLog||[]).forEach(c => {
-      if (!c.date) return;
+      // Was c.date/c.type — no callLog entry (real calls or WA/SMS dispatch)
+      // has ever had those fields; real calls use timestamp/outcome (see
+      // _parseGBTimestamp's comment for why that needs explicit parsing).
+      // This meant every entry failed the `if (!c.date) return;` check
+      // below, silently, so this "recent calls" feed has shown nothing.
+      if (!c.timestamp) return;
       // Skip auto-logged WA/SMS dispatch events
-      if ((c.type||'') === 'WA/SMS' || (c.note||'').includes('Dispatched')) return;
-      const ms = new Date(c.date).getTime();
+      if ((c.outcome||'') === 'WA/SMS' || (c.note||'').includes('Dispatched')) return;
+      const parsed = _parseGBTimestamp(c.timestamp);
+      const ms = parsed ? parsed.getTime() : NaN;
       if (isNaN(ms) || now - ms > THREE_DAYS) return;
       const outcomeLabel = c.outcome
         ? ` — ${c.outcome.replace(/_/g,' ')}`
@@ -10244,14 +10263,19 @@ function markDispatchContacted(id) {
   const b = state.borrowers.find(x => x.id === id);
   if (b) {
     if (!b.callLog) b.callLog = [];
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Checks the same fields the entry below is written with (timestamp/
+    // outcome) — this used to check date/type, which the write below never
+    // set, so the dedup check could never actually find a match and would
+    // have logged a fresh duplicate entry on every re-dispatch to the same
+    // borrower on the same day.
+    const todayGB = new Date().toLocaleString('en-GB').split(',')[0].trim(); // "13/09/2026"
     const alreadyLogged = b.callLog.some(c =>
-      (c.date||'').startsWith(todayStr) && (c.type||'') === 'WA/SMS'
+      (c.timestamp||'').startsWith(todayGB) && (c.outcome||'') === 'WA/SMS'
     );
     if (!alreadyLogged) {
       b.callLog.push({
-        date: new Date().toISOString(),
-        type: 'WA/SMS',
+        timestamp: new Date().toLocaleString('en-GB'),
+        outcome: 'WA/SMS',
         note: 'Dispatched via message queue'
       });
       saveState();
@@ -11690,11 +11714,34 @@ function showAddTab(tab) {
   if (addBtn) addBtn.style.display = tab === 'manual' ? '' : 'none';
 }
 
+// ── Duplicate detection, shared across every add/import path ──────
+// Phone match is the strong signal — the same 9+ digit number belonging to
+// two "different" borrowers is almost always the same person, a re-
+// application, or a data-entry slip, so it's safe to treat as a real
+// duplicate. Name match alone is much weaker — two genuinely different
+// people can easily share a common name — so it's flagged, never silently
+// dropped. Previously only the manual Add Borrower form and the XLSX import
+// had any duplicate check at all; the paste, OCR-scan, and CSV import paths
+// had none whatsoever.
+function _findPossibleDuplicate(name, phone) {
+  const normName  = (name || '').toLowerCase().trim();
+  const normPhone = (phone || '').replace(/\D/g, '');
+  if (normPhone.length > 6) {
+    const phoneMatch = state.borrowers.find(x => (x.phone||'').replace(/\D/g,'') === normPhone);
+    if (phoneMatch) return { type: 'phone', existing: phoneMatch };
+  }
+  if (normName) {
+    const nameMatch = state.borrowers.find(x => (x.name||'').toLowerCase().trim() === normName);
+    if (nameMatch) return { type: 'name', existing: nameMatch };
+  }
+  return { type: null, existing: null };
+}
+
 function importFromClipboard() {
   const raw = document.getElementById('clipboard-paste').value.trim();
   if (!raw) return toast('Nothing to import', 'error');
   const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  let added = 0, skipped = 0;
+  let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
   lines.forEach(line => {
     const cols = line.split(',').map(c => c.trim());
     if (cols.length < 5) { skipped++; return; }
@@ -11705,7 +11752,11 @@ function importFromClipboard() {
     // Phone validation - must have at least 7 digits
     const phoneDigits = (normalizedPhone||'').replace(/\D/g,'');
     if (phoneDigits.length < 7) { skipped++; return; }
-    const odAge = parseInt(odAgeStr) || 6;
+    const dupe = _findPossibleDuplicate(name, normalizedPhone);
+    if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
+    if (dupe.type === 'name') nameDupeWarnings++;
+    const odAgeParsed = parseInt(odAgeStr);
+    const odAge = isNaN(odAgeParsed) ? 6 : odAgeParsed;
     const d = new Date(); d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
     state.borrowers.push({
       id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random().toString(36).slice(2)),
@@ -11723,7 +11774,10 @@ function importFromClipboard() {
     return;
   }
   purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
-  toast('Imported ' + added + ' contact' + (added!==1?'s':'') + (skipped?' · '+skipped+' skipped':''), 'success');
+  toast('Imported ' + added + ' contact' + (added!==1?'s':'')
+    + (phoneDupes ? ' · ' + phoneDupes + ' skipped (same phone as existing)' : '')
+    + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
+    + (skipped - phoneDupes ? ' · ' + (skipped - phoneDupes) + ' rows skipped' : ''), 'success');
 }
 
 
@@ -11880,7 +11934,7 @@ function _renderCaseScanPreview(rows) {
 // ── Commit checked rows as real borrower records ────────────────
 function importFromCaseScan() {
   var rowEls = document.querySelectorAll('#case-scan-preview .cs-row');
-  let added = 0, skipped = 0;
+  let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
   rowEls.forEach(function(rowEl) {
     if (!rowEl.querySelector('.cs-inc').checked) return;
     var name = toTitleCaseName(rowEl.querySelector('.cs-name').value.trim());
@@ -11889,12 +11943,17 @@ function importFromCaseScan() {
     var principal = parseFloat(rowEl.querySelector('.cs-principal').value) || 0;
     var loanDue = parseFloat(rowEl.querySelector('.cs-loandue').value) || 0;
     var notes = rowEl.querySelector('.cs-notes').value.trim();
-    var odAge = parseInt(rowEl.querySelector('.cs-odage').value) || 6;
+    var odAgeParsed = parseInt(rowEl.querySelector('.cs-odage').value);
+    var odAge = isNaN(odAgeParsed) ? 6 : odAgeParsed;
 
     if (!name) { skipped++; return; }
     var phoneDigits = phone.replace(/\D/g, '');
     if (phoneDigits.length < 7) { skipped++; return; }
     if (!loanDue) loanDue = principal; // fall back so a scan missing this field isn't silently dropped
+
+    var dupe = _findPossibleDuplicate(name, phone);
+    if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
+    if (dupe.type === 'name') nameDupeWarnings++;
 
     var d = new Date(); d.setDate(d.getDate() - (odAge - 1));
     state.borrowers.push({
@@ -11910,7 +11969,10 @@ function importFromCaseScan() {
     return toast(skipped ? 'No rows added — check name/phone fields' : 'Nothing selected to add', 'error');
   }
   purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
-  toast('Added ' + added + ' case' + (added!==1?'s':'') + (skipped?' · '+skipped+' skipped':''), 'success');
+  toast('Added ' + added + ' case' + (added!==1?'s':'')
+    + (phoneDupes ? ' · ' + phoneDupes + ' skipped (same phone as existing)' : '')
+    + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
+    + ((skipped - phoneDupes) ? ' · ' + (skipped - phoneDupes) + ' skipped' : ''), 'success');
 }
 
 
@@ -12049,7 +12111,7 @@ function importFromXLSX() {
     return;
   }
 
-  var added = 0, skipped = 0;
+  var added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
 
   normRows.forEach(function(row) {
     var name     = toTitleCaseName((row.name || '').trim());
@@ -12082,14 +12144,12 @@ function importFromXLSX() {
     d.setDate(d.getDate() - (odAge - 1));
     var startDate = d.toISOString().split('T')[0];
 
-    // Duplicate check
-    var normPhone = phoneDigits;
-    var normName  = name.toLowerCase();
-    var dupe = state.borrowers.find(function(x) {
-      return x.name.toLowerCase() === normName ||
-             (normPhone.length > 6 && x.phone.replace(/\D/g,'') === normPhone);
-    });
-    if (dupe) { skipped++; return; }
+    // Duplicate check — phone match is treated as a real duplicate (safe to
+    // skip); name-only match is only a warning, since two different people
+    // can share a name — this used to silently drop the row either way.
+    var dupe = _findPossibleDuplicate(name, phone);
+    if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
+    if (dupe.type === 'name') nameDupeWarnings++;
 
     state.borrowers.push({
       id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + added),
@@ -12111,7 +12171,10 @@ function importFromXLSX() {
   closeModal();
   updateBadges();
   renderCurrentPage();
-  toast('Imported ' + added + ' borrower' + (added !== 1 ? 's' : '') + ' from Excel' + (skipped > 0 ? ' · ' + skipped + ' skipped' : ''), 'success');
+  toast('Imported ' + added + ' borrower' + (added !== 1 ? 's' : '') + ' from Excel'
+    + (phoneDupes ? ' · ' + phoneDupes + ' skipped (same phone as existing)' : '')
+    + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
+    + ((skipped - phoneDupes) > 0 ? ' · ' + (skipped - phoneDupes) + ' skipped' : ''), 'success');
 }
 
 
@@ -12124,17 +12187,24 @@ function importFromCSV() {
     if (!lines.length) return toast('Empty file', 'error');
     const hdr = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/[^a-z]/g,''));
     const get = (row, key) => { const i = hdr.indexOf(key); return i>=0 ? row[i]?.trim() : ''; };
-    let added = 0, skipped = 0;
+    let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
     lines.slice(1).forEach(line => {
       const row = line.split(',').map(c => c.trim().replace(/^"|"$/g,''));
       const name = toTitleCaseName(get(row,'name')); const loanDue = get(row,'loandue');
       if (!name || !loanDue) { skipped++; return; }
+      const phone = normalizePhone(get(row,'phone')||'');
+      // Phone match = real duplicate, safe to skip; name-only match is only a
+      // warning — two different people can share a name, so this doesn't
+      // drop the row, just flags it for review.
+      const dupe = _findPossibleDuplicate(name, phone);
+      if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
+      if (dupe.type === 'name') nameDupeWarnings++;
       const odAgeParsedCsv = parseInt(get(row,'odage'));
       const odAge = isNaN(odAgeParsedCsv) ? 6 : odAgeParsedCsv;
       const d = new Date(); d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
       state.borrowers.push({
         id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random().toString(36).slice(2)),
-        name, phone: normalizePhone(get(row,'phone')||''),
+        name, phone,
         principal: parseFloat(get(row,'principal'))||0,
         loanDue: parseFloat(loanDue)||0, overdueFeee: 0,
         amountPaid: parseFloat(get(row,'amountpaid'))||0,
@@ -12144,7 +12214,10 @@ function importFromCSV() {
       added++;
     });
     purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
-    toast('Imported ' + added + ' contact' + (added!==1?'s':'') + (skipped?' · '+skipped+' skipped':''), added?'success':'error');
+    toast('Imported ' + added + ' contact' + (added!==1?'s':'')
+      + (phoneDupes ? ' · ' + phoneDupes + ' skipped (same phone as existing)' : '')
+      + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
+      + ((skipped - phoneDupes) > 0 ? ' · ' + (skipped - phoneDupes) + ' skipped' : ''), added?'success':'error');
   };
   reader.readAsText(file);
 }
@@ -12875,15 +12948,15 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
     });
     toast('Borrower updated', 'success');
   } else {
-    // Duplicate detection — warn if same name+phone already exists
-    const normPhone = phone.replace(/\D/g, '');
-    const normName  = name.toLowerCase().trim();
-    const dupe = state.borrowers.find(x =>
-      x.name.toLowerCase().trim() === normName ||
-      (normPhone.length > 6 && x.phone.replace(/\D/g,'') === normPhone)
-    );
-    if (dupe) {
-      if (!confirm('A borrower named "' + dupe.name + '" with a similar name or phone already exists. Add anyway?')) return;
+    // Duplicate detection — phone match is a strong signal (very likely the
+    // same person); name-only match is weak (two different people can share
+    // a name), so the two get distinct, honestly-worded prompts rather than
+    // one vague "similar name or phone" message that didn't say which.
+    const dupe = _findPossibleDuplicate(name, phone);
+    if (dupe.type === 'phone') {
+      if (!confirm('A borrower with this exact phone number already exists: "' + dupe.existing.name + '". This is very likely the same person. Add as a new, separate borrower anyway?')) return;
+    } else if (dupe.type === 'name') {
+      if (!confirm('A borrower named "' + dupe.existing.name + '" already exists (different phone number). If this is a different person, it\'s safe to continue. Add anyway?')) return;
     }
     state.borrowers.push({ id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now()),
       name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone, guarantorIsFormal,
@@ -13934,7 +14007,12 @@ function getSmsFilteredContacts() {
   const promised = document.getElementById('sms-promised-filter')?.value || '';
   const contacted= document.getElementById('sms-contacted-filter')?.value || '';
   const validPhoneOnly = document.getElementById('sms-valid-phone')?.checked || false;
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Matches the canonical callLog shape (timestamp/outcome) that
+  // markDispatchContacted and _markContactsMessaged both write — this used
+  // to check date/type, which happened to match those two writers' old
+  // (also-buggy) shape, but broke the moment they were fixed to write the
+  // shape the Borrower Timeline actually expects.
+  const todayGB = new Date().toLocaleString('en-GB').split(',')[0].trim(); // "13/09/2026"
 
   return state.borrowers.filter(b => {
     const s = getStatus(b);
@@ -13949,7 +14027,7 @@ function getSmsFilteredContacts() {
     if (odMax && od > parseInt(odMax)) return false;
     if (promised === 'promised' && !b.promisedToPay) return false;
     if (contacted === 'not_today') {
-      const already = (b.callLog||[]).some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+      const already = (b.callLog||[]).some(c => (c.timestamp||'').startsWith(todayGB) && (c.outcome||'')==='WA/SMS');
       if (already) return false;
     }
     if (validPhoneOnly && (!b.phone || b.phone.replace(/\D/g,'').length < 9)) return false;
@@ -14015,7 +14093,7 @@ function renderSmsBlast() {
   _smsUpdateFilterBadge();
 
   const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayGB = new Date().toLocaleString('en-GB').split(',')[0].trim(); // "13/09/2026" — matches callLog's timestamp/outcome shape, not date/type
 
   if (!contacts.length) {
     listEl.innerHTML = '<div class="empty-state" style="padding:20px"><div>No contacts match</div></div>';
@@ -14028,7 +14106,7 @@ function renderSmsBlast() {
       const hue = b.name.charCodeAt(0) % 6;
       const [ac1,ac2] = avatarColors[hue];
       const initials = b.name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
-      const contactedToday = (b.callLog||[]).some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+      const contactedToday = (b.callLog||[]).some(c => (c.timestamp||'').startsWith(todayGB) && (c.outcome||'')==='WA/SMS');
       const validPhone = b.phone && b.phone.replace(/\D/g,'').length >= 9;
       return '<div class="mb-contact-row' + (checked?' selected':'') + '" data-smsid="' + b.id + '">'
         + '<input type="checkbox" class="mb-cb" ' + (checked ? 'checked' : '') + ' style="pointer-events:none">'
@@ -14075,16 +14153,22 @@ function smsClearAll() {
 }
 
 // Logs a WA/SMS contact-log entry for each contact so the "Not Messaged
-// Today" filter stays accurate — mirrors markDispatchContacted's dedup logic.
+// Today" filter stays accurate — mirrors markDispatchContacted's dedup logic
+// (and its shape: timestamp/outcome, matching the canonical callLog format
+// the phone-call logger and Borrower Timeline both expect — this and
+// markDispatchContacted both used date/type instead, which the timeline's
+// reader doesn't recognise, so dispatched messages were silently invisible
+// there, and the "already logged today" checks below could never match,
+// meaning a duplicate entry every time).
 function _markContactsMessaged(contacts) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayGB = new Date().toLocaleString('en-GB').split(',')[0].trim(); // "13/09/2026"
   let changed = false;
   contacts.forEach(b => {
     if (!b) return;
     if (!b.callLog) b.callLog = [];
-    const already = b.callLog.some(c => (c.date||'').startsWith(todayStr) && (c.type||'')==='WA/SMS');
+    const already = b.callLog.some(c => (c.timestamp||'').startsWith(todayGB) && (c.outcome||'')==='WA/SMS');
     if (!already) {
-      b.callLog.push({ date: new Date().toISOString(), type: 'WA/SMS', note: 'Sent via Message Blast' });
+      b.callLog.push({ timestamp: new Date().toLocaleString('en-GB'), outcome: 'WA/SMS', note: 'Sent via Message Blast' });
       changed = true;
     }
   });
@@ -22469,8 +22553,15 @@ function openBorrowerTimeline(id) {
     Busy:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span>','Requested Callback':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span>','No Commitment':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="1.5"/><path d="M3 8l9-5 9 5"/></svg></span>',Fraud:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a5 5 0 00-5 5v2c0 2-1 3-1 3h12s-1-1-1-3V8a5 5 0 00-5-5z"/><path d="M9 19a3 3 0 006 0"/></svg></span>','Phone Off':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span>','Wrong Number':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="4" x2="8" y2="20"/><line x1="17" y1="4" x2="15" y2="20"/></svg></span>' };
   (b.callLog||[]).forEach(cl => {
     const raw = cl.timestamp || '';
-    const d = raw.includes('/') ? raw.split(',')[0].split('/').reverse().join('-') : raw.split('T')[0];
-    const t = raw.split(',')[1]?.trim() || raw.split('T')[1]?.slice(0,5) || '12:00';
+    const parsedGB = _parseGBTimestamp(raw);
+    const d = parsedGB ? parsedGB.toISOString().split('T')[0] : (raw.includes('/') ? raw.split(',')[0].split('/').reverse().join('-') : raw.split('T')[0]);
+    const t = parsedGB ? parsedGB.toTimeString().slice(0,5) : (raw.split(',')[1]?.trim() || raw.split('T')[1]?.slice(0,5) || '12:00');
+    if (cl.outcome === 'WA/SMS') {
+      events.push({ date: d, time: t, type: 'dispatch',
+        icon: '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></span>',
+        label: 'WhatsApp/SMS sent', sub: cl.note || '' });
+      return;
+    }
     events.push({ date: d, time: t, type: 'call', icon: callIcons[cl.outcome]||'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span>',
       label: 'Call — ' + cl.outcome, sub: cl.note || raw });
   });
@@ -22506,9 +22597,9 @@ function openBorrowerTimeline(id) {
   events.sort((a, z) => (z.date||'').localeCompare(a.date||'') || (z.time||'').localeCompare(a.time||''));
 
   const typeColor = { start:'var(--blue)', pay:'var(--gold)', paid:'var(--green)',
-    call:'var(--text2)', ptp:'var(--purple)', breach:'var(--red)', note:'var(--gold)', inst:'var(--blue)' };
+    call:'var(--text2)', dispatch:'#25d366', ptp:'var(--purple)', breach:'var(--red)', note:'var(--gold)', inst:'var(--blue)' };
   const typeBg = { start:'rgba(96,165,250,0.1)', pay:'rgba(240,160,48,0.08)', paid:'rgba(34,197,94,0.1)',
-    call:'rgba(255,255,255,0.04)', ptp:'rgba(167,139,250,0.1)', breach:'rgba(239,68,68,0.1)',
+    call:'rgba(255,255,255,0.04)', dispatch:'rgba(37,211,102,0.08)', ptp:'rgba(167,139,250,0.1)', breach:'rgba(239,68,68,0.1)',
     note:'rgba(240,160,48,0.06)', inst:'rgba(96,165,250,0.08)' };
 
   document.getElementById('modal-title').textContent = b.name.split(' ')[0] + ' — Activity';
