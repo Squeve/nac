@@ -8379,23 +8379,33 @@ async function renderDashboard() {
   }
   const all = state.borrowers;
   const active = getActiveBorrowers();
+  // Fix: the KPI grid below is a portfolio-wide summary (same reasoning as the
+  // Analytics Overview tab) so it must use every non-paid account — not
+  // getActiveBorrowers(), which silently scopes to just the agent's own stage
+  // band (e.g. M2's Day 6-15 window). Using the stage-scoped `active` here
+  // previously made "Active Borrowers" contradict its own "X paid · Y partial
+  // · Z unpaid" subtitle, and mixed scopes between totalCollected (portfolio-
+  // wide) and totalLoanDue (stage-scoped) could send Recovery Rate over 100%.
+  // `active` itself is left untouched — the aging/critical-today checks and
+  // action-strip pills further down correctly depend on it staying stage-scoped.
+  const kpiPool = getAllNonPaid();
   const paid = all.filter(b => getStatus(b) === 'Paid');
   const partial = all.filter(b => getStatus(b) === 'Partial');
   const unpaid = all.filter(b => getStatus(b) === 'Unpaid');
 
-  const totalPrincipal = active.reduce((s,b) => s + b.principal, 0);
-  const totalLoanDue = active.reduce((s,b) => s + b.loanDue, 0);
-  const totalOutstanding = active.reduce((s,b) => s + getRemaining(b), 0);
+  const totalPrincipal = kpiPool.reduce((s,b) => s + b.principal, 0);
+  const totalLoanDue = kpiPool.reduce((s,b) => s + b.loanDue, 0);
+  const totalOutstanding = kpiPool.reduce((s,b) => s + getRemaining(b), 0);
   const totalCollected = partial.reduce((s,b) => s + b.amountPaid, 0) + paid.reduce((s,b) => s + b.amountPaid, 0);
   const recoveryRate = totalLoanDue > 0 ? totalCollected / totalLoanDue : 0;
-  const totalDueToday = active.reduce((s,b) => s + getDueToday(b), 0);
+  const totalDueToday = kpiPool.reduce((s,b) => s + getDueToday(b), 0);
 
   // KPI grid — all cards clickable
   const kpiGrid = document.getElementById('kpi-grid');
   kpiGrid.innerHTML =
     '<div class="kpi-card gold" style="cursor:pointer" data-kpi="all" title="View all borrowers">'
     + '<div class="kpi-label">Active Borrowers</div>'
-    + '<div class="kpi-value gold kpi-value-animate" data-val="' + active.length + '" data-fmt="num">0</div>'
+    + '<div class="kpi-value gold kpi-value-animate" data-val="' + kpiPool.length + '" data-fmt="num">0</div>'
     + '<div class="kpi-sub">' + paid.length + ' paid · ' + partial.length + ' partial · ' + unpaid.length + ' unpaid</div></div>'
     + '<div class="kpi-card red" style="cursor:pointer" data-kpi="unpaid" title="View unpaid">'
     + '<div class="kpi-label">Total Balance Owed</div>'
@@ -11503,6 +11513,15 @@ function doExportPDF(mode) {
   const activeOnly = (mode === 'active');
   const all = state.borrowers;
   const active = getActiveBorrowers();
+  // Fix (same root cause as the Dashboard KPI bug): the "Portfolio Report" summary
+  // below is meant to cover the whole book, so its headline count and outstanding
+  // total use `kpiPool` (portfolio-wide non-paid) — not the stage-scoped `active`,
+  // which would make "Active Accounts" contradict its own paid/partial/unpaid
+  // subtitle in this same report. `active`/`totalOutstanding` stay stage-scoped
+  // for the Risk Aging Breakdown / Loan Type / Top 10 sections further down,
+  // which are deliberately restricted to the agent's current OD-day band.
+  const kpiPool = getAllNonPaid();
+  const kpiTotalOutstanding = kpiPool.reduce((s,b) => s+getDueToday(b), 0);
   const paid = all.filter(b => getStatus(b) === 'Paid');
   const partial = all.filter(b => getStatus(b) === 'Partial');
   const unpaid = all.filter(b => getStatus(b) === 'Unpaid');
@@ -11607,8 +11626,8 @@ function doExportPDF(mode) {
   if (!fullList) {
     // ── PORTFOLIO REPORT: KPIs + Aging + Loan types + Top 10 + Collection log ──
     html += '<div class="kpi-grid">'
-      + '<div class="kpi"><div class="kpi-label">Active Accounts</div><div class="kpi-val">' + active.length + '</div><div class="kpi-sub">' + unpaid.length + ' unpaid · ' + partial.length + ' partial · ' + paid.length + ' paid</div></div>'
-      + '<div class="kpi"><div class="kpi-label">Total Outstanding</div><div class="kpi-val">₵' + fmt(totalOutstanding) + '</div><div class="kpi-sub">Loan remaining + OD fees</div></div>'
+      + '<div class="kpi"><div class="kpi-label">Active Accounts</div><div class="kpi-val">' + kpiPool.length + '</div><div class="kpi-sub">' + unpaid.length + ' unpaid · ' + partial.length + ' partial · ' + paid.length + ' paid</div></div>'
+      + '<div class="kpi"><div class="kpi-label">Total Outstanding</div><div class="kpi-val">₵' + fmt(kpiTotalOutstanding) + '</div><div class="kpi-sub">Loan remaining + OD fees</div></div>'
       + '<div class="kpi"><div class="kpi-label">Log Collected</div><div class="kpi-val">₵' + fmt(logTotal) + '</div><div class="kpi-sub">' + logDays + ' active days · best ₵' + fmt(logBest) + '</div></div>'
       + '<div class="kpi"><div class="kpi-label">Recovery Rate</div><div class="kpi-val">' + recRate + '%</div><div class="kpi-sub">Across all accounts</div></div>'
       + '</div>'
@@ -14808,7 +14827,12 @@ function renderCurrentPage() {
 function updateBadges() {
   if (typeof updatePtpBadge === "function") updatePtpBadge();
   const unpaid = state.borrowers.filter(b => getStatus(b) === 'Unpaid').length;
-  const active = getActiveBorrowers().length;
+  // Fix: this badges the WhatsApp nav item, whose Dispatch page defaults to
+  // every non-paid borrower (see renderDispatch's `list` filter) — not
+  // getActiveBorrowers(), which silently scopes to just the agent's own
+  // stage band. The badge previously showed a smaller number than the page
+  // it points to actually contained (e.g. badge "1" opening onto "Showing 5").
+  const active = getAllNonPaid().length;
   const aged = (state.agedOutLog || []).length;
   const ptpToday = state.borrowers.filter(function(b) { var today = new Date().toISOString().split('T')[0]; return b.promisedToPay && b.promiseDate && b.promiseDate.startsWith(today); }).length;
   // Sidebar
@@ -19433,7 +19457,16 @@ function generateReport(type) {
   const todayKey = today.toISOString().split('T')[0];
   const log = state.dailyLog.find(e => e.date === todayKey);
   const collected = log ? (log.collected||0) : 0;
-  const active = getActiveBorrowers();
+  // Fix (same root cause as the Dashboard/PDF-report bugs): these WhatsApp
+  // reports go straight to the supervisor, so "Active Portfolio"/"Active
+  // Accounts" and "Outstanding" must cover the whole book — not
+  // getActiveBorrowers(), which silently scopes to just the agent's own
+  // stage band. That previously made e.g. the EOD report show "Active
+  // Portfolio: 1" right next to "Fully Paid: 3 · Partial: 2 · Unpaid: 3"
+  // (which correctly cover all 8), an internal contradiction the supervisor
+  // would see with no way to know it was a display bug and not a real drop
+  // in the agent's caseload.
+  const active = getAllNonPaid();
   const paid = state.borrowers.filter(b => getStatus(b) === 'Paid');
   const partial = state.borrowers.filter(b => getStatus(b) === 'Partial');
   // lastPtpDate persists even after a promise is paid off (unlike promiseDate,
