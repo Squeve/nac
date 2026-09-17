@@ -10491,7 +10491,12 @@ function renderLog() {
             }
           }
         });
-      }).catch(()=>{});
+      }).catch(()=>{
+        // Match the same "Chart unavailable offline" fallback used on the
+        // Analytics/Ranking charts — otherwise this stays a blank box under
+        // the "Daily Collections" header with no explanation.
+        if (chartEl) chartEl.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:var(--text-base)">Chart unavailable offline</div>';
+      });
     } else {
       const wrap = chartEl.closest('div');
       if (wrap) wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:130px;color:var(--text3);font-size:var(--text-base)">No entries yet — start logging daily</div>';
@@ -19147,7 +19152,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         const isMe = myName && a.name.toLowerCase().includes(myName);
         const [ac1,ac2] = avatarColors[a.name.charCodeAt(0) % 6];
         const isFirst = i === 0;
-        return `<div style="display:flex;flex-direction:column;align-items:center;flex:${isFirst?'1.15':'1'};min-width:0">
+        return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;flex:${isFirst?'1.15':'1'};min-width:0">
           <div style="font-size:20px;line-height:1;margin-bottom:3px;visibility:${isFirst?'visible':'hidden'}">👑</div>
           <div style="width:${isFirst?54:42}px;height:${isFirst?54:42}px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:${isFirst?'17px':'13px'};font-weight:700;color:#fff;box-shadow:0 0 0 3px ${medalColor[i]}${isFirst?', 0 4px 18px rgba(212,175,55,0.45)':''};flex-shrink:0">${initials(a.name)}</div>
           <div style="font-size:var(--text-xs);font-weight:${isMe?800:600};color:${isMe?'var(--gold)':'var(--text2)'};text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px">${escapeHtml(a.name.split(' ')[0])}${isMe?' (You)':''}</div>
@@ -19194,7 +19199,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         const rivalName = (localStorage.getItem('ranking_rival_name')||'').toLowerCase();
         const isRival = !isMe && rivalName && a.name.toLowerCase() === rivalName;
         const pinBtn = !isMe ? `<button class="rank-rival-pin${isRival?' pinned':''}" onclick="event.stopPropagation();toggleRankingRival('${escapeHtml(a.name).replace(/'/g,"\\'")}')" title="${isRival?'Stop tracking as rival':'Track as rival'}"><svg viewBox="0 0 24 24" fill="${isRival?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></button>` : '';
-        return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':isRival?'background:rgba(167,139,250,0.06);border-left:3px solid var(--purple)':''}">
+        return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':isRival?'background:rgba(167,139,250,0.06);border-left:3px solid var(--purple)':''}">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
             <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:${isMe?'var(--gold)':'var(--text3)'};min-width:24px;font-weight:${isMe?700:400}">${medal||'#'+(i+1)}</div>
             <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':isRival?'var(--purple)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
@@ -19291,6 +19296,89 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     }
     window._switchBoard();
   };
+}
+
+// ── Agent detail modal — tap any row on the Team Board (or a podium
+// avatar) to see that agent's Daily/Monthly/Projected standing, your
+// gap against them, and their recent daily positions at a glance.
+function openRankingAgentDetail(name) {
+  const history = state.rankingHistory || [];
+  const myName  = (localStorage.getItem('ranking_my_name') || '').toLowerCase();
+  const isMe    = !!myName && name.toLowerCase().includes(myName);
+
+  function latestOf(type) {
+    return [...history].filter(s => s.type === type)
+      .sort((a,b) => b.date.localeCompare(a.date) || (b.time||'').localeCompare(a.time||''))[0] || null;
+  }
+  const scans = { daily: latestOf('daily'), monthly: latestOf('monthly'), proj: latestOf('projected') };
+  const findIn = (scan) => scan ? scan.agents.find(a => a.name === name) : null;
+  const posIn  = (scan) => { const a = findIn(scan); return a ? scan.agents.indexOf(a)+1 : null; };
+
+  const recentDaily = [...history].filter(s => s.type === 'daily')
+    .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))
+    .slice(-6)
+    .map(s => {
+      const a = s.agents.find(x => x.name === name);
+      return a ? { date: s.date, pos: s.agents.indexOf(a)+1, pct: a.pct } : null;
+    });
+
+  const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
+  const [ac1,ac2] = avatarColors[name.charCodeAt(0) % 6];
+  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const rivalName = (localStorage.getItem('ranking_rival_name')||'').toLowerCase();
+  const isRival = !isMe && rivalName && name.toLowerCase() === rivalName;
+
+  const gapBlock = (() => {
+    if (isMe || !myName) return '';
+    const scan = scans.daily || scans.monthly || scans.proj;
+    const me = scan ? scan.agents.find(a => a.name.toLowerCase().includes(myName)) : null;
+    const them = scan ? findIn(scan) : null;
+    if (!me || !them) return '';
+    const gap = (parseFloat(me.pct) - parseFloat(them.pct)).toFixed(2);
+    const gapN = parseFloat(gap);
+    return `<div style="background:var(--surface2);border-radius:var(--radius-md);padding:12px;margin-bottom:14px;text-align:center">
+      <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Your gap vs ${escapeHtml(name.split(' ')[0])}</div>
+      <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:${gapN>=0?'var(--green)':'var(--red)'}">${gapN>0?'+':''}${gap}%</div>
+      <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${gapN>=0?'You lead':'You trail'} · from most recent scan</div>
+    </div>`;
+  })();
+
+  const trendBlock = recentDaily.filter(Boolean).length ? `
+    <div style="font-size:var(--text-xs);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Recent Daily Positions</div>
+    <div style="display:flex;gap:6px;justify-content:space-between;margin-bottom:4px">
+      ${recentDaily.map(r => r ? `<div style="flex:1;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:800;color:${r.pos===1?'var(--gold)':'var(--text2)'}">#${r.pos}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${r.date.slice(5)}</div>
+      </div>` : '<div style="flex:1"></div>').join('')}
+    </div>` : '<div style="text-align:center;color:var(--text3);font-size:var(--text-sm);padding:10px 0">No daily history yet</div>';
+
+  document.getElementById('modal-title').textContent = name;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;padding:6px 0 16px">
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto 10px">${initials}</div>
+      <div style="font-size:var(--text-lg);font-weight:700;color:var(--text)">${escapeHtml(name)}</div>
+      ${isMe?'<div style="font-size:var(--text-xs);color:var(--gold);font-weight:700;margin-top:2px">This is you</div>':isRival?'<div style="font-size:var(--text-xs);color:var(--purple);font-weight:700;margin-top:2px">Tracked as your rival</div>':''}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      ${['daily','monthly','proj'].map(t => {
+        const scan = scans[t]; const pos = posIn(scan); const a = findIn(scan);
+        const label = t==='daily'?'Daily':t==='monthly'?'Monthly':'Proj';
+        return `<div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px;text-align:center">
+          <div style="font-size:var(--text-2xs);color:var(--text3);text-transform:uppercase;margin-bottom:4px">${label}</div>
+          <div style="font-family:var(--font-mono);font-size:var(--text-xl);font-weight:800;color:${pos===1?'var(--gold)':'var(--text2)'}">${pos?'#'+pos:'—'}</div>
+          <div style="font-size:var(--text-xs);color:var(--text3)">${a?a.pct+'%':'no data'}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${gapBlock}
+    ${trendBlock}
+  `;
+  document.getElementById('modal-footer').innerHTML = !isMe ? `
+    <button class="btn btn-ghost" onclick="toggleRankingRival('${escapeHtml(name).replace(/'/g,"\\'")}');closeModal();">${isRival?'Stop tracking as rival':'Track as rival'}</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+  ` : '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light');
 }
 
 // ── Trend tab ─────────────────────────────────────────────────
@@ -20540,7 +20628,18 @@ function buildPtpWeekForecastHtml() {
   for (let i = 0; i < 7; i++) {
     const d    = new Date(today.getTime() + i * 86400000);
     const ds   = d.toISOString().split('T')[0];
-    const ptps = state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds));
+    // Fix: for "today" specifically, use the same stable lastPtpDate-based
+    // list the header above uses (getTodayPtps2()) — not promisedToPay/
+    // promiseDate, which get cleared the moment a promise is paid (see
+    // getTodayPtps2's own comment). Using the fragile fields here made a
+    // PTP that was set AND paid today vanish from this chart the instant
+    // it was paid, even though the header correctly still counted it —
+    // and if that was the only PTP today, the whole card disappeared.
+    // Future days are unaffected (nothing there has had a chance to be
+    // paid off yet), so they keep using promiseDate as before.
+    const ptps = i === 0
+      ? getTodayPtps2()
+      : state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds));
     const amt  = ptps.reduce((s,b) => s + getDueToday(b), 0);
     const hot  = ptps.filter(b => b.ptpConfidence === 'hot').length;
     const hon  = ptps.filter(b => b.isPaid || b.ptpOutcome === 'paid').length;
@@ -20662,31 +20761,7 @@ function buildPtpMorningHtml() {
   }, 0);
   const upcoming  = state.borrowers.filter(b => b.promisedToPay && b.promiseDate && b.promiseDate.split(' ')[0] > today)
                       .sort((a,b) => a.promiseDate.localeCompare(b.promiseDate));
-  const tomorrowPtps = upcoming.filter(b => b.promiseDate.startsWith(tomorrow));
   const agentName = getAgentProfileName();
-
-  // ── Week strip ───────────────────────────────────────────────
-  const weekDays = [];
-  for (let i = -1; i <= 5; i++) {
-    const d    = new Date(Date.now() + i * 86400000);
-    const ds   = d.toISOString().split('T')[0];
-    const cnt  = state.borrowers.filter(b => b.promisedToPay && (b.promiseDate||'').startsWith(ds)).length;
-    const label = i === -1 ? 'Yest' : i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en-GB',{weekday:'short'});
-    const isToday = i === 0;
-    weekDays.push({ ds, cnt, label, isToday });
-  }
-  const weekStripHtml = `
-    <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:var(--section-gap);scrollbar-width:none">
-      ${weekDays.map(w => {
-        const col = w.cnt > 0 ? (w.isToday ? 'var(--gold)' : 'var(--text2)') : 'var(--text3)';
-        const bg  = w.isToday ? 'rgba(240,160,48,0.12)' : w.cnt > 0 ? 'var(--surface2)' : 'transparent';
-        const bor = w.isToday ? '2px solid var(--gold)' : '1px solid var(--border2)';
-        return `<div onclick="switchPtpHub('calendar')" style="flex-shrink:0;text-align:center;padding:7px 10px;border-radius:var(--radius);background:${bg};border:${bor};cursor:pointer;min-width:48px">
-          <div style="font-size:var(--text-2xs);color:var(--text3);margin-bottom:3px;font-weight:${w.isToday?700:400}">${w.label}</div>
-          <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:${col}">${w.cnt}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
 
   // ── Progress bar: expected vs collected ─────────────────────
   const collPct  = totalExp > 0 ? Math.min(100, Math.round(totalColl / totalExp * 100)) : 0;
@@ -21188,7 +21263,12 @@ function buildPtpStatsHtml2() {
     const ctx = document.getElementById('ptp-trend-chart');
     if (!ctx) return;
     if (typeof Chart === 'undefined') {
-      loadChartJS().then(() => _drawPtpStatsChart(ctx, labels, rates, totals)).catch(()=>{});
+      loadChartJS().then(() => _drawPtpStatsChart(ctx, labels, rates, totals)).catch(() => {
+        // Match the same "Chart unavailable offline" fallback used elsewhere
+        // — otherwise this stays a blank box under the "Honour Rate Trend"
+        // header with no explanation.
+        ctx.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:var(--text-base)">Chart unavailable offline</div>';
+      });
     } else {
       _drawPtpStatsChart(ctx, labels, rates, totals);
     }
