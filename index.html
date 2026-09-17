@@ -162,6 +162,10 @@ tr.row-swiped td:first-child div, tr.row-swiped td { transition: background 0.15
   0%,100% { box-shadow:0 0 0 0 rgba(232,160,32,0); }
   50%      { box-shadow:0 0 0 6px rgba(232,160,32,0.18); }
 }
+@keyframes pulseGoldHero {
+  0%,100% { box-shadow: var(--el-2), var(--el-bevel), 0 0 20px rgba(240,160,48,0.22); }
+  50%     { box-shadow: var(--el-2), var(--el-bevel), 0 0 40px rgba(240,160,48,0.5); }
+}
 @keyframes toastIn {
   from { opacity:0; transform:translateX(20px); }
   to   { opacity:1; transform:translateX(0); }
@@ -15516,7 +15520,14 @@ function openRolloverModal() {
 function _buildMonthlySnapshot(monthStr, today, opts) {
   opts = opts || {};
   const all          = state.borrowers || [];
-  const active       = getActiveBorrowers();
+  // Fix (same root cause as the other bugs in this pass): this snapshot is a
+  // portfolio-wide monthly record — borrowerCount/paidCount/partialCount/
+  // unpaidCount below are all portfolio-wide — so activeCount must be too,
+  // not getActiveBorrowers() (silently scoped to the agent's current stage
+  // band). Nothing reads activeCount back yet, so this wasn't visibly wrong
+  // anywhere, but it's stored as "authoritative" history per the comment
+  // above and would have been wrong the moment anything started reading it.
+  const active       = getAllNonPaid();
   const paid         = all.filter(b => getStatus(b) === 'Paid');
   const partial      = all.filter(b => getStatus(b) === 'Partial');
   const unpaid       = all.filter(b => getStatus(b) === 'Unpaid');
@@ -18931,12 +18942,17 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     const totalAgents= mainScan?.agents?.length || 0;
     const topHalf    = posMain && posMain <= Math.ceil(totalAgents/2);
     const isTop3     = posMain && posMain <= 3;
-    const heroCol    = isTop3 ? 'var(--green)' : topHalf ? 'var(--gold)' : 'var(--orange)';
+    const isFirst    = posMain === 1;
+    // #1 gets its own gold + pulsing glow treatment rather than sharing the
+    // same green as #2/#3 — being in the top 3 and actually being #1 should
+    // not read as the same achievement.
+    const heroCol    = isFirst ? 'var(--gold)' : isTop3 ? 'var(--green)' : topHalf ? 'var(--gold)' : 'var(--orange)';
+    const heroPulse  = isFirst ? 'animation:pulseGoldHero 2.4s ease infinite;' : '';
     const medal      = posMain===1?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#d4af37" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':posMain===2?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b0b8c1" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':posMain===3?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b5652f" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':'';
     const focusLabel = focus==='daily'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily Position':focus==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Standing':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected Tomorrow';
 
     html += `
-    <div style="background:linear-gradient(135deg,${heroCol}14,${heroCol}06);border:1px solid ${heroCol}33;border-radius:16px;padding:20px;margin-bottom:14px;text-align:center;box-shadow:var(--el-2), var(--el-bevel), 0 0 32px ${heroCol}14;transition:all 0.25s">
+    <div style="background:linear-gradient(135deg,${heroCol}14,${heroCol}06);border:1px solid ${heroCol}33;border-radius:16px;padding:20px;margin-bottom:14px;text-align:center;box-shadow:var(--el-2), var(--el-bevel), 0 0 32px ${heroCol}14;transition:all 0.25s;${heroPulse}">
       <div style="font-size:var(--text-sm);color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${focusLabel}</div>
       <div style="font-size:56px;font-weight:900;color:${heroCol};line-height:1;font-family:var(--font-mono)">#${posMain||'?'}${medal}</div>
       <div style="font-size:var(--text-5xl);font-weight:800;color:${heroCol};margin-top:4px">${meMain?.pct||'—'}%</div>
@@ -18979,12 +18995,18 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     const meGap   = meMain;
     const posGap  = posMain;
     if (meGap && posGap && gapScan.agents.length > 1) {
-      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">`;
       const above = posGap > 1 ? gapScan.agents[posGap-2] : null;
       const first = gapScan.agents[0];
       const me1pct = parseFloat(meGap.pct);
+      // Decide up front how many gap cards will actually render, so a lone
+      // card (e.g. when you're #2 and "above" already covers #1) gets a
+      // single-column layout instead of leaving an empty second column.
+      const showAboveCard = !!above;
+      const showFirstCard = first.name !== meGap.name && !(above && above.name === first.name);
+      const gapCardCount = (showAboveCard?1:0) + (showFirstCard?1:0);
+      html += `<div style="display:grid;grid-template-columns:${gapCardCount===1?'1fr':'1fr 1fr'};gap:8px;margin-bottom:14px">`;
 
-      if (above) {
+      if (showAboveCard) {
         const gap = (me1pct - parseFloat(above.pct)).toFixed(2);
         const gapN= parseFloat(gap);
         html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
@@ -18994,7 +19016,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
           <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${gapN<0?'You trail by '+Math.abs(gapN).toFixed(2)+'%':'You lead by '+gapN.toFixed(2)+'%'} · tap to view</div>
         </div>`;
       }
-      if (first.name !== meGap.name) {
+      if (showFirstCard) {
         const gapF= (me1pct - parseFloat(first.pct)).toFixed(2);
         const gapFN=parseFloat(gapF);
         html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
@@ -19105,6 +19127,39 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     daily:   latestDaily,
   };
 
+  // ── Podium — top 3 get an actual visual podium above the list, the
+  // classic "leaderboard" shape (2nd–1st–3rd, rising heights, medal glow)
+  // that a flat numbered list can't convey on its own. Skipped while
+  // searching, since it summarizes the whole scan, not a filtered subset.
+  function buildPodium(scan) {
+    if (!scan || scan.agents.length < 2) return '';
+    const top = scan.agents.slice(0, 3);
+    const initials = (n) => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
+    const heights = {0:88,1:66,2:52};
+    const medalColor = {0:'#d4af37',1:'#b0b8c1',2:'#b5652f'};
+    const order = top.length === 2 ? [1,0] : [1,0,2];
+
+    return `<div style="display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:18px 10px 14px;border-bottom:1px solid var(--border)">
+      ${order.map(i => {
+        const a = top[i];
+        if (!a) return '<div style="flex:1"></div>';
+        const isMe = myName && a.name.toLowerCase().includes(myName);
+        const [ac1,ac2] = avatarColors[a.name.charCodeAt(0) % 6];
+        const isFirst = i === 0;
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:${isFirst?'1.15':'1'};min-width:0">
+          <div style="font-size:20px;line-height:1;margin-bottom:3px;visibility:${isFirst?'visible':'hidden'}">👑</div>
+          <div style="width:${isFirst?54:42}px;height:${isFirst?54:42}px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:${isFirst?'17px':'13px'};font-weight:700;color:#fff;box-shadow:0 0 0 3px ${medalColor[i]}${isFirst?', 0 4px 18px rgba(212,175,55,0.45)':''};flex-shrink:0">${initials(a.name)}</div>
+          <div style="font-size:var(--text-xs);font-weight:${isMe?800:600};color:${isMe?'var(--gold)':'var(--text2)'};text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px">${escapeHtml(a.name.split(' ')[0])}${isMe?' (You)':''}</div>
+          <div style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:800;color:${medalColor[i]}">${a.pct}%</div>
+          <div style="width:100%;height:${heights[i]}px;background:linear-gradient(180deg,${medalColor[i]}2e,${medalColor[i]}10);border:1px solid ${medalColor[i]}55;border-bottom:none;border-radius:8px 8px 0 0;margin-top:8px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px">
+            <span style="font-family:var(--font-mono);font-weight:800;font-size:var(--text-lg);color:${medalColor[i]}">#${i+1}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   function buildBoard(tabType, query) {
     const scan = scans[tabType];
     if (!scan) return `<div style="padding:24px;text-align:center;color:var(--text3)">No ${tabType} data yet</div>`;
@@ -19120,8 +19175,9 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     if (q && !visibleAgents.length) {
       return `<div style="padding:24px;text-align:center;color:var(--text3)">No agent matches "${escapeHtml(query)}"</div>`;
     }
+    const podiumHtml = !q ? buildPodium(scan) : '';
 
-    return `<div style="font-size:var(--text-xs);color:var(--text3);padding:8px 14px;border-bottom:1px solid var(--border)">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents</div>` +
+    return podiumHtml + `<div style="font-size:var(--text-xs);color:var(--text3);padding:8px 14px;border-bottom:1px solid var(--border)">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents</div>` +
       visibleAgents.map((a) => {
         const i = scan.agents.indexOf(a);
         const isMe     = myName && a.name.toLowerCase().includes(myName);
@@ -19292,7 +19348,15 @@ function _renderRankingTrend(pane, {history, myName}) {
             y:{grid:{color:chartColor(0.05)},ticks:{color:chartTextColor(),font:{size:9},callback:v=>'#'+v},min:1,max:maxPos+1,reverse:true} }}
       });
     }
-  }).catch(()=>{});
+  }).catch(()=>{
+    // Match the same "Chart unavailable offline" fallback the Analytics page
+    // already uses for this exact failure — otherwise these two canvases
+    // just stay blank under their headers with no explanation.
+    const c1 = document.getElementById('chart-ranking-trend2');
+    if (c1) c1.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:var(--text-base)">Chart unavailable offline</div>';
+    const c2 = document.getElementById('chart-ranking-pos');
+    if (c2) c2.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:var(--text-base)">Chart unavailable offline</div>';
+  });
 
   window._rankCalDaily = daily;
   window._rankCalMyName = myName;
@@ -22405,6 +22469,16 @@ function getSmartReplySuggestions(b) {
 // ── PDF EXPORT (item 39) ───────────────────────────────
 function generatePdfExport() {
   const active = getActiveBorrowers();
+  // Fix (same root cause as the other report bugs): this is titled "Portfolio
+  // Summary" and its Recovery Rate / Total Collected cells are already
+  // portfolio-wide, so "Active Accounts" / "Outstanding" must be too — not
+  // getActiveBorrowers(), which silently scopes to just the agent's stage
+  // band and would otherwise show a tiny "Active Accounts" count sitting
+  // right next to whole-book Recovery Rate and Total Collected figures.
+  // `active`/`totalOutstanding` stay stage-scoped for the Top 10 Overdue
+  // list below, which is deliberately just the agent's own queue.
+  const kpiPool = getAllNonPaid();
+  const kpiTotalOutstanding = kpiPool.reduce((s,b)=>s+getRemaining(b),0);
   const totalOutstanding = active.reduce((s,b)=>s+getRemaining(b),0);
   const totalPaid = state.borrowers.reduce((s,b)=>s+(b.amountPaid||0),0);
   const totalDue = state.borrowers.reduce((s,b)=>s+(b.loanDue||0),0);
@@ -22434,8 +22508,8 @@ function generatePdfExport() {
   <div class="kpis">
     <div class="kpi"><div class="kpi-val">${rate}%</div><div class="kpi-lbl">Recovery Rate</div></div>
     <div class="kpi"><div class="kpi-val">₵${(logTotal/1000).toFixed(1)}k</div><div class="kpi-lbl">Total Collected</div></div>
-    <div class="kpi"><div class="kpi-val">${active.length}</div><div class="kpi-lbl">Active Accounts</div></div>
-    <div class="kpi"><div class="kpi-val">₵${(totalOutstanding/1000).toFixed(1)}k</div><div class="kpi-lbl">Outstanding</div></div>
+    <div class="kpi"><div class="kpi-val">${kpiPool.length}</div><div class="kpi-lbl">Active Accounts</div></div>
+    <div class="kpi"><div class="kpi-val">₵${(kpiTotalOutstanding/1000).toFixed(1)}k</div><div class="kpi-lbl">Outstanding</div></div>
   </div>
   <h3 style="font-size:15px;margin-bottom:6px">Top 10 Overdue Accounts</h3>
   <table>
@@ -22878,7 +22952,13 @@ function openWaBroadcastExport() {
 }
 
 function _renderBroadcastStep1() {
-  const active   = getActiveBorrowers().filter(b => getStatus(b) !== 'Paid' && b.phone);
+  // Fix: this step's own stage dropdown (below) offers every stage band
+  // M0-M5, so the base pool must be portfolio-wide — not getActiveBorrowers(),
+  // which silently pre-restricts to just the agent's own stage band. That
+  // made every OTHER stage option in the dropdown show 0 contacts (since a
+  // list already limited to e.g. M2 can never contain an M3-labeled account),
+  // even though the dropdown implies you can broadcast to any stage.
+  const active   = getAllNonPaid().filter(b => b.phone);
   const stages   = ['','M0','M1','M2','M3','M4','M5'];
   const stageLabels = {'':'All Stages','M0':'M0 – Pre-Due','M1':'M1 – Day 1-5','M2':'M2 – Day 6-15','M3':'M3 – Day 16-40','M4':'M4 – Day 41-60','M5':'M5 – Day 61+'};
 
@@ -22916,7 +22996,10 @@ function _renderBroadcastStep1() {
 
 function _renderBroadcastStep2() {
   const stage  = window._broadcastStage || '';
-  const active = getActiveBorrowers().filter(b => getStatus(b) !== 'Paid' && b.phone);
+  // Fix: same reasoning as _renderBroadcastStep1 — must match its portfolio-wide
+  // pool, or picking a non-current stage here would silently produce 0 numbers
+  // even though Step 1 showed a non-zero contact count for that stage.
+  const active = getAllNonPaid().filter(b => b.phone);
   const pool   = stage ? active.filter(b => getAccountStage(b).label === stage) : active;
   const sorted = [...pool].sort((a,b) => getOdAge(b.startDate, b) - getOdAge(a.startDate, a));
   const selMsg = window._broadcastMsgId ? (state.messageBank||[]).find(m => m.id === window._broadcastMsgId) : null;
