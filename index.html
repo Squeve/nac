@@ -25004,14 +25004,20 @@ function authShowTab(tab) {
   const sp=document.getElementById('auth-signin-panel'), up=document.getElementById('auth-signup-panel');
   const ts=document.getElementById('tab-signin'), tu=document.getElementById('tab-signup');
   if(!sp) return;
+  // Fix: the active look comes from the .ls-tab-active class (background/
+  // color/font-weight all !important), which fully overrides the plain
+  // inline styles this function used to set instead of toggling the class.
+  // #tab-signin starts with that class in the static HTML and it was never
+  // being removed, so the tab bar never visually reflected the New Agent
+  // tab being selected even though the panel underneath switched correctly.
   if(tab==='signin'){
     sp.style.display='block'; up.style.display='none';
-    ts.style.background='var(--surface)'; ts.style.color='var(--gold)'; ts.style.fontWeight='700';
-    tu.style.background='transparent'; tu.style.color='var(--text3)'; tu.style.fontWeight='600';
+    ts.classList.add('ls-tab-active');
+    tu.classList.remove('ls-tab-active');
   } else {
     sp.style.display='none'; up.style.display='block';
-    ts.style.background='transparent'; ts.style.color='var(--text3)'; ts.style.fontWeight='600';
-    tu.style.background='var(--surface)'; tu.style.color='var(--gold)'; tu.style.fontWeight='700';
+    ts.classList.remove('ls-tab-active');
+    tu.classList.add('ls-tab-active');
   }
 }
 
@@ -27763,6 +27769,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
         <div class="ls-input-wrap">
           <span class="ls-input-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></span>
           <input type="text" id="auth-code-input" class="ls-input" placeholder="e.g. Shadrack Agyei OCT25"
+            autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false"
             onkeydown="if(event.key==='Enter')authSignInWithCode()">
         </div>
         <button class="ls-btn-primary" onclick="authSignInWithCode()">
@@ -27841,6 +27848,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       <div class="ls-card" style="border-color:rgba(239,68,68,0.3)">
         <div style="font-size:var(--text-base);color:var(--ls-muted);margin-bottom:10px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:1px">Developer Override</div>
         <input type="text" class="ls-input" id="dev-override-input" placeholder="SQV-XXX-XXXX"
+          autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
           style="text-align:center;font-family:var(--font-mono);letter-spacing:3px;font-size:var(--text-lg);margin-bottom:10px;padding-left:20px"
           onkeydown="if(event.key==='Enter')checkDevOverride()">
         <div style="display:flex;gap:8px">
