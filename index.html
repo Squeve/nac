@@ -27968,23 +27968,26 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   .ls-auth-col { flex-shrink: 0; width: 380px; }
 }
 .ls-hero-title {
-  font-family: var(--font-head); font-size: 34px; font-weight: 800;
-  color: var(--ls-text); margin-bottom: 14px; letter-spacing: -0.5px; line-height: 1.15;
+  font-family: var(--font-body); font-size: 32px; font-weight: 700;
+  color: var(--ls-text); margin-bottom: 16px; letter-spacing: -0.2px; line-height: 1.25;
 }
 .ls-hero-sub {
-  font-size: var(--text-lg); color: var(--ls-muted); line-height: 1.55;
-  margin-bottom: 40px; max-width: 380px;
+  font-size: var(--text-lg); color: rgba(255,255,255,0.5); line-height: 1.6;
+  margin-bottom: 44px; max-width: 380px;
 }
-.ls-hero-features { display: flex; flex-direction: column; gap: 22px; }
-.ls-hero-feature { display: flex; gap: 14px; align-items: flex-start; }
+.ls-hero-features { display: flex; flex-direction: column; gap: 24px; }
+.ls-hero-feature { display: flex; gap: 16px; align-items: flex-start; }
 .ls-hero-feature .ico {
-  width: 20px; height: 20px; color: var(--ls-gold); flex-shrink: 0; margin-top: 2px;
+  width: 34px; height: 34px; padding: 8px; box-sizing: border-box;
+  color: var(--ls-gold); flex-shrink: 0;
+  background: rgba(240,160,48,0.1); border: 1px solid rgba(240,160,48,0.22);
+  border-radius: 10px;
 }
 .ls-hero-feature strong {
-  display: block; color: var(--ls-text); font-weight: 700;
-  font-size: var(--text-base); margin-bottom: 2px;
+  display: block; color: var(--ls-text); font-weight: 600;
+  font-size: var(--text-base); margin-bottom: 3px;
 }
-.ls-hero-feature span { display: block; color: var(--ls-muted); font-size: var(--text-sm); line-height: 1.45; }
+.ls-hero-feature span { display: block; color: rgba(255,255,255,0.42); font-size: var(--text-sm); line-height: 1.5; }
 
 /* ── Entrance animations ── */
 @keyframes lsFadeUp {
