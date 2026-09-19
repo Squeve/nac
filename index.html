@@ -12052,10 +12052,10 @@ function _renderCaseScanPreview(rows) {
       return '<div class="cs-row" data-idx="' + i + '" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);padding:10px;margin-bottom:8px">'
         + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
         + '<input type="checkbox" class="cs-inc" checked style="width:16px;height:16px;accent-color:var(--gold);flex-shrink:0">'
-        + '<input type="text" class="form-input cs-name" placeholder="Full name" value="' + escapeHtml(r.name) + '" style="font-weight:700;flex:1">'
+        + '<input type="text" class="form-input cs-name" placeholder="Full name" value="' + escapeHtml(r.name) + '" style="font-weight:700;flex:1" autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false">'
         + '</div>'
         + '<div class="form-row" style="margin-bottom:8px">'
-        + '<div class="form-group" style="margin-bottom:0"><input type="text" class="form-input cs-phone" placeholder="Phone" value="' + escapeHtml(r.phone) + '"></div>'
+        + '<div class="form-group" style="margin-bottom:0"><input type="tel" class="form-input cs-phone" placeholder="Phone" value="' + escapeHtml(r.phone) + '" inputmode="tel" autocomplete="off"></div>'
         + '<div class="form-group" style="margin-bottom:0"><select class="form-input cs-odage">' + buildOdOptions() + '</select></div>'
         + '</div>'
         + '<div class="form-row" style="margin-bottom:8px">'
@@ -13004,15 +13004,15 @@ function borrowerForm(b) {
   const odFeeHint = b ? ('Auto: ' + fmtC(_getOdFeeCached(b))) : 'Auto-calculated from OD age + principal';
   return '<div class="form-row">'
     + '<div class="form-group"><label>Full Name</label>'
-    + '<input type="text" class="form-input" id="f-name" placeholder="e.g. Kofi Mensah" value="' + (b ? escapeHtml(b.name) : '') + '"></div>'
+    + '<input type="text" class="form-input" id="f-name" placeholder="e.g. Kofi Mensah" value="' + (b ? escapeHtml(b.name) : '') + '" autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false"></div>'
     + '<div class="form-group"><label>Phone</label>'
-    + '<input type="text" class="form-input" id="f-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.phone) : '') + '"></div>'
+    + '<input type="tel" class="form-input" id="f-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.phone) : '') + '" inputmode="tel" autocomplete="off"></div>'
     + '</div>'
     + '<div class="form-row">'
     + '<div class="form-group"><label>Emergency Contact <span style="font-size:var(--text-sm);color:var(--text3)">optional</span></label>'
-    + '<input type="text" class="form-input" id="f-guarantor-name" placeholder="Name" value="' + (b ? escapeHtml(b.guarantorName || '') : '') + '"></div>'
+    + '<input type="text" class="form-input" id="f-guarantor-name" placeholder="Name" value="' + (b ? escapeHtml(b.guarantorName || '') : '') + '" autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false"></div>'
     + '<div class="form-group"><label>Contact Phone</label>'
-    + '<input type="text" class="form-input" id="f-guarantor-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.guarantorPhone || '') : '') + '"></div>'
+    + '<input type="tel" class="form-input" id="f-guarantor-phone" placeholder="+233 XX XXX XXXX" value="' + (b ? escapeHtml(b.guarantorPhone || '') : '') + '" inputmode="tel" autocomplete="off"></div>'
     + '</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3);margin:-6px 0 0 0">A plain emergency contact — not a legal guarantor. We only ever ask them for help reaching the borrower, never for repayment.</div>'
     + '<div class="form-row">'
@@ -13035,7 +13035,7 @@ function borrowerForm(b) {
     + '</select></div>'
     + '<div class="form-group"><label>Target Payment (₵) <span style="font-size:var(--text-sm);color:var(--text3)">min expected this cycle</span></label>'
     + '<input type="number" class="form-input" id="f-target" placeholder="0 = no target" min="0" value="' + (b ? (b.targetPayment || 0) : 0) + '"></div>'
-    + '<div class="form-group"><label>Notes</label>'    + '<input type="text" class="form-input" id="f-notes" placeholder="Any remarks..." value="' + (b ? (b.notes || '') : '') + '"></div>'    + '<div style="margin-top:8px;padding:12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">'    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px">Repayment Schedule (optional)</div>'    + '<div class="form-row">'    + '<div class="form-group"><label>Amount per instalment (₵)</label>'    + '<input type="number" class="form-input" id="f-inst-amt" placeholder="0" min="0" value="' + (b && b.instalment ? b.instalment.amount : '') + '"></div>'    + '<div class="form-group"><label>Frequency</label>'    + '<select class="form-input" id="f-inst-freq">'    + '<option value="">— None —</option>'    + '<option value="daily"' + (b && b.instalment && b.instalment.freq === 'daily' ? ' selected' : '') + '>Daily</option>'    + '<option value="weekly"' + (b && b.instalment && b.instalment.freq === 'weekly' ? ' selected' : '') + '>Weekly</option>'    + '<option value="biweekly"' + (b && b.instalment && b.instalment.freq === 'biweekly' ? ' selected' : '') + '>Bi-weekly</option>'    + '<option value="monthly"' + (b && b.instalment && b.instalment.freq === 'monthly' ? ' selected' : '') + '>Monthly</option>'    + '</select></div>'    + '</div>'    + '<div class="form-group"><label>Start date</label>'    + '<input type="date" class="form-input" id="f-inst-start" value="' + (b && b.instalment ? b.instalment.start : new Date().toISOString().split('T')[0]) + '"></div>'    + '</div>';
+    + '<div class="form-group"><label>Notes</label>'    + '<input type="text" class="form-input" id="f-notes" placeholder="Any remarks..." autocapitalize="sentences" value="' + (b ? (b.notes || '') : '') + '"></div>'    + '<div style="margin-top:8px;padding:12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">'    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px">Repayment Schedule (optional)</div>'    + '<div class="form-row">'    + '<div class="form-group"><label>Amount per instalment (₵)</label>'    + '<input type="number" class="form-input" id="f-inst-amt" placeholder="0" min="0" value="' + (b && b.instalment ? b.instalment.amount : '') + '"></div>'    + '<div class="form-group"><label>Frequency</label>'    + '<select class="form-input" id="f-inst-freq">'    + '<option value="">— None —</option>'    + '<option value="daily"' + (b && b.instalment && b.instalment.freq === 'daily' ? ' selected' : '') + '>Daily</option>'    + '<option value="weekly"' + (b && b.instalment && b.instalment.freq === 'weekly' ? ' selected' : '') + '>Weekly</option>'    + '<option value="biweekly"' + (b && b.instalment && b.instalment.freq === 'biweekly' ? ' selected' : '') + '>Bi-weekly</option>'    + '<option value="monthly"' + (b && b.instalment && b.instalment.freq === 'monthly' ? ' selected' : '') + '>Monthly</option>'    + '</select></div>'    + '</div>'    + '<div class="form-group"><label>Start date</label>'    + '<input type="date" class="form-input" id="f-inst-start" value="' + (b && b.instalment ? b.instalment.start : new Date().toISOString().split('T')[0]) + '"></div>'    + '</div>';
 }
 
 
@@ -17281,11 +17281,11 @@ function openEscalationPanel() {
       </div>
       <div style="margin-bottom:8px">
         <label style="font-size:var(--text-sm);color:var(--text3);display:block;margin-bottom:4px">Payment dial:</label>
-        <input id="escal-paynum" type="text" value="${_escalPhone()}" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
+        <input id="escal-paynum" type="tel" value="${_escalPhone()}" inputmode="tel" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
       </div>
       <div>
         <label style="font-size:var(--text-sm);color:var(--text3);display:block;margin-bottom:4px">Agent phone (recovery correspondence):</label>
-        <input id="escal-agent-phone" type="text" value="${_escalAgentPhone()}" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
+        <input id="escal-agent-phone" type="tel" value="${_escalAgentPhone()}" inputmode="tel" autocomplete="tel" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
       </div>
     </div>`;
 
@@ -27563,12 +27563,13 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       </div>
       <div class="form-group">
         <label>LoanBase Agent Code <span style="color:var(--red)">*</span></label>
-        <input type="text" class="form-input" id="ob-agent-code" placeholder="e.g. Shadrack Agyei OCT25" style="font-weight:600">
+        <input type="text" class="form-input" id="ob-agent-code" placeholder="e.g. Shadrack Agyei OCT25" style="font-weight:600"
+          autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false">
         <div style="font-size:var(--text-sm);color:var(--text3);margin-top:4px">Your unique LoanBase identity — used to sign in on any device.</div>
       </div>
-      <div class="form-group"><label>Your Full Name</label><input type="text" class="form-input" id="ob-agent-name" placeholder="e.g. Shadrack Agyei Arthur"></div>
-      <div class="form-group"><label>Supervisor Name</label><input type="text" class="form-input" id="ob-supervisor" placeholder="e.g. Nana Osae Emmanuel"></div>
-      <div class="form-group"><label>Monthly Collection Target (₵)</label><input type="number" class="form-input" id="ob-target" placeholder="e.g. 50000" min="0"></div>
+      <div class="form-group"><label>Your Full Name</label><input type="text" class="form-input" id="ob-agent-name" placeholder="e.g. Shadrack Agyei Arthur" autocapitalize="words" autocomplete="name" autocorrect="off" spellcheck="false"></div>
+      <div class="form-group"><label>Supervisor Name</label><input type="text" class="form-input" id="ob-supervisor" placeholder="e.g. Nana Osae Emmanuel" autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div class="form-group"><label>Monthly Collection Target (₵)</label><input type="number" class="form-input" id="ob-target" placeholder="e.g. 50000" min="0" inputmode="numeric"></div>
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" style="flex:1;padding:12px" onclick="obNextStep(1)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg></span> Back</button>
         <button class="btn btn-gold" style="flex:2;padding:12px" onclick="obNextStep(3)">Continue <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>
