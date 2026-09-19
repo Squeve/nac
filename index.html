@@ -24482,14 +24482,13 @@ function renderLockAgentList() {
       + '<button class="lock-agent-card" data-agentid="'+a.id+'" style="--lac-color:'+col+';width:100%;'+(idx>0 && sorted.length>1 ? 'opacity:0.72' : '')+'">'
       + avatarHtml
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px;padding-right:26px">'+displayName+'</div>'
-      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px">'
+      + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px;padding-right:34px">'+displayName+'</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px;padding-right:34px">'
       + '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+col+';flex-shrink:0;opacity:0.8"></span>'
       + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.45);white-space:nowrap">'+(a.stage||'M2')+' · '+stageName+'</span>'
       + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:rgba(255,255,255,0.28);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
       + '</div>'
       + '</div>'
-      + '<div class="lock-agent-arrow"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" style="width:12px;height:12px"><path d="M7 5l5 5-5 5"/></svg></div>'
       + '</button>'
       + '<button class="lock-agent-remove" data-removeid="'+a.id+'" data-removename="'+displayName.replace(/"/g,'&quot;')+'" title="Remove from this device" aria-label="Remove '+displayName.replace(/"/g,'&quot;')+' from this device">'
       + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>'
@@ -27734,7 +27733,30 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
   <div class="ls-wrap">
 
-    <!-- Logo -->
+    <!-- Desktop-only hero panel — shown via media query at wider viewports
+         so the login card isn't left centered in a sea of empty black on
+         desktop/tablet, which is what a phone-first single-column layout
+         looks like once the viewport gets wide. Mobile is untouched. -->
+    <div class="ls-hero-col">
+      <div class="ls-hero-title">Built for the field,<br>not the office.</div>
+      <div class="ls-hero-sub">The LoanBase recovery suite for agents who live on WhatsApp and don't have time for spreadsheets.</div>
+      <div class="ls-hero-features">
+        <div class="ls-hero-feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+          <div><strong>Every borrower, one screen</strong><span>Stage, OD age, and balance at a glance — no spreadsheet hunting.</span></div>
+        </div>
+        <div class="ls-hero-feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+          <div><strong>Promises that don't slip</strong><span>PTP reminders and honour-rate tracking, automatically.</span></div>
+        </div>
+        <div class="ls-hero-feature">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
+          <div><strong>Messages ready to send</strong><span>A full escalation ladder and message bank, one tap from WhatsApp.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ls-auth-col">
     <div class="ls-logo-block ls-anim-1" id="ls-logo-block">
       <div class="ls-logo-icon">
         <div class="ls-logo-ring"></div>
@@ -27870,6 +27892,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
         <div class="ls-footer-line"></div>
       </div>
     </div>
+
+    </div>
   </div>
 </div>
 <style>
@@ -27927,6 +27951,40 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   justify-content: center;
   gap: 0;
 }
+
+/* Desktop hero panel — hidden by default (mobile/narrow), shown as a second
+   column at wider viewports so the login card isn't left centered in a sea
+   of empty background on a laptop/desktop screen. */
+.ls-hero-col { display: none; }
+@media (min-width: 900px) {
+  .ls-wrap {
+    max-width: 1040px; flex-direction: row; align-items: center;
+    justify-content: center; gap: 72px; padding: 40px;
+  }
+  .ls-hero-col {
+    display: flex; flex-direction: column; justify-content: center;
+    flex: 1; max-width: 420px; text-align: left;
+  }
+  .ls-auth-col { flex-shrink: 0; width: 380px; }
+}
+.ls-hero-title {
+  font-family: var(--font-head); font-size: 34px; font-weight: 800;
+  color: var(--ls-text); margin-bottom: 14px; letter-spacing: -0.5px; line-height: 1.15;
+}
+.ls-hero-sub {
+  font-size: var(--text-lg); color: var(--ls-muted); line-height: 1.55;
+  margin-bottom: 40px; max-width: 380px;
+}
+.ls-hero-features { display: flex; flex-direction: column; gap: 22px; }
+.ls-hero-feature { display: flex; gap: 14px; align-items: flex-start; }
+.ls-hero-feature .ico {
+  width: 20px; height: 20px; color: var(--ls-gold); flex-shrink: 0; margin-top: 2px;
+}
+.ls-hero-feature strong {
+  display: block; color: var(--ls-text); font-weight: 700;
+  font-size: var(--text-base); margin-bottom: 2px;
+}
+.ls-hero-feature span { display: block; color: var(--ls-muted); font-size: var(--text-sm); line-height: 1.45; }
 
 /* ── Entrance animations ── */
 @keyframes lsFadeUp {
@@ -28374,12 +28432,15 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .lock-agent-card:hover .lock-agent-arrow { opacity: 1; background: rgba(255,255,255,0.09); }
 
 /* Remove-from-device button — sibling of .lock-agent-card, not nested inside
-   it (nested <button> elements are invalid HTML and break click handling) */
+   it (nested <button> elements are invalid HTML and break click handling).
+   Positioned to replace the chevron's spot (vertically centered on the
+   card's right edge) rather than floating over the top-right corner, which
+   read as a stray, disconnected control sitting on top of the card. */
 .lock-agent-remove {
-  position: absolute; top: 12px; right: 12px; z-index: 3;
-  width: 26px; height: 26px; border-radius: 50%;
+  position: absolute; top: 50%; right: 18px; transform: translateY(-50%); z-index: 3;
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14);
   color: rgba(255,255,255,0.55);
   cursor: pointer; padding: 0; transition: all 0.15s;
 }
