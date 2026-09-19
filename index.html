@@ -24470,8 +24470,16 @@ function renderLockAgentList() {
       ? '<img src="'+avatar+'" style="width:62px;height:62px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 0 0 2px '+col+'4d,0 0 0 5px '+col+'14,0 6px 18px rgba(0,0,0,0.5)">'
       : '<div class="lock-agent-avatar" style="background:linear-gradient(135deg,'+col+'33,'+col+'18);color:'+col+';border:1.5px solid '+col+'44">'+initials+'</div>';
 
+    // When more than one agent is cached, flag the most-recently-active one
+    // so the common "just continue where I left off" tap is obvious at a
+    // glance instead of all cards reading as equally weighted options.
+    const mostRecentBadge = (idx === 0 && sorted.length > 1 && lastTs > 0)
+      ? '<div style="font-size:9px;font-weight:800;letter-spacing:0.6px;color:var(--ls-gold);text-transform:uppercase;margin:0 0 6px 4px;display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--ls-gold);box-shadow:0 0 6px var(--ls-gold)"></span>Continue as</div>'
+      : '';
+
     return '<div style="margin-bottom:10px;position:relative">'
-      + '<button class="lock-agent-card" data-agentid="'+a.id+'" style="--lac-color:'+col+';width:100%">'
+      + mostRecentBadge
+      + '<button class="lock-agent-card" data-agentid="'+a.id+'" style="--lac-color:'+col+';width:100%;'+(idx>0 && sorted.length>1 ? 'opacity:0.72' : '')+'">'
       + avatarHtml
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px;padding-right:26px">'+displayName+'</div>'
