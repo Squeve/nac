@@ -6808,6 +6808,17 @@ function _openIndexedDB() {
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+    // A version-upgrade open can hang indefinitely — neither onsuccess nor
+    // onerror ever fires — if another open tab still holds an older
+    // connection to this same database. This app is routinely open in
+    // several tabs at once, so this isn't an edge case: without this,
+    // sign-in gets stuck on "Loading your account…" forever with no error.
+    // Resolve to null instead so callers fall back to localStorage/Supabase.
+    request.onblocked = () => {
+      console.warn('_openIndexedDB: blocked by another open tab — falling back');
+      _dbPromise = null; // don't cache a promise that already gave up
+      resolve(null);
+    };
   });
   return _dbPromise;
 }
@@ -13282,8 +13293,16 @@ async function bioUnlockAgent(agent) {
   setSessionAgent(agent);
   haptic('pay');
   // Same fix as the PIN flow: don't hide the lock screen until the
-  // account's data has actually finished loading.
-  const loadOkB = await loadStateForAgent();
+  // account's data has actually finished loading. Also wrapped in the
+  // same timeout safety net as the PIN flow, so this path can't hang
+  // forever either.
+  let loadOkB = false;
+  try {
+    loadOkB = await withTimeout(loadStateForAgent(), 20000, 'loadStateForAgent-bio');
+  } catch (e) {
+    console.error('bio loadStateForAgent timed out or failed:', e);
+    loadOkB = false;
+  }
   if (loadOkB) {
     hideLockScreen();
   } else {
@@ -17230,6 +17249,30 @@ We look forward to working with you again whenever you need us.
 *LoanBase Recovery Team*`;
   }
 
+  // ══════════════ M0 ONLY — Hard evening final notice (still unpaid) ══════════
+  // Only ever shown from 7PM onward and only when still unpaid (see the
+  // afterHour/unpaidOnly gating in openEscalationPanel). Deliberately firm —
+  // the day's grace period is ending with no payment and no response.
+  if (level === 26) {
+    return _escalHeader('FINAL REMINDER — PAYMENT STILL OUTSTANDING', b, caseRef, dateStr, [
+      { label: 'AMOUNT DUE', value: balance }
+    ]) + `
+
+${salute},
+
+Today's ${loanType} payment of *${balance}* is still unpaid, and the day is almost over.
+
+You were given the full day, completely free of any overdue charges, to settle this. That courtesy has not been met with a payment or even a response. That is not acceptable.
+
+If this is not settled *before midnight tonight*, your account moves into default tomorrow and overdue fees begin immediately, with no further grace extended.
+
+To pay right now: ${_escalPayGuide(b)}
+
+This is your final reminder for today. Act now.
+
+*LoanBase Recovery Management*`;
+  }
+
   return '';
 }
 // Open escalation for a single borrower (from borrower detail card)
@@ -17263,15 +17306,20 @@ function openEscalationPanel() {
     ? 'Escalation Notices — ' + singleB.name
     : 'Escalation Notices';
 
-  // Some options (currently just the M0 MoMo alternative) only make sense
-  // when every borrower in scope is genuinely at M0 (not yet overdue).
-  // In bulk mode, if the dispatch filter mixes stages, we hide it rather
-  // than risk sending a "not overdue" message to someone who is overdue.
+  // Some options only make sense in specific conditions:
+  //  - stageOnly: every borrower in scope must be at that exact stage
+  //  - unpaidOnly: every borrower in scope must still owe today's balance
+  //  - afterHour: only show once local time has reached this hour (24h)
+  // In bulk mode, if the dispatch filter mixes stages/paid-status, options
+  // requiring uniformity are hidden rather than risking a mismatched message.
   const _escalScopeBorrowers = isSingle && singleB
     ? [singleB]
     : (_currentDispatchIds || []).map(id => state.borrowers.find(b => b.id === id)).filter(Boolean);
   const _escalAllM0 = _escalScopeBorrowers.length > 0
     && _escalScopeBorrowers.every(b => getAccountStage(b).label === 'M0');
+  const _escalAllUnpaid = _escalScopeBorrowers.length > 0
+    && _escalScopeBorrowers.every(b => (b.amountPaid || 0) < (b.loanDue || 0) - 0.01);
+  const _escalCurrentHour = new Date().getHours();
 
   const escalationOptions = [
     // ── Tier 0: Proactive / no pressure ────────────────────────
@@ -17308,7 +17356,13 @@ function openEscalationPanel() {
     // ── M0 only: easy alternative payment ────────────────────────
     { level:24, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="14.5" x2="11" y2="14.5"/></svg></span> L24 – M0 Easy Payment (MoMo)', color:'#06b6d4', desc:'Not-yet-due borrowers only — offers Telecel Cash MoMo as a quick alternative to the dial code.', stageOnly:'M0' },
     { level:25, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.3l2.6 2.6L16 9"/><circle cx="12" cy="12" r="9"/></svg></span> L25 – M0 Payment Ack (Soft)', color:'#22c55e', desc:'Not-yet-due borrowers only — a warm thank-you for paying, without the formal closure-notice tone of L21.', stageOnly:'M0' },
-  ].filter(o => !o.stageOnly || (o.stageOnly === 'M0' && _escalAllM0));
+    { level:26, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span> L26 – M0 Evening Final Notice (Hard)', color:'#dc2626', desc:'M0, still unpaid, from 7PM only — firm final-hour notice before the account rolls into default overnight.', stageOnly:'M0', unpaidOnly:true, afterHour:19 },
+  ].filter(o => {
+    if (o.stageOnly === 'M0' && !_escalAllM0) return false;
+    if (o.unpaidOnly && !_escalAllUnpaid) return false;
+    if (typeof o.afterHour === 'number' && _escalCurrentHour < o.afterHour) return false;
+    return true;
+  });
 
   const recommendedLevel = (isSingle && singleB) ? _recommendEscalLevel(singleB) : null;
   if (recommendedLevel) {
@@ -17394,8 +17448,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e',26:'#dc2626'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)',26:'M0 Evening Final Notice (Hard)'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '' + levelLabels[level];
@@ -17450,8 +17504,8 @@ function escalRenderModal() {
   const ph    = targetPhone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e',26:'#dc2626'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)',26:'M0 Evening Final Notice (Hard)'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = 'Escalation — ' + (idx+1) + ' of ' + tot;
@@ -24815,7 +24869,17 @@ async function processPin() {
       const pinErrElU  = document.getElementById('lock-pin-error');
       if (pinNameElU) pinNameElU.textContent = 'Loading your account…';
       if (pinErrElU)  pinErrElU.textContent  = '';
-      const loadOkU = await loadStateForAgent();
+      // Safety net: loadStateForAgent() already catches its own errors, but
+      // this guards against any unforeseen hang inside it (e.g. a stalled
+      // IndexedDB/network call) so the PIN screen can never get stuck on
+      // "Loading your account…" forever with no way to retry.
+      let loadOkU = false;
+      try {
+        loadOkU = await withTimeout(loadStateForAgent(), 20000, 'loadStateForAgent');
+      } catch (e) {
+        console.error('loadStateForAgent timed out or failed:', e);
+        loadOkU = false;
+      }
       if (loadOkU) {
         hideLockScreen();
         initAutoLock();  // restart idle timer on unlock
@@ -28584,18 +28648,21 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
    a sea of black.
    ══════════════════════════════════════════════════════════ */
 @media (min-width: 901px) {
-  /* JS toggles #lock-screen's inline display to 'block' every time it opens
-     (showLockScreen()); !important is needed here to win over that inline
-     style so we can center the panel with flex on desktop. Scoped strictly
-     to this media query — mobile's inline 'block' is completely untouched. */
-  #lock-screen {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 24px;
-  }
+  /* PREVIOUS BUG (found and fixed): this used to force #lock-screen's
+     display to flex with !important so the panel could be centered.
+     But hideLockScreen() hides the screen by setting the SAME element's
+     inline style.display = 'none' — and !important in a stylesheet always
+     wins over an inline style, no matter what JS sets. That meant on
+     desktop, once "Loading your account…" appeared, the screen could
+     genuinely finish loading in the background but could never actually
+     be hidden again — it looked identical to a permanent hang. This is
+     why it never happened on mobile (that inline toggle was never fought
+     by a competing !important rule there). Fixed by never touching
+     #lock-screen's display at all — vertical centering is now done with
+     CSS Grid's align-content on .ls-wrap itself instead. */
   .ls-wrap {
-    min-height: 0;
+    min-height: 100vh;
+    align-content: center;
     max-width: 900px;
     width: 90%;
     padding: 64px 56px;
