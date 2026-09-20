@@ -13280,9 +13280,16 @@ async function bioUnlockAgent(agent) {
   _activeAgent = agent;
   _sessionUnlocked = true;
   setSessionAgent(agent);
-  hideLockScreen();
   haptic('pay');
-  await loadStateForAgent();
+  // Same fix as the PIN flow: don't hide the lock screen until the
+  // account's data has actually finished loading.
+  const loadOkB = await loadStateForAgent();
+  if (loadOkB) {
+    hideLockScreen();
+  } else {
+    _sessionUnlocked = false;
+    toast('Could not load your account — please try again', 'error');
+  }
   } catch(e) {
     console.error("bioUnlockAgent error:", e);
     toast("Biometric error: " + (e.message||"try PIN instead"), "error");
@@ -17204,6 +17211,25 @@ We appreciate you.
 *LoanBase Recovery Team*`;
   }
 
+  // ══════════════ M0 ONLY — Softer payment acknowledgement ══════════════
+  // No formal "CASE REF / RELEASE" language like Level 21 — this is a
+  // borrower who was never actually in default, so a warm thank-you fits
+  // better than a formal closure notice.
+  if (level === 25) {
+    const paidAmt = fmtC(b.amountPaid || b.loanDue || 0);
+    return `*Thank You — Payment Received*
+
+${salute},
+
+Just a quick note to say we've received your payment of *${paidAmt}* for your ${loanType} loan — your account is now fully settled, right on time.
+
+No further action is needed from you. We really appreciate you staying on top of it.
+
+We look forward to working with you again whenever you need us.
+
+*LoanBase Recovery Team*`;
+  }
+
   return '';
 }
 // Open escalation for a single borrower (from borrower detail card)
@@ -17281,6 +17307,7 @@ function openEscalationPanel() {
     { level:23, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> L23 – Blocking Contact / Evasion',  color:'#b91c1c', desc:'Customer has blocked calls/WhatsApp — send via an alternative channel that still reaches them.' },
     // ── M0 only: easy alternative payment ────────────────────────
     { level:24, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="14.5" x2="11" y2="14.5"/></svg></span> L24 – M0 Easy Payment (MoMo)', color:'#06b6d4', desc:'Not-yet-due borrowers only — offers Telecel Cash MoMo as a quick alternative to the dial code.', stageOnly:'M0' },
+    { level:25, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.3l2.6 2.6L16 9"/><circle cx="12" cy="12" r="9"/></svg></span> L25 – M0 Payment Ack (Soft)', color:'#22c55e', desc:'Not-yet-due borrowers only — a warm thank-you for paying, without the formal closure-notice tone of L21.', stageOnly:'M0' },
   ].filter(o => !o.stageOnly || (o.stageOnly === 'M0' && _escalAllM0));
 
   const recommendedLevel = (isSingle && singleB) ? _recommendEscalLevel(singleB) : null;
@@ -17367,8 +17394,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '' + levelLabels[level];
@@ -17423,8 +17450,8 @@ function escalRenderModal() {
   const ph    = targetPhone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = 'Escalation — ' + (idx+1) + ' of ' + tot;
@@ -24526,8 +24553,8 @@ function renderLockAgentList() {
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px;padding-right:34px">'+displayName+'</div>'
       + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px;padding-right:34px">'
-      + '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+col+';flex-shrink:0;opacity:0.8"></span>'
-      + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.45);white-space:nowrap">'+(a.stage||'M2')+' · '+stageName+'</span>'
+      + '<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0">'+(a.stage||'M2')+'</span>'
+      + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.4);white-space:nowrap">'+stageName+'</span>'
       + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:rgba(255,255,255,0.28);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
       + '</div>'
       + '</div>'
@@ -24643,10 +24670,15 @@ function lockSelectAgent(id) {
 
   // Focus mode: hide logo, tabs, agent list, code input — but NOT auth-signin-panel itself
   // (PIN pad lives inside auth-signin-panel so we must keep the parent visible)
+  // On the desktop split layout (>900px) the logo/tabs live in their own column
+  // with room to spare, so we leave them showing there — "focus mode" (hiding
+  // them) is only needed on the narrow mobile layout where every line of
+  // vertical space matters.
+  var isDesktopSplit = window.innerWidth > 900;
   var logoBlock = document.getElementById('ls-logo-block');
-  if (logoBlock) logoBlock.style.display = 'none';
+  if (logoBlock && !isDesktopSplit) logoBlock.style.display = 'none';
   var tabsBlock = document.getElementById('ls-tabs-wrap');
-  if (tabsBlock) tabsBlock.style.display = 'none';
+  if (tabsBlock && !isDesktopSplit) tabsBlock.style.display = 'none';
   var topWrap = document.getElementById('ls-signin-top');
   if (topWrap) topWrap.style.display = 'none';
   var agentList = document.getElementById('lock-agent-list');
@@ -24774,10 +24806,23 @@ async function processPin() {
       _pinAttempts = 0; _pinLockUntil = 0; _pinLockCycles = 0;  // reset on success
       _savePinLockState(_pinTarget.id);
       localStorage.setItem('sq_lastactive_' + _pinTarget.id, Date.now().toString());
-      hideLockScreen();
-      initAutoLock();  // restart idle timer on unlock
       haptic('pay');
-      await loadStateForAgent();
+      // Keep the PIN screen up with a loading state until the account's
+      // data has actually finished loading. Hiding the lock screen first
+      // (the old order) meant a slow or failed load left a blank page —
+      // the lock screen already gone, nothing rendered behind it yet.
+      const pinNameElU = document.getElementById('lock-pin-name');
+      const pinErrElU  = document.getElementById('lock-pin-error');
+      if (pinNameElU) pinNameElU.textContent = 'Loading your account…';
+      if (pinErrElU)  pinErrElU.textContent  = '';
+      const loadOkU = await loadStateForAgent();
+      if (loadOkU) {
+        hideLockScreen();
+        initAutoLock();  // restart idle timer on unlock
+      } else {
+        if (pinNameElU) pinNameElU.textContent = _pinTarget.name;
+        if (pinErrElU)  pinErrElU.textContent  = 'Could not load your data. Check your connection and try again.';
+      }
     } else {
       // Wrong PIN — brute-force protection
       _pinAttempts++;
@@ -24856,10 +24901,20 @@ async function processPin() {
           // (main stamp removed — slug-based system only)
         } catch(e) { console.warn('PIN save to Supabase failed:', e.message); }
       }
-      hideLockScreen();
       haptic('pay');
-      toast('PIN set  Welcome, ' + _activeAgent.name, 'success');
-      await loadStateForAgent();
+      // Same fix as the unlock path above: don't hide the lock screen
+      // until we know the data actually loaded, so a failed/slow load
+      // doesn't leave the person on a blank page.
+      const pinNameElS = document.getElementById('lock-pin-name');
+      const pinErrElS  = document.getElementById('lock-pin-error');
+      const loadOkS = await loadStateForAgent();
+      if (loadOkS) {
+        hideLockScreen();
+        toast('PIN set  Welcome, ' + _activeAgent.name, 'success');
+      } else {
+        if (pinNameElS) pinNameElS.textContent = _activeAgent.name;
+        if (pinErrElS)  pinErrElS.textContent  = 'PIN saved, but could not load your data. Check your connection and try again.';
+      }
     } else {
       _pinBuffer = ''; _pinSetBuffer = ''; _pinMode = 'set';
       updatePinDots();
@@ -24941,9 +24996,11 @@ async function loadStateForAgent() {
   showSkeletons(false);
   _maybeRunWeeklyBackup();
   _consumeNotifDeepLink();
+  return true;
   } catch(e) {
     console.error("loadStateForAgent error:", e);
     toast("Failed to load account data — please try signing in again", "error");
+    return false;
   }
 }
 
@@ -27784,10 +27841,25 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       <div class="ls-logo-grounding-shadow"></div>
       <div class="ls-logo-name">SqueveTrack</div>
       <div class="ls-logo-sub">LoanBase Recovery Suite</div>
+      <!-- Desktop-only feature highlights — hidden on mobile via .ls-feature-list{display:none} below -->
+      <div class="ls-feature-list" id="ls-feature-list">
+        <div class="ls-feature-row">
+          <div class="ls-feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 15h4"/></svg></div>
+          <div class="ls-feature-text"><div class="ls-feature-t">One view, every stage</div><div class="ls-feature-d">Track the full M0–M5 portfolio without switching tabs.</div></div>
+        </div>
+        <div class="ls-feature-row">
+          <div class="ls-feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div>
+          <div class="ls-feature-text"><div class="ls-feature-t">Escalation, one tap away</div><div class="ls-feature-d">WhatsApp notices drafted and ready the moment an account slips.</div></div>
+        </div>
+        <div class="ls-feature-row">
+          <div class="ls-feature-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15a4 4 0 004 4h11a3 3 0 000-6 5 5 0 00-9.6-1.9A4 4 0 003 15z"/></svg></div>
+          <div class="ls-feature-text"><div class="ls-feature-t">Built for spotty signal</div><div class="ls-feature-d">Keeps working offline in the field, syncs the moment you're back.</div></div>
+        </div>
+      </div>
     </div>
 
     <!-- Tab bar -->
-    <div id="ls-tabs-wrap"><div class="ls-tabs ls-anim-2">
+    <div id="ls-tabs-wrap" style="width:100%"><div class="ls-tabs ls-anim-2">
       <button id="tab-signin"  class="ls-tab ls-tab-active"  onclick="authShowTab('signin')">Sign In</button>
       <button id="tab-signup"  class="ls-tab"                onclick="authShowTab('signup')">New Agent</button>
     </div></div>
@@ -28107,6 +28179,18 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   letter-spacing: 3px; text-transform: uppercase;
 }
 
+/* Desktop-only feature highlights — hidden by default (mobile), revealed
+   inside the @media(min-width:901px) desktop block further down. */
+.ls-feature-list { display: none; flex-direction: column; gap: 20px; text-align: left; margin-top: 34px; }
+.ls-feature-row { display: flex; align-items: flex-start; gap: 13px; }
+.ls-feature-icon {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(240,160,48,0.10); border: 1px solid rgba(240,160,48,0.28);
+  display: flex; align-items: center; justify-content: center; color: var(--ls-gold2, #fcc044);
+}
+.ls-feature-text .ls-feature-t { font-size: 13.5px; font-weight: 600; color: #fff; margin-bottom: 2px; letter-spacing: -0.1px; }
+.ls-feature-text .ls-feature-d { font-size: 12px; color: rgba(255,255,255,0.34); line-height: 1.45; }
+
 /* ── Tabs ── */
 .ls-tabs {
   display: flex;
@@ -28198,7 +28282,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   width: 100%; margin-bottom: 14px;
 }
 .ls-divider-line { flex: 1; height: 1px; background: var(--ls-border); }
-.ls-divider-text { font-size:var(--text-sm); color: var(--ls-muted); white-space: nowrap; letter-spacing: 0.3px; }
+.ls-divider-text { font-size:var(--text-2xs); color: var(--ls-muted); white-space: nowrap; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; }
 
 /* ── Status ── */
 .ls-status {
@@ -28421,7 +28505,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
    read as a stray, disconnected control sitting on top of the card. */
 .lock-agent-remove {
   position: absolute; top: 50%; right: 18px; transform: translateY(-50%); z-index: 3;
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14);
   color: rgba(255,255,255,0.55);
@@ -28500,14 +28584,35 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
    a sea of black.
    ══════════════════════════════════════════════════════════ */
 @media (min-width: 901px) {
+  /* JS toggles #lock-screen's inline display to 'block' every time it opens
+     (showLockScreen()); !important is needed here to win over that inline
+     style so we can center the panel with flex on desktop. Scoped strictly
+     to this media query — mobile's inline 'block' is completely untouched. */
+  #lock-screen {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+  }
   .ls-wrap {
+    min-height: 0;
     max-width: 900px;
     width: 90%;
-    padding: 56px 40px;
+    padding: 64px 56px;
     display: grid;
     grid-template-columns: minmax(300px,380px) minmax(320px,1fr);
     column-gap: 56px;
     align-items: start;
+    /* Floating glass panel — gives the split layout a defined edge instead
+       of sitting directly on the page background */
+    border-radius: 28px;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-top-color: rgba(255,255,255,0.18);
+    background:
+      radial-gradient(ellipse 65% 55% at 46% 8%, rgba(240,160,48,0.14) 0%, transparent 62%),
+      radial-gradient(ellipse 50% 40% at 92% 90%, rgba(240,160,48,0.05) 0%, transparent 55%),
+      linear-gradient(160deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   .ls-logo-block {
     grid-column: 1;
@@ -28524,6 +28629,19 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     width: 1px;
     background: linear-gradient(180deg, transparent, rgba(240,160,48,0.28), transparent);
   }
+  /* Jewel accent centered on the divider — a small premium touch */
+  .ls-logo-block::before {
+    content: '';
+    position: absolute;
+    top: 50%; right: -32px;
+    width: 9px; height: 9px;
+    transform: translateY(-50%) rotate(45deg);
+    background: var(--ls-gold2);
+    border-radius: 2px;
+    box-shadow: 0 0 12px 2px rgba(240,160,48,0.6);
+  }
+  /* Reveal the feature highlights only on desktop */
+  .ls-feature-list { display: flex; }
   #ls-tabs-wrap        { grid-column: 2; grid-row: 1; }
   #auth-signin-panel   { grid-column: 2; grid-row: 2; }
   #auth-signup-panel   { grid-column: 2; grid-row: 2; }
