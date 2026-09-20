@@ -11752,11 +11752,11 @@ function openAddModal() {
     + '<div style="background:rgba(232,160,32,0.07);border:1px solid rgba(232,160,32,0.25);border-radius:var(--radius-md);padding:12px;margin-bottom:12px;font-size:var(--text-base)">'
     + '<div style="font-weight:700;color:var(--gold);margin-bottom:6px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none"/></svg></span> How to use Paste Import</div>'
     + '<div style="color:var(--text2);line-height:1.8">Each line = one borrower. Columns in this exact order:<br>'
-    + '<code style="color:var(--gold);font-size:var(--text-sm)">Name, Phone, LoanDue, Principal, AmountPaid, LoanType, OdAge</code><br>'
-    + 'LoanType must be <b>LoanBase</b> or <b>LoanBase Pro</b>. OdAge is a number (6–15).<br>'
-    + 'Example: <code style="color:var(--text3);font-size:var(--text-sm)">Kofi Mensah, +233241234567, 500, 350, 0, LoanBase, 8</code>'
+    + '<code style="color:var(--gold);font-size:var(--text-sm)">Name, Phone, LoanDue, AmountPaid, LoanType, OdAge</code><br>'
+    + 'LoanType must be <b>LoanBase</b> or <b>LoanBase Pro</b>. OdAge is a number (0 for M0/not yet due, 6–15 once overdue).<br>'
+    + 'Example: <code style="color:var(--text3);font-size:var(--text-sm)">Kofi Mensah, +233241234567, 500, 0, LoanBase, 0</code>'
     + '</div></div>'
-    + '<textarea class="form-input" id="clipboard-paste" rows="6" placeholder="Kofi Mensah, +233241234567, 500, 350, 0, LoanBase, 8" style="width:100%;font-family:var(--font-mono);font-size:var(--text-base);resize:vertical"></textarea>'
+    + '<textarea class="form-input" id="clipboard-paste" rows="6" placeholder="Kofi Mensah, +233241234567, 500, 0, LoanBase, 0" style="width:100%;font-family:var(--font-mono);font-size:var(--text-base);resize:vertical"></textarea>'
     + '<div id="clipboard-feedback" style="font-size:var(--text-base);margin-top:6px;min-height:18px"></div>'
     + '<button class="btn btn-gold" style="width:100%;margin-top:8px" id="btn-import-clipboard"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span> Import Contacts</button>'
     + '</div>'
@@ -11882,8 +11882,12 @@ function importFromClipboard() {
   let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
   lines.forEach(line => {
     const cols = line.split(',').map(c => c.trim());
-    if (cols.length < 5) { skipped++; return; }
-    let [name, phone, loanDue, principal, amountPaid, loanType, odAgeStr] = cols;
+    if (cols.length < 4) { skipped++; return; }
+    // Paste format: Name, Phone, LoanDue, AmountPaid, LoanType, OdAge
+    // No Principal column — principal isn't needed to calculate anything here
+    // (OD fee, KPI totals, etc. all key off loanDue), so we set principal
+    // equal to loanDue below rather than asking for it separately.
+    let [name, phone, loanDue, amountPaid, loanType, odAgeStr] = cols;
     name = toTitleCaseName(name);
     let normalizedPhone = phone ? normalizePhone(phone) : '';
     if (!name || !loanDue) { skipped++; return; }
@@ -11894,12 +11898,13 @@ function importFromClipboard() {
     if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
     if (dupe.type === 'name') nameDupeWarnings++;
     const odAgeParsed = parseInt(odAgeStr);
-    const odAge = isNaN(odAgeParsed) ? 6 : odAgeParsed;
+    const odAge = isNaN(odAgeParsed) ? 0 : odAgeParsed;  // default 0 (M0 / not yet due) instead of assuming overdue
     const d = new Date(); d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
+    const loanDueVal = parseFloat(loanDue)||0;
     state.borrowers.push({
       id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random().toString(36).slice(2)),
-      name, phone: normalizedPhone || '', principal: parseFloat(principal)||0,
-      loanDue: parseFloat(loanDue)||0, overdueFeee: 0,
+      name, phone: normalizedPhone || '', principal: loanDueVal,
+      loanDue: loanDueVal, overdueFeee: 0,
       amountPaid: parseFloat(amountPaid)||0,
       startDate: d.toISOString().split('T')[0],
       loanType: loanType || 'LoanBase', notes: '', promisedToPay: false
@@ -11908,7 +11913,7 @@ function importFromClipboard() {
   });
   if (added === 0) {
     const fb = document.getElementById('clipboard-feedback');
-    if (fb) fb.innerHTML = '<span style="color:var(--red)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> No valid rows found. Check format: Name, Phone, LoanDue, Principal, Paid, LoanType, OdAge</span>';
+    if (fb) fb.innerHTML = '<span style="color:var(--red)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> No valid rows found. Check format: Name, Phone, LoanDue, AmountPaid, LoanType, OdAge</span>';
     return;
   }
   purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
