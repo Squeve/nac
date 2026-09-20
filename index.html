@@ -28487,6 +28487,49 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   letter-spacing: 0.8px;
   filter: drop-shadow(0 0 6px rgba(240,160,48,0.3));
 }
+
+/* ══════════════════════════════════════════════════════════
+   DESKTOP SIGN-IN — split-panel layout for wide viewports only.
+   Gated behind the same 900px cutoff the rest of the app already
+   uses to separate mobile from desktop (see the max-width:900px
+   rules elsewhere in this file). Every rule above this block is
+   completely untouched, so phones and the existing mobile layout
+   render exactly as before — this only fires at 901px and up,
+   turning the single narrow column into a branding-left /
+   sign-in-right split instead of a phone-width card floating in
+   a sea of black.
+   ══════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  .ls-wrap {
+    max-width: 900px;
+    width: 90%;
+    padding: 56px 40px;
+    display: grid;
+    grid-template-columns: minmax(300px,380px) minmax(320px,1fr);
+    column-gap: 56px;
+    align-items: start;
+  }
+  .ls-logo-block {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    align-self: center;
+    margin-bottom: 0;
+    position: relative;
+  }
+  /* Subtle vertical divider between the brand panel and the form */
+  .ls-logo-block::after {
+    content: '';
+    position: absolute;
+    top: 8%; bottom: 8%; right: -28px;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(240,160,48,0.28), transparent);
+  }
+  #ls-tabs-wrap        { grid-column: 2; grid-row: 1; }
+  #auth-signin-panel   { grid-column: 2; grid-row: 2; }
+  #auth-signup-panel   { grid-column: 2; grid-row: 2; }
+  #lock-dev-override   { grid-column: 2; grid-row: 3; margin-top: 16px; }
+  .ls-footer           { grid-column: 1 / -1; grid-row: 4; margin-top: 56px; }
+}
 </style>
 
 <!-- AVATAR CROP OVERLAY -->
