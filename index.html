@@ -27945,8 +27945,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
     <!-- Tab bar -->
     <div id="ls-tabs-wrap" style="width:100%"><div class="ls-tabs ls-anim-2">
-      <button id="tab-signin"  class="ls-tab ls-tab-active"  onclick="authShowTab('signin')">Sign In</button>
-      <button id="tab-signup"  class="ls-tab"                onclick="authShowTab('signup')">New Agent</button>
+      <button id="tab-signin"  class="ls-tab ls-tab-active"  onclick="authShowTab('signin')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>Sign In</button>
+      <button id="tab-signup"  class="ls-tab"                onclick="authShowTab('signup')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><line x1="18" y1="8" x2="18" y2="14"/><line x1="15" y1="11" x2="21" y2="11"/></svg>New Agent</button>
     </div></div>
 
     <!-- ── Sign In Panel ────────────────────────────────── -->
@@ -28290,7 +28290,10 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   border-radius: 11px; font-size: 13px; font-weight: 600;
   font-family: var(--font-body); color: var(--ls-muted);
   background: transparent; transition: all 0.2s ease; white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
 }
+.ls-tab svg { flex-shrink: 0; opacity: 0.75; }
+.ls-tab-active svg { opacity: 1; }
 .ls-tab-active {
   background: linear-gradient(180deg, var(--ls-gold2), var(--ls-gold)) !important; color: #000 !important;
   font-weight: 800 !important;
@@ -28360,6 +28363,25 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   color: #ef4444; font-size:var(--text-md); font-weight: 700;
   font-family: var(--font-body); transition: all 0.15s;
 }
+
+/* Cap "Continue as" list height once there are enough cached agents to
+   need it — without this, a device with several agents on it makes the
+   whole panel grow indefinitely taller instead of staying a comfortable,
+   consistent size. Content that overflows softly fades near the bottom
+   edge (mask-image) rather than being abruptly clipped, and scrolls with
+   a thin gold-tinted scrollbar matching the rest of the theme. */
+#lock-agent-list {
+  max-height: 460px;
+  overflow-y: auto;
+  -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240,160,48,0.35) transparent;
+}
+#lock-agent-list::-webkit-scrollbar { width: 6px; }
+#lock-agent-list::-webkit-scrollbar-track { background: transparent; }
+#lock-agent-list::-webkit-scrollbar-thumb { background: rgba(240,160,48,0.35); border-radius: 3px; }
+#lock-agent-list::-webkit-scrollbar-thumb:hover { background: rgba(240,160,48,0.55); }
 
 /* ── Divider ── */
 .ls-divider {
@@ -28701,6 +28723,20 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       radial-gradient(ellipse 50% 40% at 92% 90%, rgba(240,160,48,0.05) 0%, transparent 55%),
       linear-gradient(160deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%);
     box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  /* Very faint dot-grid texture behind the content — adds a bit of tech/
+     premium depth to the panel without being distracting. z-index:-1
+     (relative to .ls-wrap's own stacking context, set in the base rule)
+     keeps it behind every child regardless of that child's own z-index. */
+  .ls-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    z-index: -1;
+    background-image: radial-gradient(rgba(240,160,48,0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+    pointer-events: none;
   }
   .ls-logo-block {
     grid-column: 1;
