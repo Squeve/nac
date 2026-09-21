@@ -24655,7 +24655,7 @@ function showLockScreen() {
   document.body.style.overflow = 'hidden';
   _pinBuffer = ''; _pinTarget = null;
   // Reset focus mode — show all elements
-  ['ls-logo-block','ls-tabs-wrap','ls-signin-top','lock-agent-list'].forEach(function(eid) {
+  ['ls-logo-block','ls-tabs-wrap','ls-signin-top','lock-agent-list','ls-code-toggle'].forEach(function(eid) {
     var el = document.getElementById(eid); if (el) el.style.display = '';
   });
   document.getElementById('lock-pin-section').style.display = 'none';
@@ -24810,14 +24810,16 @@ function lockSelectAgent(id) {
     ['ls-logo-block','ls-tabs-wrap'].forEach(function(eid) {
       var el = document.getElementById(eid); if (el) el.style.display = '';
     });
-    // Restore sign-in panel children
-    ['lock-agent-list','ls-signin-top'].forEach(function(eid) {
+    // Restore sign-in panel children, including the code-entry toggle
+    ['lock-agent-list','ls-signin-top','ls-code-toggle'].forEach(function(eid) {
       var el = document.getElementById(eid); if (el) el.style.display = '';
     });
-    // Restore divider + code card + status by showing the top section wrapper
-    var topWrap = document.getElementById('ls-signin-top');
-    if (topWrap) topWrap.style.display = '';
     _pinTarget = null; _pinBuffer = ''; updatePinDots();
+    // Re-run the same logic that decides whether the code-entry section
+    // starts open or collapsed (and keeps the toggle button's label in
+    // sync) — rather than trusting whatever state was left over from
+    // before, this guarantees it's consistent every time you come back.
+    renderLockAgentList();
     return;
   }
   const agents = getAgentList();
@@ -24878,6 +24880,12 @@ function lockSelectAgent(id) {
   if (topWrap) topWrap.style.display = 'none';
   var agentList = document.getElementById('lock-agent-list');
   if (agentList) agentList.style.display = 'none';
+  // The "Enter agent code instead" toggle (added alongside the collapsible
+  // code-entry redesign) needs to hide here too — it's a sibling of
+  // lock-agent-list/ls-signin-top and was otherwise left showing next to
+  // the PIN pad on both mobile and desktop.
+  var codeToggle = document.getElementById('ls-code-toggle');
+  if (codeToggle) codeToggle.style.display = 'none';
 
   document.getElementById('lock-pin-section').style.display = 'block';
   document.getElementById('lock-pin-name').textContent = _pinTarget.name;
@@ -28098,7 +28106,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
           <span class="ls-input-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg></span>
           <input type="text" id="auth-code-input" class="ls-input" placeholder="e.g. Shadrack Agyei OCT25"
             autocapitalize="words" autocomplete="off" autocorrect="off" spellcheck="false"
-            onkeydown="if(event.key==='Enter')authSignInWithCode()">
+            onkeydown="if(event.key==='Enter')authSignInWithCode()"
+            onfocus="var el=this;setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},300)">
         </div>
         <button class="ls-btn-primary" onclick="authSignInWithCode()">
           Find My Account
