@@ -11890,15 +11890,24 @@ function importFromClipboard() {
   const raw = document.getElementById('clipboard-paste').value.trim();
   if (!raw) return toast('Nothing to import', 'error');
   const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0;
+  let added = 0, skipped = 0, phoneDupes = 0, nameDupeWarnings = 0, malformed = 0;
   lines.forEach(line => {
     const cols = line.split(',').map(c => c.trim());
     if (cols.length < 4) { skipped++; return; }
-    // Paste format: Name, Phone, LoanDue, AmountPaid, LoanType, OdAge
-    // No Principal column — principal isn't needed to calculate anything here
-    // (OD fee, KPI totals, etc. all key off loanDue), so we set principal
-    // equal to loanDue below rather than asking for it separately.
-    let [name, phone, loanDue, amountPaid, loanType, odAgeStr] = cols;
+    // Accepts two formats:
+    //  - Current: Name, Phone, LoanDue, AmountPaid, LoanType, OdAge (6 cols)
+    //  - Legacy:  Name, Phone, LoanDue, Principal, AmountPaid, LoanType, OdAge (7 cols)
+    // The legacy format's Principal column is dropped (unused — OD fee/KPI
+    // totals all key off loanDue instead). Without this, a 7-column paste
+    // silently shifted LoanType into OdAge's slot and vice versa, so every
+    // row's stage came out wrong (e.g. always fell back to M0) with no
+    // visible error at all.
+    let name, phone, loanDue, amountPaid, loanType, odAgeStr;
+    if (cols.length >= 7) {
+      [name, phone, loanDue, , amountPaid, loanType, odAgeStr] = cols;
+    } else {
+      [name, phone, loanDue, amountPaid, loanType, odAgeStr] = cols;
+    }
     name = toTitleCaseName(name);
     let normalizedPhone = phone ? normalizePhone(phone) : '';
     if (!name || !loanDue) { skipped++; return; }
@@ -11908,8 +11917,16 @@ function importFromClipboard() {
     const dupe = _findPossibleDuplicate(name, normalizedPhone);
     if (dupe.type === 'phone') { skipped++; phoneDupes++; return; }
     if (dupe.type === 'name') nameDupeWarnings++;
-    const odAgeParsed = parseInt(odAgeStr);
-    const odAge = isNaN(odAgeParsed) ? 0 : odAgeParsed;  // default 0 (M0 / not yet due) instead of assuming overdue
+    // Sanity-check LoanType and OdAge landed on real values rather than on
+    // each other (the exact failure mode above) — if either looks wrong,
+    // skip the row instead of silently guessing (e.g. defaulting to M0).
+    const loanTypeNorm = (loanType || '').trim();
+    const odAgeParsed = parseInt(odAgeStr, 10);
+    if (!/^loanbase( pro)?$/i.test(loanTypeNorm) || isNaN(odAgeParsed)) {
+      skipped++; malformed++; return;
+    }
+    const loanTypeCanonical = /pro/i.test(loanTypeNorm) ? 'LoanBase Pro' : 'LoanBase';
+    const odAge = odAgeParsed;
     const d = new Date(); d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
     const loanDueVal = parseFloat(loanDue)||0;
     state.borrowers.push({
@@ -11918,7 +11935,7 @@ function importFromClipboard() {
       loanDue: loanDueVal, overdueFeee: 0,
       amountPaid: parseFloat(amountPaid)||0,
       startDate: d.toISOString().split('T')[0],
-      loanType: loanType || 'LoanBase', notes: '', promisedToPay: false
+      loanType: loanTypeCanonical, notes: '', promisedToPay: false
     });
     added++;
   });
@@ -11928,10 +11945,12 @@ function importFromClipboard() {
     return;
   }
   purgeAgedOut(); saveState(); closeModal(); updateBadges(); renderCurrentPage();
+  const otherSkipped = skipped - phoneDupes - malformed;
   toast('Imported ' + added + ' contact' + (added!==1?'s':'')
     + (phoneDupes ? ' · ' + phoneDupes + ' skipped (same phone as existing)' : '')
+    + (malformed ? ' · ' + malformed + ' skipped (unexpected columns — check LoanType/OdAge)' : '')
     + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
-    + (skipped - phoneDupes ? ' · ' + (skipped - phoneDupes) + ' rows skipped' : ''), 'success');
+    + (otherSkipped > 0 ? ' · ' + otherSkipped + ' other rows skipped' : ''), 'success');
 }
 
 
