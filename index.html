@@ -12371,7 +12371,13 @@ function importFromXLSX() {
     var amountPaid = parseFloat(row.amountpaid) || 0;
     var loanType = (row.loantype || 'LoanBase').trim();
     var odAgeParsed = parseInt(row.odage);
-    var odAge = isNaN(odAgeParsed) ? 6 : odAgeParsed;
+    // Default to 0 (M0 / not yet due), not 6 — matches the paste importer's
+    // philosophy (see importFromClipboard). An agent uploading a batch of
+    // fresh M0 loans has every reason to leave this column blank thinking
+    // "it's not overdue, there's nothing to enter" — defaulting that to M1
+    // instead of M0 was the exact same class of silent misclassification
+    // the clipboard importer had.
+    var odAge = isNaN(odAgeParsed) ? 0 : odAgeParsed;
 
     if (!name || !loanDue) { skipped++; return; }
 
