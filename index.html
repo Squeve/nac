@@ -5107,6 +5107,16 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
+      <button class="settings-row" onclick="scanImportErrors()">
+        <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2L1 17h18L10 2z"/><line x1="10" y1="8" x2="10" y2="12"/><circle cx="10" cy="14.5" r="0.8" fill="currentColor"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Fix Import Errors</div>
+          <div class="settings-row-label-sub">Find & correct records with a misaligned paste</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
     </div>
       </div>
     </div>
@@ -11951,6 +11961,71 @@ function importFromClipboard() {
     + (malformed ? ' · ' + malformed + ' skipped (unexpected columns — check LoanType/OdAge)' : '')
     + (nameDupeWarnings ? ' · ' + nameDupeWarnings + ' share a name with an existing borrower — verify these aren\'t duplicates' : '')
     + (otherSkipped > 0 ? ' · ' + otherSkipped + ' other rows skipped' : ''), 'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// IMPORT REPAIR — find & fix records corrupted by the old 7-column
+// paste bug (LoanType/OdAge shifted into each other's slots, which
+// silently defaulted every affected record to M0). Two signals catch
+// this reliably: LoanType isn't a real value, or startDate is in the
+// future (mechanically impossible any other way — only that bug's
+// OdAge=0 fallback produces a future date via the d.setDate() formula).
+// ══════════════════════════════════════════════════════════════
+function _isImportCorrupted(b) {
+  if (!/^loanbase( pro)?$/i.test((b.loanType || '').trim())) return true;
+  if (b.startDate) {
+    const parts = b.startDate.split('-');
+    if (parts.length === 3) {
+      const sd = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      sd.setHours(0,0,0,0);
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (sd.getTime() > today.getTime()) return true;
+    }
+  }
+  return false;
+}
+
+function scanImportErrors() {
+  const bad = state.borrowers.filter(_isImportCorrupted);
+  if (!bad.length) { toast('No import errors found — all records look fine', 'success'); return; }
+  document.getElementById('modal-title').textContent = 'Import Errors Found (' + bad.length + ')';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:14px;line-height:1.6">'
+    + 'These records were likely pasted with an extra column (the old Principal field), which shifted LoanType and OdAge into the wrong slots. Enter the correct values for each and Apply.'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto">'
+    + bad.map(function(b) {
+        return '<div style="border:1px solid var(--border2);border-radius:12px;padding:12px;background:var(--surface)">'
+          + '<div style="font-weight:700;font-size:var(--text-md);margin-bottom:2px">' + b.name + '</div>'
+          + '<div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:10px">' + (b.phone||'—') + ' · current LoanType: "' + (b.loanType||'') + '" · startDate: ' + (b.startDate||'—') + '</div>'
+          + '<div style="display:flex;gap:8px;align-items:center">'
+          + '<select id="fix-type-' + b.id + '" class="form-input" style="flex:1">'
+          + '<option value="LoanBase">LoanBase</option>'
+          + '<option value="LoanBase Pro">LoanBase Pro</option>'
+          + '</select>'
+          + '<input id="fix-odage-' + b.id + '" class="form-input" type="number" placeholder="OdAge" style="width:90px">'
+          + '<button class="btn btn-gold" style="padding:8px 14px;white-space:nowrap" onclick="_applyImportFix(\'' + b.id + '\')">Apply</button>'
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function _applyImportFix(id) {
+  const b = state.borrowers.find(x => x.id === id);
+  if (!b) return;
+  const typeSel = document.getElementById('fix-type-' + id);
+  const odInput = document.getElementById('fix-odage-' + id);
+  const odAge = parseInt(odInput.value, 10);
+  if (isNaN(odAge)) { toast('Enter a valid OdAge number', 'error'); return; }
+  b.loanType = typeSel.value;
+  const d = new Date(); d.setDate(d.getDate() - (odAge - 1));
+  b.startDate = d.toISOString().split('T')[0];
+  saveState(); updateBadges(); renderCurrentPage();
+  toast('Fixed ' + b.name, 'success');
+  scanImportErrors(); // refresh the list — fixed row drops off automatically
 }
 
 
