@@ -16703,14 +16703,14 @@ Dear *${b.name}*,
 
 We hope this message finds you well.
 
-We noticed your current ${b.loanType} payment is delayed — and because you have a genuinely good repayment record with us, we're reaching out with concern, not pressure. Your track record has always been appreciated.
+We noticed your current ${b.loanType} payment is delayed, and because you have a genuinely good repayment record with us, we're reaching out with concern, not pressure. Your track record has always been appreciated.
 
 Are you facing a temporary challenge that's making it hard to pay right now?
 
 Because of your history, you may qualify for one of the following:
 
-1. *Partial fee waiver* — a reduction on penalty fees if you clear the balance of *${balance}* today.
-2. *Flexible instalment plan* — spread the balance over a period that suits you.
+1. *Partial fee waiver*: a reduction on penalty fees if you clear the balance of *${balance}* today.
+2. *Flexible instalment plan*: spread the balance over a period that suits you.
 
 Please call or reply so we can find the right fit together. If you'd rather pay now: ${_escalPayGuide(b)}
 
@@ -16730,7 +16730,7 @@ Sincerely,
 
 ${salute},
 
-Just a friendly reminder — you promised to pay *${balance}* on your ${loanType} loan on *${promiseDate}*.
+Just a friendly reminder that you promised to pay *${balance}* on your ${loanType} loan on *${promiseDate}*.
 
 We look forward to receiving your payment as agreed. If anything has changed, please reach out to us before then so we can adjust the plan together.
 
@@ -16747,7 +16747,7 @@ To pay: ${_escalPayGuide(b)}
 
 ${salute},
 
-We noticed your ${loanType} payment of *${balance}* is now *${odDays} day${odDays===1?'':'s'}* past due. This happens sometimes — no penalty has been applied yet.
+We noticed your ${loanType} payment of *${balance}* is now *${odDays} day${odDays===1?'':'s'}* past due. This happens sometimes, and no penalty has been applied yet.
 
 Please settle this as soon as you can to keep your account in good standing.
 
@@ -17083,7 +17083,7 @@ To pay: ${_escalPayGuide(b)}
 
 ${salute},
 
-Formal legal recovery and Credit Bureau reporting on your overdue ${loanType} loan of *${balance}* (Day ${odDays}) is already underway. This is not a new warning — it is a follow-up on a process already in motion.
+Formal legal recovery and Credit Bureau reporting on your overdue ${loanType} loan of *${balance}* (Day ${odDays}) is already underway. This is not a new warning. It is a follow-up on a process already in motion.
 
 Automatic MoMo deduction and further legal steps continue on this account until it is resolved. The only way to stop that is payment or direct contact today.
 
@@ -17103,7 +17103,7 @@ ${salute},
 
 Despite multiple call attempts, we have been unable to reach you regarding your overdue ${loanType} loan of *${balance}* (Day ${odDays}).
 
-Formal legal recovery and Credit Bureau reporting on this account is being prepared for filing within the next *24 to 48 hours*. This is no longer a general notice — the referral is being actively arranged.
+Formal legal recovery and Credit Bureau reporting on this account is being prepared for filing within the next *24 to 48 hours*. This is no longer a general notice. The referral is being actively arranged.
 
 *TO STOP THIS FILING:* call us immediately at *${agentPhone}* or make a payment of *${balance}* before it goes out.
 
@@ -17150,7 +17150,7 @@ You are listed as the emergency contact on ${b.name}'s ${loanType} loan applicat
 
 *To be clear: this is not a claim against you and you have no obligation on this loan.* We are reaching out only because ${b.name}'s account is approaching a serious stage of recovery, and further silence may lead to formal actions on their file, actions we would rather avoid if they simply get in touch.
 
-${b.name}'s number on file is *${b.phone}* — please try reaching them directly if you're able to, or ask them to contact us at *${agentPhone}* as soon as possible.
+${b.name}'s number on file is *${b.phone}*. Please try reaching them directly if you're able to, or ask them to contact us at *${agentPhone}* as soon as possible.
 
 Thank you for your help.
 
@@ -17294,7 +17294,7 @@ ${salute},
 
 Our attempts to reach you regarding your overdue ${loanType} loan of *${balance}* have been blocked or refused. This message is being sent through an alternative channel to ensure it reaches you.
 
-*Blocking or avoiding contact does not pause, reduce, or cancel your debt.* It is being formally recorded on your file as evasion of a lawful recovery process, and — because you cannot be reached directly — the following proceed automatically:
+*Blocking or avoiding contact does not pause, reduce, or cancel your debt.* It is being formally recorded on your file as evasion of a lawful recovery process, and because you cannot be reached directly, the following proceed automatically:
 
 • Your emergency contact on file will be reached out to, to help resolve this
 • A formal written notice will be sent to the address on your loan file, where available
@@ -17339,11 +17339,11 @@ We appreciate you.
   // better than a formal closure notice.
   if (level === 25) {
     const paidAmt = fmtC(b.amountPaid || b.loanDue || 0);
-    return `*Thank You — Payment Received*
+    return `*Thank You for Your Payment*
 
 ${salute},
 
-Just a quick note to say we've received your payment of *${paidAmt}* for your ${loanType} loan — your account is now fully settled, right on time.
+Just a quick note to say we've received your payment of *${paidAmt}* for your ${loanType} loan. Your account is now fully settled, right on time.
 
 No further action is needed from you. We really appreciate you staying on top of it.
 
@@ -17357,7 +17357,7 @@ We look forward to working with you again whenever you need us.
   // afterHour/unpaidOnly gating in openEscalationPanel). Deliberately firm —
   // the day's grace period is ending with no payment and no response.
   if (level === 26) {
-    return _escalHeader('FINAL REMINDER — PAYMENT STILL OUTSTANDING', b, caseRef, dateStr, [
+    return _escalHeader('FINAL REMINDER: PAYMENT STILL OUTSTANDING', b, caseRef, dateStr, [
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
 
@@ -17367,7 +17367,7 @@ Today's ${loanType} payment of *${balance}* is still unpaid, and the day is almo
 
 You were given the full day, completely free of any overdue charges, to settle this. That courtesy has not been met with a payment or even a response. That is not acceptable.
 
-If this is not settled *within the next few hours*, your account moves into default tomorrow and overdue fees begin immediately — no waiver, no extension, no exceptions.
+If this is not settled *within the next few hours*, your account moves into default tomorrow and overdue fees begin immediately, with no waiver, no extension, and no exceptions.
 
 To pay right now: ${_escalPayGuide(b)}
 
@@ -17381,15 +17381,15 @@ This is your final reminder for today. Act now.
   // time during the day — a firm, no-wiggle-room reminder that today is the
   // only day this can be paid without moving into default.
   if (level === 27) {
-    return _escalHeader('PAYMENT DUE TODAY — NO EXTENSION', b, caseRef, dateStr, [
+    return _escalHeader('PAYMENT DUE TODAY: NO EXTENSION', b, caseRef, dateStr, [
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
 
 ${salute},
 
-Your ${loanType} payment of *${balance}* is due TODAY — not tomorrow, not "soon." Today, and today only.
+Your ${loanType} payment of *${balance}* is due TODAY, not tomorrow, not "soon." Today, and today only.
 
-There is no grace period beyond today. Once today ends, your account moves straight into default and overdue fees start immediately — no waiver, no extension, no exceptions.
+There is no grace period beyond today. Once today ends, your account moves straight into default and overdue fees start immediately, with no waiver, no extension, and no exceptions.
 
 This cannot wait. Pay right now: ${_escalPayGuide(b)}
 
@@ -17519,7 +17519,13 @@ function openEscalationPanel() {
     { level:26, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span> L26 – M0 Evening Final Notice (Hard)', color:'#dc2626', desc:'M0, still unpaid, from 7PM only — firm final-hour notice before the account rolls into default overnight.', stageOnly:'M0', unpaidOnly:true, afterHour:19 },
     { level:27, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="12" y2="15"/></svg></span> L27 – M0 Due Today (Hard)', color:'#f97316', desc:'M0, still unpaid, any time of day — firm reminder that today is the only day this can be paid before default.', stageOnly:'M0', unpaidOnly:true },
   ].filter(o => {
-    if (o.stageOnly === 'M0' && !_escalAllM0) return false;
+    const isM0Only = o.stageOnly === 'M0';
+    // At M0, only M0-specific messages should ever show; everything else
+    // (Tiers 0 through 8, all written for accounts already overdue) is
+    // hidden entirely rather than just de-prioritized, since none of that
+    // language fits an account that isn't even due yet.
+    if (_escalAllM0) { if (!isM0Only) return false; }
+    else { if (isM0Only) return false; }
     if (o.unpaidOnly && !_escalAllUnpaid) return false;
     if (typeof o.afterHour === 'number' && _escalCurrentHour < o.afterHour) return false;
     return true;
