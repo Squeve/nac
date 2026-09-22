@@ -11907,16 +11907,18 @@ function importFromClipboard() {
     // Accepts two formats:
     //  - Current: Name, Phone, LoanDue, AmountPaid, LoanType, OdAge (6 cols)
     //  - Legacy:  Name, Phone, LoanDue, Principal, AmountPaid, LoanType, OdAge (7 cols)
-    // The legacy format's Principal column is dropped (unused — OD fee/KPI
-    // totals all key off loanDue instead). Without this, a 7-column paste
-    // silently shifted LoanType into OdAge's slot and vice versa, so every
-    // row's stage came out wrong (e.g. always fell back to M0) with no
-    // visible error at all.
-    let name, phone, loanDue, amountPaid, loanType, odAgeStr;
+    // The 7-column format's Principal IS used (getOdFee() calculates fees
+    // from principal first, falling back to loanDue only when principal is
+    // genuinely absent — see getOdFee's comment). Earlier this column was
+    // being silently discarded and principal was always set equal to
+    // loanDue instead, which overstated OD fees for any loan where the
+    // real principal is smaller than the total amount due.
+    let name, phone, loanDue, principal, amountPaid, loanType, odAgeStr;
     if (cols.length >= 7) {
-      [name, phone, loanDue, , amountPaid, loanType, odAgeStr] = cols;
+      [name, phone, loanDue, principal, amountPaid, loanType, odAgeStr] = cols;
     } else {
       [name, phone, loanDue, amountPaid, loanType, odAgeStr] = cols;
+      principal = loanDue; // 6-column format has no Principal column at all
     }
     name = toTitleCaseName(name);
     let normalizedPhone = phone ? normalizePhone(phone) : '';
@@ -11939,9 +11941,10 @@ function importFromClipboard() {
     const odAge = odAgeParsed;
     const d = new Date(); d.setDate(d.getDate() - (odAge - 1));  // store (odAge-1) days ago so getOdAge returns odAge
     const loanDueVal = parseFloat(loanDue)||0;
+    const principalVal = parseFloat(principal) || loanDueVal;
     state.borrowers.push({
       id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random().toString(36).slice(2)),
-      name, phone: normalizedPhone || '', principal: loanDueVal,
+      name, phone: normalizedPhone || '', principal: principalVal,
       loanDue: loanDueVal, overdueFeee: 0,
       amountPaid: parseFloat(amountPaid)||0,
       startDate: d.toISOString().split('T')[0],
@@ -28224,8 +28227,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   --ls-muted:     #5a6a88;
   --ls-input-bg:  rgba(255,255,255,0.05);
   --ls-gold-glow: rgba(240,160,48,0.25);
-  --ls-neon:      #38bdf8;
-  --ls-neon-glow: rgba(56,189,248,0.5);
+  --ls-neon:      #fcc044;
+  --ls-neon-glow: rgba(240,160,48,0.5);
   --ls-green:     #22c55e;
 }
 
@@ -28263,6 +28266,22 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   justify-content: center;
   gap: 0;
 }
+/* Very faint dot-grid texture behind the content on every screen size —
+   adds a bit of tech/premium depth without costing any layout space or
+   being distracting. z-index:-1 (relative to .ls-wrap's own stacking
+   context above) keeps it behind every child regardless of that child's
+   own z-index. border-radius:inherit is a no-op on mobile (square corners)
+   and matches the desktop panel's rounded corners there. */
+.ls-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  background-image: radial-gradient(rgba(240,160,48,0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
 
 /* ── Entrance animations ── */
 @keyframes lsFadeUp {
@@ -28280,7 +28299,33 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-anim-in { animation: lsScaleIn 0.32s cubic-bezier(0.34,1.4,0.64,1) both; }
 
 /* ── Logo block ── Card Spotlight style ── */
-.ls-logo-block { text-align: center; margin-bottom: 26px; }
+.ls-logo-block { position: relative; text-align: center; margin-bottom: 26px; }
+/* Soft concentric rings behind the logo — a small illustrative touch that
+   doesn't cost any layout space. Desktop overrides ::before with its own
+   jewel-divider accent (see the desktop media query), so this only
+   actually shows on mobile/tablet. */
+.ls-logo-block::before {
+  content: '';
+  position: absolute;
+  top: 64px; left: 50%;
+  width: 210px; height: 210px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(240,160,48,0.09);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+.ls-logo-block::after {
+  content: '';
+  position: absolute;
+  top: 64px; left: 50%;
+  width: 270px; height: 270px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(240,160,48,0.05);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
 
 /* ── Premium icon shell ── */
 .ls-logo-icon {
@@ -28531,10 +28576,20 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-code-toggle-btn {
   display: flex;
   align-items: center; justify-content: center; gap: 6px; width: 100%;
-  background: none; border: none; color: var(--ls-muted); font-size: 12px; font-weight: 600;
-  cursor: pointer; padding: 10px 6px; font-family: var(--font-body);
+  background: rgba(240,160,48,0.06);
+  border: 1px solid rgba(240,160,48,0.16);
+  border-radius: 12px;
+  color: rgba(240,160,48,0.65); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer; padding: 11px 6px; font-family: var(--font-body);
+  transition: all 0.15s ease;
 }
-.ls-code-toggle-btn:hover { color: var(--ls-gold2); }
+.ls-code-toggle-btn:hover {
+  color: var(--ls-gold2);
+  background: rgba(240,160,48,0.1);
+  border-color: rgba(240,160,48,0.32);
+}
+.ls-code-toggle-btn:active { transform: scale(0.98); }
 #ls-signin-top { display: none; width: 100%; }
 #ls-signin-top.ls-code-open { display: block; margin-top: 4px; }
 
@@ -28559,12 +28614,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   width: 100%;
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(56,189,248,0.15);
-  border-top-color: rgba(56,189,248,0.3);
+  border: 1px solid rgba(240,160,48,0.15);
+  border-top-color: rgba(240,160,48,0.3);
   border-radius: 24px;
   padding: 28px 20px 24px;
   box-shadow: 0 16px 60px rgba(0,0,0,0.65),
-              0 0 40px rgba(56,189,248,0.06),
+              0 0 40px rgba(240,160,48,0.06),
               inset 0 1px 0 rgba(255,255,255,0.1);
   text-align: center;
 }
@@ -28574,7 +28629,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   content: 'SECURE PIN ENTRY';
   display: block;
   font-size:var(--text-3xs); font-weight: 800; letter-spacing: 0.2em;
-  color: rgba(56,189,248,0.7); text-transform: uppercase;
+  color: rgba(240,160,48,0.7); text-transform: uppercase;
   margin-bottom: 8px;
 }
 .ls-pin-name {
@@ -28593,9 +28648,9 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   display: flex; justify-content: center; align-items: center; gap: 12px;
   margin-bottom: 8px;
   background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(56,189,248,0.14);
+  border: 1px solid rgba(240,160,48,0.14);
   border-radius:var(--radius); padding: 12px 20px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(56,189,248,0.04);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(240,160,48,0.04);
 }
 .ls-pin-dot {
   width: 32px; height: 4px; border-radius: 2px;
@@ -28604,7 +28659,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 }
 .ls-pin-dot.filled {
   background: var(--ls-neon);
-  box-shadow: 0 0 10px rgba(56,189,248,0.9), 0 0 20px rgba(56,189,248,0.5);
+  box-shadow: 0 0 10px rgba(240,160,48,0.9), 0 0 20px rgba(240,160,48,0.5);
   transform: none;
 }
 .ls-pin-dot.success {
@@ -28652,26 +28707,26 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-num::before {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(56,189,248,0.14), rgba(56,189,248,0.04));
+  background: linear-gradient(135deg, rgba(240,160,48,0.14), rgba(240,160,48,0.04));
   opacity: 0; transition: opacity 0.15s;
   border-radius:var(--radius-lg);
 }
 .ls-num:hover::before { opacity: 1; }
 .ls-num:hover {
-  border-color: rgba(56,189,248,0.35);
-  box-shadow: 0 0 14px rgba(56,189,248,0.18);
+  border-color: rgba(240,160,48,0.35);
+  box-shadow: 0 0 14px rgba(240,160,48,0.18);
 }
 .ls-num:active {
-  background: rgba(56,189,248,0.15);
-  border-color: rgba(56,189,248,0.5);
+  background: rgba(240,160,48,0.15);
+  border-color: rgba(240,160,48,0.5);
   transform: scale(0.93);
-  box-shadow: 0 0 20px rgba(56,189,248,0.35);
+  box-shadow: 0 0 20px rgba(240,160,48,0.35);
 }
 .ls-num:active .ls-num-main { color: var(--ls-neon) !important; }
 .ls-num.pressed::after {
   content: '';
   position: absolute; inset: 0; border-radius: inherit;
-  background: radial-gradient(circle, rgba(56,189,248,0.35) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(240,160,48,0.35) 0%, transparent 70%);
   animation: ls-ripple-fade 0.4s ease-out forwards;
 }
 @keyframes ls-ripple-fade { from { opacity: 1; } to { opacity: 0; } }
@@ -28878,20 +28933,6 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       radial-gradient(ellipse 50% 40% at 92% 90%, rgba(240,160,48,0.05) 0%, transparent 55%),
       linear-gradient(160deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%);
     box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
-  }
-  /* Very faint dot-grid texture behind the content — adds a bit of tech/
-     premium depth to the panel without being distracting. z-index:-1
-     (relative to .ls-wrap's own stacking context, set in the base rule)
-     keeps it behind every child regardless of that child's own z-index. */
-  .ls-wrap::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    z-index: -1;
-    background-image: radial-gradient(rgba(240,160,48,0.14) 1px, transparent 1px);
-    background-size: 22px 22px;
-    pointer-events: none;
   }
   .ls-logo-block {
     grid-column: 1;
