@@ -2769,7 +2769,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   background:#0d0d0d!important;border-color:#1e1e1e!important;
 }
 [data-theme="amoled"] #sidebar,[data-theme="amoled"] #mobile-header,
-[data-theme="amoled"] #mobile-drawer,[data-theme="amoled"] #lock-screen > div > div:first-child {
+[data-theme="amoled"] #mobile-drawer {
   background:#050505!important;
 }
 
@@ -3103,7 +3103,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 
 /* Lock screen */
 [data-theme="navy"] .ls-bg { background: linear-gradient(160deg, #040608 0%, #060810 50%, #040608 100%); }
-[data-theme="navy"] .ls-card, [data-theme="navy"] .ls-pin-card {
+[data-theme="navy"] .ls-card, [data-theme="navy"] .ls-pin-card, [data-theme="navy"] .ls-logo-block {
   background: linear-gradient(145deg, #0f1f38, #08152a);
   border: 1px solid rgba(40,74,114,0.6);
   box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(96,165,250,0.1);
@@ -3297,7 +3297,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
 
 /* Lock screen */
 [data-theme="indigo"] .ls-bg { background: radial-gradient(ellipse at 30% 20%, rgba(74,58,160,0.6) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(46,40,120,0.5) 0%, transparent 50%), linear-gradient(160deg, #08061a 0%, #0e0b2a 100%); }
-[data-theme="indigo"] .ls-card, [data-theme="indigo"] .ls-pin-card {
+[data-theme="indigo"] .ls-card, [data-theme="indigo"] .ls-pin-card, [data-theme="indigo"] .ls-logo-block {
   background: linear-gradient(145deg, #17134a, #0e0b2a);
   border: 1px solid rgba(61,54,138,0.7);
   box-shadow: 0 30px 80px rgba(0,0,0,0.75), inset 0 1px 0 rgba(129,140,248,0.12);
@@ -3520,7 +3520,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
               radial-gradient(ellipse at 80% 90%, rgba(56,189,248,0.2) 0%, transparent 50%),
               linear-gradient(160deg, #071220 0%, #091a30 100%);
 }
-[data-theme="glacier"] .ls-card, [data-theme="glacier"] .ls-pin-card {
+[data-theme="glacier"] .ls-card, [data-theme="glacier"] .ls-pin-card, [data-theme="glacier"] .ls-logo-block {
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255,255,255,0.15);
@@ -13403,6 +13403,8 @@ async function bioUnlockAgent(agent) {
   // account's data has actually finished loading. Also wrapped in the
   // same timeout safety net as the PIN flow, so this path can't hang
   // forever either.
+  const pinNameElBio = document.getElementById('lock-pin-name');
+  if (pinNameElBio) pinNameElBio.innerHTML = '<span class="ls-spinner"></span>Loading your account…';
   let loadOkB = false;
   try {
     loadOkB = await withTimeout(loadStateForAgent(), 20000, 'loadStateForAgent-bio');
@@ -13414,6 +13416,7 @@ async function bioUnlockAgent(agent) {
     hideLockScreen();
   } else {
     _sessionUnlocked = false;
+    if (pinNameElBio) pinNameElBio.textContent = agent.name;
     toast('Could not load your account — please try again', 'error');
   }
   } catch(e) {
@@ -25002,7 +25005,7 @@ function lockSelectAgent(id) {
   document.getElementById('lock-pin-name').textContent = _pinTarget.name;
   const col = STAGE_COLORS[_pinTarget.stage] || STAGE_COLORS.M2;
   document.getElementById('lock-pin-stage').innerHTML = '<span style="color:'+col+';font-weight:700">'+(_pinTarget.stage||'M2')+'</span> — '+(_pinTarget.stage ? (STAGE_CONFIG[_pinTarget.stage]?.name||'') : 'Active Default');
-  document.getElementById('lock-pin-error').textContent =
+  document.getElementById('lock-pin-error').innerHTML =
     (Date.now() < _pinLockUntil) ? '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span> Locked — try again in ' + _fmtLockRemaining(_pinLockUntil - Date.now()) : '';
   document.getElementById('lock-dev-override').style.display = 'none';
   updatePinDots();
@@ -25127,7 +25130,7 @@ async function processPin() {
       // the lock screen already gone, nothing rendered behind it yet.
       const pinNameElU = document.getElementById('lock-pin-name');
       const pinErrElU  = document.getElementById('lock-pin-error');
-      if (pinNameElU) pinNameElU.textContent = 'Loading your account…';
+      if (pinNameElU) pinNameElU.innerHTML = '<span class="ls-spinner"></span>Loading your account…';
       if (pinErrElU)  pinErrElU.textContent  = '';
       // Safety net: loadStateForAgent() already catches its own errors, but
       // this guards against any unforeseen hang inside it (e.g. a stalled
@@ -25231,6 +25234,7 @@ async function processPin() {
       // doesn't leave the person on a blank page.
       const pinNameElS = document.getElementById('lock-pin-name');
       const pinErrElS  = document.getElementById('lock-pin-error');
+      if (pinNameElS) pinNameElS.innerHTML = '<span class="ls-spinner"></span>Loading your account…';
       const loadOkS = await loadStateForAgent();
       if (loadOkS) {
         hideLockScreen();
@@ -25460,7 +25464,7 @@ async function authSignInWithCode() {
     const errEl  = document.getElementById('lock-pin-error');
     const statEl = document.getElementById('auth-status');
     const setStatus = (msg, isErr) => {
-      if (statEl) { statEl.textContent = msg; statEl.style.color = isErr ? 'var(--red)' : 'var(--text2)'; }
+      if (statEl) { statEl.innerHTML = msg; statEl.style.color = isErr ? 'var(--red)' : 'var(--text2)'; }
       if (errEl)  errEl.textContent = '';
     };
 
@@ -25475,7 +25479,7 @@ async function authSignInWithCode() {
 
     const db = initSupabase();
     if (!db) { setStatus('No internet connection', true); return; }
-    setStatus('⏳ Looking up your account...');
+    setStatus('<span class="ls-spinner"></span>Looking up your account...');
 
     async function fetchRow(id) {
       try {
@@ -25500,7 +25504,23 @@ async function authSignInWithCode() {
           const rid = (r.id || '').replace('agent_', '');
           return (lb && slugifyCode(lb) === slugCode) || (rid === slugCode);
         }) || null;
-        if (!row && rows.length === 1) row = rows[0];
+        // Fallback for solo-agent setups: if there's exactly one agent and
+        // no exact match was found, allow a loose match (typo/partial name)
+        // rather than any input at all — previously ANY garbage code logged
+        // straight into the sole account, since the check below was just
+        // "rows.length === 1" with no comparison to what was actually typed.
+        if (!row && rows.length === 1) {
+          const only = rows[0];
+          const onlyName = slugifyCode(only.data?.agentProfile?.name || '');
+          const onlyLb   = slugifyCode(only.data?.agentProfile?.lbCode || '');
+          const onlyId   = (only.id || '').replace('agent_', '');
+          const looksRelated = slugCode.length >= 3 && (
+            (onlyName && (onlyName.includes(slugCode) || slugCode.includes(onlyName))) ||
+            (onlyLb   && (onlyLb.includes(slugCode)   || slugCode.includes(onlyLb)))   ||
+            (onlyId   && (onlyId.includes(slugCode)   || slugCode.includes(onlyId)))
+          );
+          if (looksRelated) row = only;
+        }
       } catch {}
     }
 
@@ -28285,7 +28305,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px"><path d="M12 2C9.24 2 7 4.24 7 7v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-2V7c0-2.76-2.24-5-5-5z"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
             Use Biometrics
           </button>
-          <button class="ls-locked-out" onclick="showDevOverride()">Locked out?</button>
+          <button class="ls-locked-out" onclick="showDevOverride()">Locked out? Get help</button>
         </div>
       </div>
     </div>
@@ -28308,7 +28328,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     <!-- Dev override -->
     <div id="lock-dev-override" style="display:none;width:100%;margin-top:16px">
       <div class="ls-card" style="border-color:rgba(239,68,68,0.3)">
-        <div style="font-size:var(--text-base);color:var(--ls-muted);margin-bottom:10px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:1px">Developer Override</div>
+        <div style="font-size:var(--text-base);color:var(--ls-muted);margin-bottom:2px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:1px">Developer Override</div>
+        <div style="font-size:var(--text-sm);color:var(--ls-muted);margin-bottom:10px;text-align:center;opacity:0.8">Don't have a code? Ask your supervisor for a one-time unlock code.</div>
         <input type="text" class="ls-input" id="dev-override-input" placeholder="SQV-XXX-XXXX"
           autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"
           style="text-align:center;font-family:var(--font-mono);letter-spacing:3px;font-size:var(--text-lg);margin-bottom:10px;padding-left:20px"
@@ -28415,7 +28436,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   box-shadow: inset 0 2px 6px rgba(15,22,35,0.05);
 }
 /* Sign-in card */
-[data-theme="light"] .ls-card {
+[data-theme="light"] .ls-card, [data-theme="light"] .ls-logo-block {
   background: linear-gradient(160deg, #ffffff, #f7f8fc);
   border-top-color: rgba(255,255,255,0.9);
   box-shadow: 0 16px 40px rgba(15,22,35,0.10), 0 2px 0 rgba(255,255,255,0.6), inset 0 1.5px 0 rgba(255,255,255,0.8);
@@ -28539,7 +28560,19 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-anim-in { animation: lsScaleIn 0.32s cubic-bezier(0.34,1.4,0.64,1) both; }
 
 /* ── Logo block ── Card Spotlight style ── */
-.ls-logo-block { position: relative; text-align: center; margin-bottom: 26px; }
+.ls-logo-block {
+  position: relative; text-align: center; margin-bottom: 26px;
+  /* Give this panel the same glass-card treatment as .ls-card (the
+     sign-in panel on the right) so the two halves of the screen read
+     as one consistent surface instead of a flat solid box next to a
+     lighter, textured glass card. */
+  background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ls-border2);
+  border-top-color: rgba(255,255,255,0.22);
+  border-radius: 28px; padding: 32px 24px;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.6), 0 2px 0 rgba(255,255,255,0.03), inset 0 1.5px 0 rgba(255,255,255,0.14);
+}
 /* Hidden on mobile — only shown as a real grid column on desktop, see the
    min-width:901px media query below. */
 .ls-side-divider { display: none; }
@@ -28550,7 +28583,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-logo-block::before {
   content: '';
   position: absolute;
-  top: 64px; left: 50%;
+  top: 96px; left: 50%;
   width: 210px; height: 210px;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(var(--ls-accent-rgb),0.09);
@@ -28561,7 +28594,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-logo-block::after {
   content: '';
   position: absolute;
-  top: 64px; left: 50%;
+  top: 96px; left: 50%;
   width: 270px; height: 270px;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(var(--ls-accent-rgb),0.05);
@@ -28686,7 +28719,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
 /* Tagline with separator dots */
 .ls-logo-sub {
-  font-size:var(--text-2xs); font-weight: 700; color: rgba(255,255,255,0.3);
+  font-size:var(--text-2xs); font-weight: 700; color: rgba(255,255,255,0.46);
   letter-spacing: 3px; text-transform: uppercase;
 }
 
@@ -28700,7 +28733,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   display: flex; align-items: center; justify-content: center; color: var(--ls-gold2);
 }
 .ls-feature-text .ls-feature-t { font-size: 13.5px; font-weight: 600; color: #fff; margin-bottom: 2px; letter-spacing: -0.1px; }
-.ls-feature-text .ls-feature-d { font-size: 12px; color: rgba(255,255,255,0.34); line-height: 1.45; }
+.ls-feature-text .ls-feature-d { font-size: 12px; color: rgba(255,255,255,0.48); line-height: 1.45; }
 
 /* ── Tabs ── */
 .ls-tabs {
@@ -28929,6 +28962,20 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   min-height: 20px; margin: 10px 0 16px;
   font-weight: 500;
 }
+
+/* Small inline spinner for account-loading / lookup states, so those
+   moments read as "working" instead of a plain text swap that can look
+   frozen on a slow connection. */
+.ls-spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid rgba(var(--ls-accent-rgb),0.25);
+  border-top-color: var(--ls-gold);
+  border-radius: 50%;
+  vertical-align: -2px;
+  margin-right: 7px;
+  animation: lsSpinRotate 0.7s linear infinite;
+}
+@keyframes lsSpinRotate { to { transform: rotate(360deg); } }
 
 /* Numpad — Neon Glow keys */
 .ls-numpad {
