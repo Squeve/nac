@@ -7777,6 +7777,13 @@ function getSmsMessage(b, useGenerous) {
   const name = getFirstName(b);
   const od = getOdAge(b.startDate, b);
   const isPartial = getStatus(b) === 'Partial';
+  // M0 has zero OD fee by design, so "generous"/discount offers are
+  // mathematically meaningless there (the saving always computes to 0,
+  // producing nonsensical messages like "save GHS 0 in penalty fees").
+  // Force the standard full-amount message path regardless of which
+  // dispatch mode is toggled, before amount/genAmount are even computed
+  // below — there is nothing to discount yet.
+  if (_activeAgent && _activeAgent.stage === 'M0') useGenerous = false;
   const amount = fmtC(useGenerous ? getGenerous(b) : getDueToday(b));
   const genAmount = fmtC(getGenerous(b));
   const fullAmount = fmtC(getDueToday(b));
@@ -17308,10 +17315,51 @@ To pay: ${_escalPayGuide(b)}
 *LoanBase Recovery Management*`;
   }
 
-  // ══════════════ M0 ONLY — Easy alternative payment (MoMo) ══════════════
-  // Deliberately no formal header, same reasoning as Level 1: the loan
-  // isn't overdue yet, so this is a helpful nudge, not a notice.
+  // ══════════════════════════════════════════════════════════════
+  // M0 LADDER — softest to hardest, mirrors the same ordering
+  // principle as the main Tier 0-8 ladder above. All of these are
+  // gated to M0-only (and mostly to still-unpaid) in
+  // openEscalationPanel, and none of them appear at any other stage.
+  // ══════════════════════════════════════════════════════════════
+
+  // Level 24: M0 Morning Reminder — first touch of the day, gentle,
+  // informative. No formal header, same reasoning as Level 1: nothing
+  // is overdue yet, this is a heads-up, not a notice.
   if (level === 24) {
+    return `*Payment Due Today*
+
+${salute},
+
+This is a friendly reminder that your ${loanType} payment of *${balance}* is due today.
+
+Paying today keeps your account in good standing and avoids any overdue fees starting tomorrow. To pay: ${_escalPayGuide(b)}
+
+If you have already paid, please disregard this message, and thank you.
+
+*LoanBase Recovery Team*`;
+  }
+
+  // Level 25: M0 Payment Ack (Soft) — no formal "CASE REF / RELEASE"
+  // language like Level 21; this is a borrower who was never actually
+  // in default, so a warm thank-you fits better than a closure notice.
+  if (level === 25) {
+    const paidAmt = fmtC(b.amountPaid || b.loanDue || 0);
+    return `*Thank You for Your Payment*
+
+${salute},
+
+Just a quick note to say we've received your payment of *${paidAmt}* for your ${loanType} loan. Your account is now fully settled, right on time.
+
+No further action is needed from you. We really appreciate you staying on top of it.
+
+We look forward to working with you again whenever you need us.
+
+*LoanBase Recovery Team*`;
+  }
+
+  // Level 26: M0 Easy Payment (MoMo) — a practical alternative, not an
+  // escalation. Deliberately no formal header, same reasoning as Level 1.
+  if (level === 26) {
     return `*Easy Payment Option Available*
 
 ${salute},
@@ -17333,30 +17381,67 @@ We appreciate you.
 *LoanBase Recovery Team*`;
   }
 
-  // ══════════════ M0 ONLY — Softer payment acknowledgement ══════════════
-  // No formal "CASE REF / RELEASE" language like Level 21 — this is a
-  // borrower who was never actually in default, so a warm thank-you fits
-  // better than a formal closure notice.
-  if (level === 25) {
-    const paidAmt = fmtC(b.amountPaid || b.loanDue || 0);
-    return `*Thank You for Your Payment*
+  // Level 27: M0 Midday Check-In — usable from late morning on. Mild
+  // step up from Level 24: still cooperative in tone, but now actively
+  // asks for a response rather than just informing.
+  if (level === 27) {
+    return `*Checking In On Today's Payment*
 
 ${salute},
 
-Just a quick note to say we've received your payment of *${paidAmt}* for your ${loanType} loan. Your account is now fully settled, right on time.
+Just checking in. Your ${loanType} payment of *${balance}* was due today, and we have not yet received it.
 
-No further action is needed from you. We really appreciate you staying on top of it.
+If you are planning to pay later today, kindly let us know what time to expect it. If you are able to pay now, you can do so here: ${_escalPayGuide(b)}
 
-We look forward to working with you again whenever you need us.
+We would rather hear from you than assume the worst, so please reply and let us know where things stand.
 
 *LoanBase Recovery Team*`;
   }
 
-  // ══════════════ M0 ONLY — Hard evening final notice (still unpaid) ══════════
-  // Only ever shown from 7PM onward and only when still unpaid (see the
-  // afterHour/unpaidOnly gating in openEscalationPanel). Deliberately firm —
+  // Level 28: M0 Due Today (Hard) — usable any time of day, a firm,
+  // no-wiggle-room reminder that today is the only day this can be
+  // paid without moving into default.
+  if (level === 28) {
+    return _escalHeader('PAYMENT DUE TODAY: NO EXTENSION', b, caseRef, dateStr, [
+      { label: 'AMOUNT DUE', value: balance }
+    ]) + `
+
+${salute},
+
+Your ${loanType} payment of *${balance}* is due TODAY, not tomorrow, not "soon." Today, and today only.
+
+There is no grace period beyond today. Once today ends, your account moves straight into default and overdue fees start immediately, with no waiver, no extension, and no exceptions.
+
+This cannot wait. Pay right now: ${_escalPayGuide(b)}
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 29: M0 Afternoon Firm Warning — only shown from early
+  // afternoon, once there has genuinely been time in the day to pay.
+  // Noticeably firmer than Level 27, and explicitly foreshadows the
+  // evening final notice (Level 30) if nothing changes by then.
+  if (level === 29) {
+    return _escalHeader('PAYMENT STILL OUTSTANDING TODAY', b, caseRef, dateStr, [
+      { label: 'AMOUNT DUE', value: balance }
+    ]) + `
+
+${salute},
+
+Your ${loanType} payment of *${balance}* was due earlier today and is still outstanding.
+
+We have not heard from you, and time is running short to settle this before the day ends. Please pay now, or contact us immediately if there is an issue: ${_escalPayGuide(b)}
+
+Accounts left unpaid by the end of today move into overdue status, with fees applied from tomorrow. Do not let that happen over something that can be resolved right now.
+
+*LoanBase Recovery Management*`;
+  }
+
+  // Level 30: M0 Evening Final Notice (Hard) — only ever shown from
+  // 7PM onward and only when still unpaid (see the afterHour/unpaidOnly
+  // gating in openEscalationPanel). The hardest tone in the M0 ladder;
   // the day's grace period is ending with no payment and no response.
-  if (level === 26) {
+  if (level === 30) {
     return _escalHeader('FINAL REMINDER: PAYMENT STILL OUTSTANDING', b, caseRef, dateStr, [
       { label: 'AMOUNT DUE', value: balance }
     ]) + `
@@ -17376,35 +17461,15 @@ This is your final reminder for today. Act now.
 *LoanBase Recovery Management*`;
   }
 
-  // ══════════════ M0 ONLY — Hard "due today, today only" reminder ══════════
-  // Unlike L26 (evening-only, "day is almost over"), this one is usable any
-  // time during the day — a firm, no-wiggle-room reminder that today is the
-  // only day this can be paid without moving into default.
-  if (level === 27) {
-    return _escalHeader('PAYMENT DUE TODAY: NO EXTENSION', b, caseRef, dateStr, [
-      { label: 'AMOUNT DUE', value: balance }
-    ]) + `
-
-${salute},
-
-Your ${loanType} payment of *${balance}* is due TODAY, not tomorrow, not "soon." Today, and today only.
-
-There is no grace period beyond today. Once today ends, your account moves straight into default and overdue fees start immediately, with no waiver, no extension, and no exceptions.
-
-This cannot wait. Pay right now: ${_escalPayGuide(b)}
-
-*LoanBase Recovery Management*`;
-  }
-
   // ══════════════ TIER 8 — Absolute Final Warning (Last Chance) ══════════════
-  // The ceiling of the ladder, sent only once every earlier level has been
-  // exhausted and grace has genuinely run out. Still names only real,
-  // lawful consequences (legal filing, garnishee, Credit Bureau, workplace
-  // and emergency contact) — never arrest, violence or unlawful seizure,
-  // same rule as the rest of this file.
+  // The ceiling of the entire ladder (not M0-specific), sent only once
+  // every earlier level has been exhausted and grace has genuinely run
+  // out. Still names only real, lawful consequences (legal filing,
+  // garnishee, Credit Bureau, workplace and emergency contact), never
+  // arrest, violence or unlawful seizure, same rule as the rest of this file.
 
-  // Level 28: Ultimate Final Warning — 24 Hour Deadline
-  if (level === 28) {
+  // Level 31: Ultimate Final Warning — 24 Hour Deadline
+  if (level === 31) {
     const agentPhone = _escalAgentPhone();
     return _escalHeader('ULTIMATE FINAL WARNING: 24 HOUR DEADLINE', b, caseRef, dateStr, [
       { label: 'TOTAL OUTSTANDING', value: balance }
@@ -17511,13 +17576,16 @@ function openEscalationPanel() {
     // ── Tier 7: Explicit refusal & evasion ──────────────────────
     { level:22, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="7" y1="7" x2="17" y2="17"/></svg></span> L22 – Refusal to Pay',              color:'#b91c1c', desc:'Customer explicitly states they will not pay — treated as more serious than a delay.' },
     { level:23, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/></svg></span> L23 – Blocking Contact / Evasion',  color:'#b91c1c', desc:'Customer has blocked calls/WhatsApp — send via an alternative channel that still reaches them.' },
-    // ── Tier 8: Absolute final warning ──────────────────────────
-    { level:28, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> L28 – Ultimate Final Warning (24hr)', color:'#7f1d1d', desc:'The absolute ceiling. 24 hour deadline, then legal, garnishee, Credit Bureau and contact outreach proceed without further notice.' },
-    // ── M0 only: easy alternative payment ────────────────────────
-    { level:24, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="14.5" x2="11" y2="14.5"/></svg></span> L24 – M0 Easy Payment (MoMo)', color:'#06b6d4', desc:'Not-yet-due borrowers only — offers Telecel Cash MoMo as a quick alternative to the dial code.', stageOnly:'M0' },
+    // ── M0 ladder: softest to hardest (all M0-only, none shown at other stages) ──
+    { level:24, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span> L24 – M0 Morning Reminder', color:'#3b82f6', desc:'Not-yet-due borrowers only — first, gentle heads-up that today\'s payment is due.', stageOnly:'M0' },
     { level:25, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.3l2.6 2.6L16 9"/><circle cx="12" cy="12" r="9"/></svg></span> L25 – M0 Payment Ack (Soft)', color:'#22c55e', desc:'Not-yet-due borrowers only — a warm thank-you for paying, without the formal closure-notice tone of L21.', stageOnly:'M0' },
-    { level:26, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span> L26 – M0 Evening Final Notice (Hard)', color:'#dc2626', desc:'M0, still unpaid, from 7PM only — firm final-hour notice before the account rolls into default overnight.', stageOnly:'M0', unpaidOnly:true, afterHour:19 },
-    { level:27, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="12" y2="15"/></svg></span> L27 – M0 Due Today (Hard)', color:'#f97316', desc:'M0, still unpaid, any time of day — firm reminder that today is the only day this can be paid before default.', stageOnly:'M0', unpaidOnly:true },
+    { level:26, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="14.5" x2="11" y2="14.5"/></svg></span> L26 – M0 Easy Payment (MoMo)', color:'#06b6d4', desc:'Not-yet-due borrowers only — offers Telecel Cash MoMo as a quick alternative to the dial code.', stageOnly:'M0' },
+    { level:27, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 01-8.5 8.5 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 018.5-8.5h.5a8.5 8.5 0 018 8v.5z"/></svg></span> L27 – M0 Midday Check-In', color:'#f0a030', desc:'Not-yet-due borrowers only, from 11AM — mild step up from L24, actively asks for a response.', stageOnly:'M0', afterHour:11 },
+    { level:28, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="12" y2="15"/></svg></span> L28 – M0 Due Today (Hard)', color:'#f97316', desc:'M0, still unpaid, any time of day — firm reminder that today is the only day this can be paid before default.', stageOnly:'M0', unpaidOnly:true },
+    { level:29, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><circle cx="12" cy="16" r="0.9" fill="currentColor" stroke="none"/></svg></span> L29 – M0 Afternoon Firm Warning', color:'#ea580c', desc:'M0, still unpaid, from 2PM — firmer than L27, explicitly foreshadows the evening final notice (L30).', stageOnly:'M0', unpaidOnly:true, afterHour:14 },
+    { level:30, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span> L30 – M0 Evening Final Notice (Hard)', color:'#dc2626', desc:'M0, still unpaid, from 7PM only — the hardest tone in the M0 ladder, before the account rolls into default overnight.', stageOnly:'M0', unpaidOnly:true, afterHour:19 },
+    // ── Tier 8: Absolute final warning (not M0-specific — the ceiling of the whole ladder) ──
+    { level:31, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> L31 – Ultimate Final Warning (24hr)', color:'#7f1d1d', desc:'The absolute ceiling. 24 hour deadline, then legal, garnishee, Credit Bureau and contact outreach proceed without further notice.' },
   ].filter(o => {
     const isM0Only = o.stageOnly === 'M0';
     // At M0, only M0-specific messages should ever show; everything else
@@ -17615,8 +17683,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e',26:'#dc2626',27:'#f97316'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)',26:'M0 Evening Final Notice (Hard)',27:'M0 Due Today (Hard)',28:'Ultimate Final Warning'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '' + levelLabels[level];
@@ -17671,8 +17739,8 @@ function escalRenderModal() {
   const ph    = targetPhone.replace(/\D/g,'');
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#06b6d4',25:'#22c55e',26:'#dc2626',27:'#f97316'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Easy Payment (MoMo)',25:'M0 Payment Ack (Soft)',26:'M0 Evening Final Notice (Hard)',27:'M0 Due Today (Hard)',28:'Ultimate Final Warning'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = 'Escalation — ' + (idx+1) + ' of ' + tot;
