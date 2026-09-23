@@ -891,9 +891,6 @@ html[data-theme="light"], html[data-theme="light"] body { color-scheme: light; }
   min-width: 0;
 }
 
-/* Lock screen */
-[data-theme="light"] #lock-screen > div > div:first-child { opacity: 0.5; }
-
 /* PTP tabs */
 [data-theme="light"] .ptp-tab { color: var(--text3); }
 [data-theme="light"] .ptp-tab.active { color: #000 !important; }
@@ -24860,11 +24857,11 @@ function renderLockAgentList() {
       + '<button class="lock-agent-card" data-agentid="'+a.id+'" style="--lac-color:'+col+';width:100%;'+(idx>0 && sorted.length>1 ? 'opacity:0.72' : '')+'">'
       + avatarHtml
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.4);margin-bottom:3px;padding-right:34px">'+displayName+'</div>'
+      + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ls-text);margin-bottom:3px;padding-right:34px">'+displayName+'</div>'
       + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px;padding-right:34px">'
       + '<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0">'+(a.stage||'M2')+'</span>'
-      + '<span style="font-size:var(--text-sm);color:rgba(255,255,255,0.4);white-space:nowrap">'+stageName+'</span>'
-      + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:rgba(255,255,255,0.28);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
+      + '<span style="font-size:var(--text-sm);color:var(--ls-muted);white-space:nowrap">'+stageName+'</span>'
+      + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:var(--ls-muted);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
       + '</div>'
       + '</div>'
       + '</button>'
@@ -28327,9 +28324,16 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
    LOCK SCREEN — Card Spotlight + Neon Glow PIN (Option 3+4)
    ══════════════════════════════════════════════════════════ */
 :root {
-  --ls-gold:      #f0a030;
-  --ls-gold2:     #fcc044;
-  --ls-gold-g:    linear-gradient(135deg, #f0a030, #fcc044);
+  /* Brand accent — remapped per data-theme below so the lock screen
+     always matches the theme the person last picked, instead of
+     staying gold regardless of app theme. */
+  --ls-accent-rgb:  240,160,48;
+  --ls-accent2-rgb: 252,192,68;
+  --ls-gold3:       #fde68a;
+  --ls-gold-dark:   #c47a10;
+  --ls-gold:      rgb(var(--ls-accent-rgb));
+  --ls-gold2:     rgb(var(--ls-accent2-rgb));
+  --ls-gold-g:    linear-gradient(135deg, rgb(var(--ls-accent-rgb)), rgb(var(--ls-accent2-rgb)));
   --ls-bg:        #06080f;
   --ls-surface:   rgba(255,255,255,0.07);
   --ls-border:    rgba(255,255,255,0.09);
@@ -28337,30 +28341,128 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   --ls-text:      #edf0f7;
   --ls-muted:     #5a6a88;
   --ls-input-bg:  rgba(255,255,255,0.05);
-  --ls-gold-glow: rgba(240,160,48,0.25);
-  --ls-neon:      #fcc044;
-  --ls-neon-glow: rgba(240,160,48,0.5);
+  --ls-gold-glow: rgba(var(--ls-accent-rgb),0.25);
+  --ls-neon:      rgb(var(--ls-accent2-rgb));
+  --ls-neon-glow: rgba(var(--ls-accent-rgb),0.5);
   --ls-green:     #22c55e;
 }
+/* Per-theme accent remap — mirrors each theme's own --gold/--gold2/--gold3 */
+[data-theme="light"]   { --ls-accent-rgb: 149,92,8;    --ls-accent2-rgb: 157,98,9;    --ls-gold3: #c88a1f; --ls-gold-dark: #6b4206; }
+[data-theme="navy"]    { --ls-accent-rgb: 245,158,11;  --ls-accent2-rgb: 251,191,36;  --ls-gold3: #fcd34d; --ls-gold-dark: #b45309; }
+[data-theme="indigo"]  { --ls-accent-rgb: 245,200,66;  --ls-accent2-rgb: 249,217,106; --ls-gold3: #fde68a; --ls-gold-dark: #b8860b; }
+[data-theme="glacier"] { --ls-accent-rgb: 56,189,248;  --ls-accent2-rgb: 125,211,252; --ls-gold3: #bae6fd; --ls-gold-dark: #0369a1; }
+/* amoled keeps the default gold accent — the app's own amoled theme
+   doesn't redefine --gold either, it only deepens the background. */
+
+/* ══════════════════════════════════════════════════════════
+   LIGHT THEME — the login screen's dark cinematic backdrop,
+   glass cards and white-on-dark text all get a light rework
+   here. Every selector below is scoped to [data-theme="light"]
+   so it wins on specificity over the base (dark) rule above,
+   regardless of source order.
+   ══════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  --ls-bg:       #f0f2f8;
+  --ls-text:     #0f1623;
+  --ls-muted:    #667085;
+  --ls-border:   rgba(15,22,35,0.09);
+  --ls-border2:  rgba(15,22,35,0.14);
+  --ls-input-bg: rgba(15,22,35,0.04);
+}
+/* Background layers */
+[data-theme="light"] .ls-bg {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 16%, rgba(var(--ls-accent-rgb),0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 8% 85%, rgba(14,165,233,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 75%, rgba(var(--ls-accent-rgb),0.05) 0%, transparent 55%),
+    linear-gradient(160deg, #f4f6fb 0%, #e8ebf3 100%);
+}
+[data-theme="light"] .ls-bg-mesh {
+  background: radial-gradient(circle 340px at 50% 12%, rgba(var(--ls-accent2-rgb),0.10) 0%, transparent 70%);
+}
+[data-theme="light"] .ls-bg-sparkle { display: none; }
+[data-theme="light"] .ls-bg-vignette {
+  background: radial-gradient(ellipse 110% 90% at 50% 42%, transparent 45%, rgba(180,188,210,0.35) 100%);
+}
+/* Logo tagline + feature list */
+[data-theme="light"] .ls-logo-sub { color: rgba(15,22,35,0.4); }
+[data-theme="light"] .ls-feature-text .ls-feature-t { color: var(--ls-text); }
+[data-theme="light"] .ls-feature-text .ls-feature-d { color: rgba(15,22,35,0.55); }
+/* Tab bar */
+[data-theme="light"] .ls-tabs {
+  background: rgba(15,22,35,0.05);
+  box-shadow: inset 0 2px 6px rgba(15,22,35,0.05);
+}
+/* Sign-in card */
+[data-theme="light"] .ls-card {
+  background: linear-gradient(160deg, #ffffff, #f7f8fc);
+  border-top-color: rgba(255,255,255,0.9);
+  box-shadow: 0 16px 40px rgba(15,22,35,0.10), 0 2px 0 rgba(255,255,255,0.6), inset 0 1.5px 0 rgba(255,255,255,0.8);
+}
+[data-theme="light"] .ls-input {
+  background: #ffffff;
+  border: 1px solid rgba(15,22,35,0.1);
+  border-top-color: rgba(15,22,35,0.06);
+  box-shadow: inset 0 2px 6px rgba(15,22,35,0.04);
+}
+[data-theme="light"] .ls-input:focus {
+  background: #ffffff;
+  box-shadow: inset 0 2px 6px rgba(15,22,35,0.04), 0 0 0 3px rgba(var(--ls-accent-rgb),0.14);
+}
+/* PIN card + numpad */
+[data-theme="light"] .ls-pin-card {
+  background: #ffffff;
+  border: 1px solid rgba(var(--ls-accent-rgb),0.18);
+  border-top-color: rgba(var(--ls-accent-rgb),0.28);
+  box-shadow: 0 12px 34px rgba(15,22,35,0.10), 0 0 24px rgba(var(--ls-accent-rgb),0.05), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+[data-theme="light"] .ls-pin-dots {
+  background: rgba(15,22,35,0.035);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.14);
+  box-shadow: inset 0 2px 6px rgba(15,22,35,0.05);
+}
+[data-theme="light"] .ls-pin-dot { background: rgba(15,22,35,0.12); }
+[data-theme="light"] .ls-num {
+  background: #ffffff;
+  border: 1px solid rgba(15,22,35,0.08);
+}
+[data-theme="light"] .ls-num:hover { border-color: rgba(var(--ls-accent-rgb),0.35); }
+[data-theme="light"] .ls-num:active { background: rgba(var(--ls-accent-rgb),0.12); }
+[data-theme="light"] .ls-num-ghost:active { background: rgba(15,22,35,0.05) !important; }
+/* Cached agent cards */
+[data-theme="light"] .lock-agent-card {
+  background: linear-gradient(160deg, rgba(var(--ls-accent-rgb),0.10), #ffffff 55%);
+  box-shadow: 0 10px 26px rgba(15,22,35,0.10), 0 4px 14px rgba(var(--ls-accent-rgb),0.10), inset 0 1.5px 0 rgba(255,255,255,0.8);
+}
+[data-theme="light"] .lock-agent-card.selected {
+  background: linear-gradient(160deg, rgba(var(--ls-accent-rgb),0.16), #ffffff 55%);
+}
+[data-theme="light"] .lock-agent-arrow { background: rgba(15,22,35,0.04); }
+[data-theme="light"] .lock-agent-card:hover .lock-agent-arrow { background: rgba(15,22,35,0.07); }
+[data-theme="light"] .lock-agent-remove {
+  background: rgba(15,22,35,0.04); border-color: rgba(15,22,35,0.1); color: rgba(15,22,35,0.5);
+}
+/* Footer */
+[data-theme="light"] .ls-footer-label { color: rgba(15,22,35,0.35); }
 
 /* ── Background ── */
 .ls-bg {
   position: fixed; inset: 0; z-index: 0;
   background:
-    radial-gradient(ellipse 70% 40% at 50% 16%, rgba(240,160,48,0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 40% at 50% 16%, rgba(var(--ls-accent-rgb),0.22) 0%, transparent 60%),
     radial-gradient(ellipse 60% 45% at 8% 85%, rgba(14,165,233,0.10) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 40% at 95% 75%, rgba(240,160,48,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 75%, rgba(var(--ls-accent-rgb),0.08) 0%, transparent 55%),
     linear-gradient(160deg, #060810 0%, #04050a 100%);
 }
 .ls-bg-mesh {
   position: absolute; inset: 0;
-  background: radial-gradient(circle 340px at 50% 12%, rgba(252,192,68,0.16) 0%, transparent 70%);
+  background: radial-gradient(circle 340px at 50% 12%, rgba(var(--ls-accent2-rgb),0.16) 0%, transparent 70%);
 }
 /* Sparse ambient sparkle points — replaces the carbon-fibre texture */
 .ls-bg-sparkle { position: absolute; inset: 0; }
 .ls-bg-sparkle span {
-  position: absolute; border-radius: 50%; background: #fde68a;
-  box-shadow: 0 0 6px 1px rgba(252,192,68,0.7);
+  position: absolute; border-radius: 50%; background: var(--ls-gold3);
+  box-shadow: 0 0 6px 1px rgba(var(--ls-accent2-rgb),0.7);
 }
 .ls-bg-vignette {
   position: absolute; inset: 0;
@@ -28389,7 +28491,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   inset: 0;
   border-radius: inherit;
   z-index: -1;
-  background-image: radial-gradient(rgba(240,160,48,0.14) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(var(--ls-accent-rgb),0.14) 1px, transparent 1px);
   background-size: 22px 22px;
   pointer-events: none;
 }
@@ -28421,7 +28523,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   top: 64px; left: 50%;
   width: 210px; height: 210px;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(240,160,48,0.09);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.09);
   border-radius: 50%;
   pointer-events: none;
   z-index: -1;
@@ -28432,7 +28534,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   top: 64px; left: 50%;
   width: 270px; height: 270px;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(240,160,48,0.05);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.05);
   border-radius: 50%;
   pointer-events: none;
   z-index: -1;
@@ -28451,8 +28553,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   position: absolute; inset: -32px;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(240,160,48,0.35) 0%,
-    rgba(240,160,48,0.12) 40%,
+    rgba(var(--ls-accent-rgb),0.35) 0%,
+    rgba(var(--ls-accent-rgb),0.12) 40%,
     transparent 70%);
   z-index: 0;
   pointer-events: none;
@@ -28468,11 +28570,11 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   position: absolute; inset: -5px;
   border-radius: 50%;
   background: conic-gradient(from 0deg,
-    #f0a030 0%,
-    #fde68a 20%,
-    rgba(240,160,48,0.08) 45%,
-    #fcc044 65%,
-    #f0a030 100%);
+    var(--ls-gold) 0%,
+    var(--ls-gold3) 20%,
+    rgba(var(--ls-accent-rgb),0.08) 45%,
+    var(--ls-gold2) 65%,
+    var(--ls-gold) 100%);
   animation: lsRingSpin 4s linear infinite;
   filter: blur(0.3px);
 }
@@ -28481,10 +28583,10 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   position: absolute; inset: 6px;
   border-radius: 50%;
   background: conic-gradient(from 180deg,
-    rgba(252,192,68,0.55) 0%,
-    rgba(240,160,48,0.02) 40%,
-    rgba(252,192,68,0.45) 70%,
-    rgba(252,192,68,0.55) 100%);
+    rgba(var(--ls-accent2-rgb),0.55) 0%,
+    rgba(var(--ls-accent-rgb),0.02) 40%,
+    rgba(var(--ls-accent2-rgb),0.45) 70%,
+    rgba(var(--ls-accent2-rgb),0.55) 100%);
   animation: lsRingSpin 6s linear infinite reverse;
 }
 @keyframes lsRingSpin { to { transform: rotate(360deg); } }
@@ -28499,9 +28601,9 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     #120e05 50%,
     #050400 100%);
   box-shadow:
-    0 0 0 1px rgba(240,160,48,0.4),
+    0 0 0 1px rgba(var(--ls-accent-rgb),0.4),
     0 14px 34px rgba(0,0,0,0.85),
-    0 0 60px rgba(240,160,48,0.18),
+    0 0 60px rgba(var(--ls-accent-rgb),0.18),
     inset 0 2px 3px rgba(255,255,255,0.16),
     inset 0 -4px 8px rgba(0,0,0,0.55);
   z-index: 1;
@@ -28532,7 +28634,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-logo-letters::after {
   content: 'ST';
   font-family: var(--font-head); font-size: 42px; font-weight: 800;
-  background: linear-gradient(160deg, #fde68a 0%, #f0a030 40%, #c47a10 100%);
+  background: linear-gradient(160deg, var(--ls-gold3) 0%, var(--ls-gold) 40%, var(--ls-gold-dark) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -1.5px;
@@ -28544,12 +28646,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-logo-name {
   font-family: var(--font-head);
   font-size:var(--text-7xl); font-weight: 800; letter-spacing: -0.8px;
-  background: linear-gradient(135deg, #fde68a 0%, #f0a030 50%, #fcc044 100%);
+  background: linear-gradient(135deg, var(--ls-gold3) 0%, var(--ls-gold) 50%, var(--ls-gold2) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 6px;
   text-shadow: none;
-  filter: drop-shadow(0 2px 8px rgba(240,160,48,0.3));
+  filter: drop-shadow(0 2px 8px rgba(var(--ls-accent-rgb),0.3));
 }
 
 /* Tagline with separator dots */
@@ -28564,8 +28666,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-feature-row { display: flex; align-items: flex-start; gap: 13px; }
 .ls-feature-icon {
   flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px;
-  background: rgba(240,160,48,0.10); border: 1px solid rgba(240,160,48,0.28);
-  display: flex; align-items: center; justify-content: center; color: var(--ls-gold2, #fcc044);
+  background: rgba(var(--ls-accent-rgb),0.10); border: 1px solid rgba(var(--ls-accent-rgb),0.28);
+  display: flex; align-items: center; justify-content: center; color: var(--ls-gold2);
 }
 .ls-feature-text .ls-feature-t { font-size: 13.5px; font-weight: 600; color: #fff; margin-bottom: 2px; letter-spacing: -0.1px; }
 .ls-feature-text .ls-feature-d { font-size: 12px; color: rgba(255,255,255,0.34); line-height: 1.45; }
@@ -28591,7 +28693,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-tab-active {
   background: linear-gradient(180deg, var(--ls-gold2), var(--ls-gold)) !important; color: #000 !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 14px rgba(240,160,48,0.5), inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -2px 3px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 14px rgba(var(--ls-accent-rgb),0.5), inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -2px 3px rgba(0,0,0,0.15);
 }
 
 /* ── Glass card (sign-in) ── */
@@ -28610,7 +28712,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-input-wrap { position: relative; margin-bottom: 12px; }
 .ls-input-icon {
   position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
-  color: rgba(240,160,48,0.55); display: flex; pointer-events: none;
+  color: rgba(var(--ls-accent-rgb),0.55); display: flex; pointer-events: none;
 }
 .ls-input {
   width: 100%;
@@ -28625,22 +28727,22 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   box-shadow: inset 0 3px 10px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.05);
 }
 .ls-input:focus {
-  border-color: rgba(240,160,48,0.55);
-  box-shadow: inset 0 3px 10px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.05), 0 0 0 3px rgba(240,160,48,0.12);
+  border-color: rgba(var(--ls-accent-rgb),0.55);
+  box-shadow: inset 0 3px 10px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(255,255,255,0.05), 0 0 0 3px rgba(var(--ls-accent-rgb),0.12);
   background: rgba(0,0,0,0.28);
 }
 .ls-input::placeholder { color: var(--ls-muted); }
 
 /* ── Primary button ── */
 .ls-btn-primary {
-  width: 100%; padding: 17px; border: 1.5px solid rgba(240,160,48,0.55); border-radius: 999px; cursor: pointer;
+  width: 100%; padding: 17px; border: 1.5px solid rgba(var(--ls-accent-rgb),0.55); border-radius: 999px; cursor: pointer;
   background: linear-gradient(180deg, #241c0e, #0a0805); color: var(--ls-gold2); font-size:var(--text-lg); font-weight: 800;
   font-family: var(--font-body);
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 10px 26px rgba(0,0,0,0.6), 0 4px 20px rgba(240,160,48,0.3), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.6), 0 4px 20px rgba(var(--ls-accent-rgb),0.3), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5);
   transition: all 0.15s ease;
 }
-.ls-btn-primary:hover { box-shadow: 0 12px 30px rgba(0,0,0,0.65), 0 4px 24px rgba(240,160,48,0.4), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5); }
+.ls-btn-primary:hover { box-shadow: 0 12px 30px rgba(0,0,0,0.65), 0 4px 24px rgba(var(--ls-accent-rgb),0.4), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.5); }
 .ls-btn-primary:active { transform: scale(0.97); box-shadow: 0 4px 14px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.5); }
 
 /* ── Ghost + Danger ── */
@@ -28650,7 +28752,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   color: var(--ls-muted); font-size:var(--text-md); font-weight: 600;
   font-family: var(--font-body); transition: all 0.15s;
 }
-.ls-btn-ghost:hover { border-color: rgba(240,160,48,0.4); color: var(--ls-text); }
+.ls-btn-ghost:hover { border-color: rgba(var(--ls-accent-rgb),0.4); color: var(--ls-text); }
 .ls-btn-danger {
   padding: 11px 16px; border-radius:var(--radius); cursor: pointer;
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
@@ -28670,12 +28772,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 88%, transparent 100%);
   scrollbar-width: thin;
-  scrollbar-color: rgba(240,160,48,0.35) transparent;
+  scrollbar-color: rgba(var(--ls-accent-rgb),0.35) transparent;
 }
 #lock-agent-list::-webkit-scrollbar { width: 6px; }
 #lock-agent-list::-webkit-scrollbar-track { background: transparent; }
-#lock-agent-list::-webkit-scrollbar-thumb { background: rgba(240,160,48,0.35); border-radius: 3px; }
-#lock-agent-list::-webkit-scrollbar-thumb:hover { background: rgba(240,160,48,0.55); }
+#lock-agent-list::-webkit-scrollbar-thumb { background: rgba(var(--ls-accent-rgb),0.35); border-radius: 3px; }
+#lock-agent-list::-webkit-scrollbar-thumb:hover { background: rgba(var(--ls-accent-rgb),0.55); }
 
 /* "Enter agent code instead" toggle link — collapses the code-entry
    section behind a link whenever there's a cached agent list to show
@@ -28687,18 +28789,18 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-code-toggle-btn {
   display: flex;
   align-items: center; justify-content: center; gap: 6px; width: 100%;
-  background: rgba(240,160,48,0.06);
-  border: 1px solid rgba(240,160,48,0.16);
+  background: rgba(var(--ls-accent-rgb),0.06);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.16);
   border-radius: 12px;
-  color: rgba(240,160,48,0.65); font-size: 12px; font-weight: 700;
+  color: rgba(var(--ls-accent-rgb),0.65); font-size: 12px; font-weight: 700;
   letter-spacing: 0.2px;
   cursor: pointer; padding: 11px 6px; font-family: var(--font-body);
   transition: all 0.15s ease;
 }
 .ls-code-toggle-btn:hover {
   color: var(--ls-gold2);
-  background: rgba(240,160,48,0.1);
-  border-color: rgba(240,160,48,0.32);
+  background: rgba(var(--ls-accent-rgb),0.1);
+  border-color: rgba(var(--ls-accent-rgb),0.32);
 }
 .ls-code-toggle-btn:active { transform: scale(0.98); }
 #ls-signin-top { display: none; width: 100%; }
@@ -28725,12 +28827,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   width: 100%;
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(240,160,48,0.15);
-  border-top-color: rgba(240,160,48,0.3);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.15);
+  border-top-color: rgba(var(--ls-accent-rgb),0.3);
   border-radius: 24px;
   padding: 28px 20px 24px;
   box-shadow: 0 16px 60px rgba(0,0,0,0.65),
-              0 0 40px rgba(240,160,48,0.06),
+              0 0 40px rgba(var(--ls-accent-rgb),0.06),
               inset 0 1px 0 rgba(255,255,255,0.1);
   text-align: center;
 }
@@ -28740,7 +28842,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   content: 'SECURE PIN ENTRY';
   display: block;
   font-size:var(--text-3xs); font-weight: 800; letter-spacing: 0.2em;
-  color: rgba(240,160,48,0.7); text-transform: uppercase;
+  color: rgba(var(--ls-accent-rgb),0.7); text-transform: uppercase;
   margin-bottom: 8px;
 }
 .ls-pin-name {
@@ -28759,9 +28861,9 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   display: flex; justify-content: center; align-items: center; gap: 12px;
   margin-bottom: 8px;
   background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(240,160,48,0.14);
+  border: 1px solid rgba(var(--ls-accent-rgb),0.14);
   border-radius:var(--radius); padding: 12px 20px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(240,160,48,0.04);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(var(--ls-accent-rgb),0.04);
 }
 .ls-pin-dot {
   width: 32px; height: 4px; border-radius: 2px;
@@ -28770,7 +28872,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 }
 .ls-pin-dot.filled {
   background: var(--ls-neon);
-  box-shadow: 0 0 10px rgba(240,160,48,0.9), 0 0 20px rgba(240,160,48,0.5);
+  box-shadow: 0 0 10px rgba(var(--ls-accent-rgb),0.9), 0 0 20px rgba(var(--ls-accent-rgb),0.5);
   transform: none;
 }
 .ls-pin-dot.success {
@@ -28818,26 +28920,26 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-num::before {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(240,160,48,0.14), rgba(240,160,48,0.04));
+  background: linear-gradient(135deg, rgba(var(--ls-accent-rgb),0.14), rgba(var(--ls-accent-rgb),0.04));
   opacity: 0; transition: opacity 0.15s;
   border-radius:var(--radius-lg);
 }
 .ls-num:hover::before { opacity: 1; }
 .ls-num:hover {
-  border-color: rgba(240,160,48,0.35);
-  box-shadow: 0 0 14px rgba(240,160,48,0.18);
+  border-color: rgba(var(--ls-accent-rgb),0.35);
+  box-shadow: 0 0 14px rgba(var(--ls-accent-rgb),0.18);
 }
 .ls-num:active {
-  background: rgba(240,160,48,0.15);
-  border-color: rgba(240,160,48,0.5);
+  background: rgba(var(--ls-accent-rgb),0.15);
+  border-color: rgba(var(--ls-accent-rgb),0.5);
   transform: scale(0.93);
-  box-shadow: 0 0 20px rgba(240,160,48,0.35);
+  box-shadow: 0 0 20px rgba(var(--ls-accent-rgb),0.35);
 }
 .ls-num:active .ls-num-main { color: var(--ls-neon) !important; }
 .ls-num.pressed::after {
   content: '';
   position: absolute; inset: 0; border-radius: inherit;
-  background: radial-gradient(circle, rgba(240,160,48,0.35) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--ls-accent-rgb),0.35) 0%, transparent 70%);
   animation: ls-ripple-fade 0.4s ease-out forwards;
 }
 @keyframes ls-ripple-fade { from { opacity: 1; } to { opacity: 0; } }
@@ -28873,30 +28975,30 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 /* ── Agent cards ── */
 .lock-agent-card {
   display: flex; align-items: center; gap: 16px;
-  background: linear-gradient(160deg, rgba(240,160,48,0.14), rgba(255,255,255,0.02) 55%);
-  border: 1.5px solid rgba(240,160,48,0.4);
+  background: linear-gradient(160deg, rgba(var(--ls-accent-rgb),0.14), rgba(255,255,255,0.02) 55%);
+  border: 1.5px solid rgba(var(--ls-accent-rgb),0.4);
   border-radius: 22px; padding: 18px 20px;
   cursor: pointer; width: 100%;
   transition: all 0.2s ease; text-align: left;
   position: relative; overflow: hidden;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 4px 14px rgba(240,160,48,0.15), 0 0 0 1px rgba(240,160,48,0.1), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.3);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.55), 0 4px 14px rgba(var(--ls-accent-rgb),0.15), 0 0 0 1px rgba(var(--ls-accent-rgb),0.1), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.3);
 }
 .lock-agent-card::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
   border-radius: 22px 0 0 22px;
   background: linear-gradient(180deg, var(--ls-gold2), var(--lac-color, var(--gold)));
-  box-shadow: 0 0 12px rgba(240,160,48,0.6);
+  box-shadow: 0 0 12px rgba(var(--ls-accent-rgb),0.6);
 }
 .lock-agent-card:hover {
-  border-color: var(--lac-color, rgba(240,160,48,0.65));
-  box-shadow: 0 20px 46px rgba(0,0,0,0.6), 0 4px 16px rgba(240,160,48,0.22), 0 0 0 1px rgba(240,160,48,0.14), inset 0 1.5px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3);
+  border-color: var(--lac-color, rgba(var(--ls-accent-rgb),0.65));
+  box-shadow: 0 20px 46px rgba(0,0,0,0.6), 0 4px 16px rgba(var(--ls-accent-rgb),0.22), 0 0 0 1px rgba(var(--ls-accent-rgb),0.14), inset 0 1.5px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.3);
   transform: translateY(-2px) scale(1.005);
 }
 .lock-agent-card:active { transform: translateY(0) scale(0.99); }
 .lock-agent-card.selected {
   border-color: var(--lac-color, var(--ls-gold));
-  background: linear-gradient(160deg, rgba(240,160,48,0.2), rgba(255,255,255,0.02) 55%);
-  box-shadow: 0 8px 32px rgba(240,160,48,0.25);
+  background: linear-gradient(160deg, rgba(var(--ls-accent-rgb),0.2), rgba(255,255,255,0.02) 55%);
+  box-shadow: 0 8px 32px rgba(var(--ls-accent-rgb),0.25);
 }
 .lock-agent-avatar {
   position: relative;
@@ -28904,7 +29006,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-head); font-size: 21px; font-weight: 800;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(240,160,48,0.3), 0 0 0 5px rgba(240,160,48,0.08), 0 6px 18px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.18), inset 0 -3px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 2px rgba(var(--ls-accent-rgb),0.3), 0 0 0 5px rgba(var(--ls-accent-rgb),0.08), 0 6px 18px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.18), inset 0 -3px 6px rgba(0,0,0,0.4);
 }
 .lock-agent-avatar::after {
   content: ''; position: absolute; top: 8%; left: 14%; width: 55%; height: 40%; border-radius: 50%;
@@ -28947,7 +29049,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 /* Signup panel */
 .ls-signup-icon {
   width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;
-  background: rgba(240,160,48,0.1); border: 1px solid rgba(240,160,48,0.25);
+  background: rgba(var(--ls-accent-rgb),0.1); border: 1px solid rgba(var(--ls-accent-rgb),0.25);
   display: flex; align-items: center; justify-content: center;
 }
 .ls-signup-title {
@@ -28973,7 +29075,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-footer-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(240,160,48,0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--ls-accent-rgb),0.25), transparent);
   max-width: 60px;
 }
 .ls-footer-credit {
@@ -28992,12 +29094,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-footer-name {
   font-size:var(--text-sm);
   font-weight: 700;
-  background: linear-gradient(135deg, rgba(240,160,48,0.7) 0%, rgba(252,192,68,0.9) 50%, rgba(240,160,48,0.6) 100%);
+  background: linear-gradient(135deg, rgba(var(--ls-accent-rgb),0.7) 0%, rgba(var(--ls-accent2-rgb),0.9) 50%, rgba(var(--ls-accent-rgb),0.6) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: 0.8px;
-  filter: drop-shadow(0 0 6px rgba(240,160,48,0.3));
+  filter: drop-shadow(0 0 6px rgba(var(--ls-accent-rgb),0.3));
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -29040,10 +29142,19 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     border: 1px solid rgba(255,255,255,0.09);
     border-top-color: rgba(255,255,255,0.18);
     background:
-      radial-gradient(ellipse 65% 55% at 46% 8%, rgba(240,160,48,0.14) 0%, transparent 62%),
-      radial-gradient(ellipse 50% 40% at 92% 90%, rgba(240,160,48,0.05) 0%, transparent 55%),
+      radial-gradient(ellipse 65% 55% at 46% 8%, rgba(var(--ls-accent-rgb),0.14) 0%, transparent 62%),
+      radial-gradient(ellipse 50% 40% at 92% 90%, rgba(var(--ls-accent-rgb),0.05) 0%, transparent 55%),
       linear-gradient(160deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%);
     box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  [data-theme="light"] .ls-wrap {
+    border-color: rgba(15,22,35,0.08);
+    border-top-color: rgba(255,255,255,0.9);
+    background:
+      radial-gradient(ellipse 65% 55% at 46% 8%, rgba(var(--ls-accent-rgb),0.10) 0%, transparent 62%),
+      radial-gradient(ellipse 50% 40% at 92% 90%, rgba(var(--ls-accent-rgb),0.04) 0%, transparent 55%),
+      linear-gradient(160deg, #ffffff 0%, #f5f6fb 100%);
+    box-shadow: 0 30px 80px rgba(15,22,35,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
   }
   .ls-logo-block {
     grid-column: 1;
@@ -29058,7 +29169,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     position: absolute;
     top: 8%; bottom: 8%; right: -28px;
     width: 1px;
-    background: linear-gradient(180deg, transparent, rgba(240,160,48,0.28), transparent);
+    background: linear-gradient(180deg, transparent, rgba(var(--ls-accent-rgb),0.28), transparent);
   }
   /* Jewel accent centered on the divider — a small premium touch */
   .ls-logo-block::before {
@@ -29069,7 +29180,7 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     transform: translateY(-50%) rotate(45deg);
     background: var(--ls-gold2);
     border-radius: 2px;
-    box-shadow: 0 0 12px 2px rgba(240,160,48,0.6);
+    box-shadow: 0 0 12px 2px rgba(var(--ls-accent-rgb),0.6);
   }
   /* Reveal the feature highlights only on desktop */
   .ls-feature-list { display: flex; }
