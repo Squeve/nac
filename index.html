@@ -28150,6 +28150,14 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
       <span style="width:2px;height:2px;top:60%;left:10%;opacity:0.5"></span>
       <span style="width:3px;height:3px;top:72%;left:85%;opacity:0.7"></span>
       <span style="width:2px;height:2px;top:88%;left:22%;opacity:0.4"></span>
+      <!-- Extra points in the side gutters either side of the desktop card,
+           so those margins don't read as flat empty black on wide screens. -->
+      <span style="width:2.5px;height:2.5px;top:26%;left:6%;opacity:0.6"></span>
+      <span style="width:2px;height:2px;top:44%;left:9%;opacity:0.45"></span>
+      <span style="width:2px;height:2px;top:68%;left:5%;opacity:0.5"></span>
+      <span style="width:2.5px;height:2.5px;top:22%;left:93%;opacity:0.55"></span>
+      <span style="width:2px;height:2px;top:50%;left:90%;opacity:0.5"></span>
+      <span style="width:2px;height:2px;top:78%;left:94%;opacity:0.4"></span>
     </div>
     <div class="ls-bg-vignette"></div>
   </div>
@@ -28181,6 +28189,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
         </div>
       </div>
     </div>
+
+    <!-- Desktop-only divider between the brand panel and the sign-in form.
+         Its own dedicated grid column (see the desktop media query) so it
+         always sits exactly on the column boundary, instead of hanging off
+         the logo block's edge where its rendered width can vary. -->
+    <div class="ls-side-divider" aria-hidden="true"></div>
 
     <!-- Tab bar -->
     <div id="ls-tabs-wrap" style="width:100%"><div class="ls-tabs ls-anim-2">
@@ -28345,6 +28359,11 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   --ls-neon:      rgb(var(--ls-accent2-rgb));
   --ls-neon-glow: rgba(var(--ls-accent-rgb),0.5);
   --ls-green:     #22c55e;
+  /* Subtle film-grain texture (inline SVG, no network request — keeps the
+     lock screen working offline) layered under the gradients so the
+     backdrop and the desktop split-panel read as a textured surface
+     instead of flat, glassy gradients. */
+  --ls-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
 }
 /* Per-theme accent remap — mirrors each theme's own --gold/--gold2/--gold3 */
 [data-theme="light"]   { --ls-accent-rgb: 149,92,8;    --ls-accent2-rgb: 157,98,9;    --ls-gold3: #c88a1f; --ls-gold-dark: #6b4206; }
@@ -28372,10 +28391,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 /* Background layers */
 [data-theme="light"] .ls-bg {
   background:
+    var(--ls-noise),
     radial-gradient(ellipse 70% 40% at 50% 16%, rgba(var(--ls-accent-rgb),0.12) 0%, transparent 60%),
     radial-gradient(ellipse 60% 45% at 8% 85%, rgba(14,165,233,0.07) 0%, transparent 55%),
     radial-gradient(ellipse 55% 40% at 95% 75%, rgba(var(--ls-accent-rgb),0.05) 0%, transparent 55%),
     linear-gradient(160deg, #f4f6fb 0%, #e8ebf3 100%);
+  background-blend-mode: soft-light, normal, normal, normal, normal;
 }
 [data-theme="light"] .ls-bg-mesh {
   background: radial-gradient(circle 340px at 50% 12%, rgba(var(--ls-accent2-rgb),0.10) 0%, transparent 70%);
@@ -28449,10 +28470,16 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 .ls-bg {
   position: fixed; inset: 0; z-index: 0;
   background:
+    var(--ls-noise),
     radial-gradient(ellipse 70% 40% at 50% 16%, rgba(var(--ls-accent-rgb),0.22) 0%, transparent 60%),
     radial-gradient(ellipse 60% 45% at 8% 85%, rgba(14,165,233,0.10) 0%, transparent 55%),
     radial-gradient(ellipse 55% 40% at 95% 75%, rgba(var(--ls-accent-rgb),0.08) 0%, transparent 55%),
+    /* Fills the empty flanks either side of the centred desktop card (previously
+       flat black at ~10% / ~90% width) with a soft ambient glow instead. */
+    radial-gradient(ellipse 40% 60% at 4% 48%, rgba(var(--ls-accent-rgb),0.13) 0%, transparent 62%),
+    radial-gradient(ellipse 40% 60% at 96% 52%, rgba(14,165,233,0.09) 0%, transparent 62%),
     linear-gradient(160deg, #060810 0%, #04050a 100%);
+  background-blend-mode: soft-light, normal, normal, normal, normal, normal, normal;
 }
 .ls-bg-mesh {
   position: absolute; inset: 0;
@@ -28513,6 +28540,9 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 
 /* ── Logo block ── Card Spotlight style ── */
 .ls-logo-block { position: relative; text-align: center; margin-bottom: 26px; }
+/* Hidden on mobile — only shown as a real grid column on desktop, see the
+   min-width:901px media query below. */
+.ls-side-divider { display: none; }
 /* Soft concentric rings behind the logo — a small illustrative touch that
    doesn't cost any layout space. Desktop overrides ::before with its own
    jewel-divider accent (see the desktop media query), so this only
@@ -29133,8 +29163,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     width: 90%;
     padding: 64px 56px;
     display: grid;
-    grid-template-columns: minmax(300px,380px) minmax(320px,1fr);
-    column-gap: 56px;
+    grid-template-columns: minmax(300px,380px) 1px minmax(320px,1fr);
+    column-gap: 27px;
     align-items: start;
     /* Floating glass panel — gives the split layout a defined edge instead
        of sitting directly on the page background */
@@ -29142,18 +29172,22 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     border: 1px solid rgba(255,255,255,0.09);
     border-top-color: rgba(255,255,255,0.18);
     background:
+      var(--ls-noise),
       radial-gradient(ellipse 65% 55% at 46% 8%, rgba(var(--ls-accent-rgb),0.14) 0%, transparent 62%),
       radial-gradient(ellipse 50% 40% at 92% 90%, rgba(var(--ls-accent-rgb),0.05) 0%, transparent 55%),
       linear-gradient(160deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%);
+    background-blend-mode: soft-light, normal, normal, normal;
     box-shadow: 0 40px 100px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   [data-theme="light"] .ls-wrap {
     border-color: rgba(15,22,35,0.08);
     border-top-color: rgba(255,255,255,0.9);
     background:
+      var(--ls-noise),
       radial-gradient(ellipse 65% 55% at 46% 8%, rgba(var(--ls-accent-rgb),0.10) 0%, transparent 62%),
       radial-gradient(ellipse 50% 40% at 92% 90%, rgba(var(--ls-accent-rgb),0.04) 0%, transparent 55%),
       linear-gradient(160deg, #ffffff 0%, #f5f6fb 100%);
+    background-blend-mode: soft-light, normal, normal, normal;
     box-shadow: 0 30px 80px rgba(15,22,35,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
   }
   .ls-logo-block {
@@ -29163,31 +29197,42 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     margin-bottom: 0;
     position: relative;
   }
-  /* Subtle vertical divider between the brand panel and the form */
-  .ls-logo-block::after {
-    content: '';
-    position: absolute;
-    top: 8%; bottom: 8%; right: -28px;
+  /* The old jewel/line hung off .ls-logo-block's own right edge with
+     negative offsets, so it only lined up correctly when that box
+     happened to render at its maximum stretched width — on narrower
+     desktop widths it drifted inward under the logo instead of sitting
+     on the column boundary. Disabled here in favour of .ls-side-divider,
+     which lives in its own real grid column (2) and so always sits
+     exactly on the boundary regardless of how column 1 renders. */
+  .ls-logo-block::after,
+  .ls-logo-block::before {
+    content: none;
+  }
+  .ls-side-divider {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / 4;
+    align-self: stretch;
+    position: relative;
     width: 1px;
     background: linear-gradient(180deg, transparent, rgba(var(--ls-accent-rgb),0.28), transparent);
   }
-  /* Jewel accent centered on the divider — a small premium touch */
-  .ls-logo-block::before {
+  .ls-side-divider::before {
     content: '';
     position: absolute;
-    top: 50%; right: -32px;
+    top: 50%; left: 50%;
     width: 9px; height: 9px;
-    transform: translateY(-50%) rotate(45deg);
+    transform: translate(-50%,-50%) rotate(45deg);
     background: var(--ls-gold2);
     border-radius: 2px;
     box-shadow: 0 0 12px 2px rgba(var(--ls-accent-rgb),0.6);
   }
   /* Reveal the feature highlights only on desktop */
   .ls-feature-list { display: flex; }
-  #ls-tabs-wrap        { grid-column: 2; grid-row: 1; }
-  #auth-signin-panel   { grid-column: 2; grid-row: 2; }
-  #auth-signup-panel   { grid-column: 2; grid-row: 2; }
-  #lock-dev-override   { grid-column: 2; grid-row: 3; margin-top: 16px; }
+  #ls-tabs-wrap        { grid-column: 3; grid-row: 1; }
+  #auth-signin-panel   { grid-column: 3; grid-row: 2; }
+  #auth-signup-panel   { grid-column: 3; grid-row: 2; }
+  #lock-dev-override   { grid-column: 3; grid-row: 3; margin-top: 16px; }
   .ls-footer           { grid-column: 1 / -1; grid-row: 4; margin-top: 56px; }
 
   /* Collapse "or enter agent code" behind a toggle link — see the global
@@ -29672,6 +29717,66 @@ const DECOY_SECRET = '1047';
   } else {
     fixRankingInputLag();
   }
+})();
+</script>
+
+<!-- ── DESKTOP KEYBOARD SUPPORT FOR PIN PAD ─────────────────────
+     Lets a physical keyboard drive the on-screen PIN pad: digit keys
+     0-9 enter digits, Backspace deletes, Enter submits once 4 digits
+     are in (the pad already auto-submits at 4 digits — this just
+     covers the case of typing quickly and pressing Enter right after),
+     Escape goes back to agent selection. Only active while the PIN
+     step of the lock screen is actually visible, and never hijacks
+     typing into a real text input (e.g. the agent-code or dev-override
+     fields), which keep their own Enter handling. -->
+<script>
+(function() {
+  var enterBusy = false;
+
+  document.addEventListener('keydown', function(e) {
+    var lockScreen = document.getElementById('lock-screen');
+    if (!lockScreen || lockScreen.style.display === 'none') return;
+
+    var pinSection = document.getElementById('lock-pin-section');
+    if (!pinSection || pinSection.style.display === 'none') return;
+
+    var active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      if (typeof pinPress === 'function') pinPress(e.key);
+      return;
+    }
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      if (typeof pinBackspace === 'function') pinBackspace();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (typeof _pinBuffer !== 'undefined' && _pinBuffer.length === 4 &&
+          typeof processPin === 'function' && !enterBusy) {
+        enterBusy = true;
+        var res = processPin();
+        if (res && typeof res.finally === 'function') {
+          res.finally(function() { enterBusy = false; });
+        } else {
+          enterBusy = false;
+        }
+      }
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (typeof lockSelectAgent === 'function') lockSelectAgent(null);
+      if (typeof authClearCode === 'function') authClearCode();
+      return;
+    }
+  });
 })();
 </script>
   
