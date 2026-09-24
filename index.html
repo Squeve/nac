@@ -1410,6 +1410,32 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
   justify-content: center;
 }
 #modal-overlay.open { display: flex; }
+
+/* themedConfirm()'s own overlay — deliberately separate from #modal-overlay
+   (see the JS comment above themedConfirm) so it can sit on top of an
+   already-open form modal, or above the lock screen, without disturbing
+   either. z-index 10050 clears #lock-screen's 9999. */
+.tc-overlay {
+  position: fixed; inset: 0; z-index: 10050;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: tcFadeIn 0.15s ease-out;
+}
+@keyframes tcFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.tc-card {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); max-width: 380px; width: 100%;
+  padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  animation: tcScaleIn 0.18s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes tcScaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+.tc-msg {
+  font-size: var(--text-lg); color: var(--text); line-height: 1.6;
+  white-space: pre-line; margin-bottom: 18px;
+}
+.tc-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .modal {
   background: var(--surface);
   border: 1px solid var(--border2);
@@ -13162,7 +13188,7 @@ function borrowerForm(b) {
 }
 
 
-function saveBorrower(id) {
+async function saveBorrower(id) {
 // Block remote sync temporarily
   state._blockRemotePullUntil = Date.now() + 3000;
   
@@ -13215,9 +13241,17 @@ if (phoneDigits.length < 9) return toast('Enter a valid phone number (include co
     // one vague "similar name or phone" message that didn't say which.
     const dupe = _findPossibleDuplicate(name, phone);
     if (dupe.type === 'phone') {
-      if (!confirm('A borrower with this exact phone number already exists: "' + dupe.existing.name + '". This is very likely the same person. Add as a new, separate borrower anyway?')) return;
+      const proceed = await themedConfirm(
+        'A borrower with this exact phone number already exists: "' + dupe.existing.name + '". This is very likely the same person. Add as a new, separate borrower anyway?',
+        { confirmLabel: 'Add Anyway', danger: false }
+      );
+      if (!proceed) return;
     } else if (dupe.type === 'name') {
-      if (!confirm('A borrower named "' + dupe.existing.name + '" already exists (different phone number). If this is a different person, it\'s safe to continue. Add anyway?')) return;
+      const proceed = await themedConfirm(
+        'A borrower named "' + dupe.existing.name + '" already exists (different phone number). If this is a different person, it\'s safe to continue. Add anyway?',
+        { confirmLabel: 'Add Anyway', danger: false }
+      );
+      if (!proceed) return;
     }
     state.borrowers.push({ id: (crypto && crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now()),
       name, phone, principal, loanDue, overdueFeee: 0, amountPaid, startDate, loanType, notes, targetPayment, instalment, guarantorName, guarantorPhone, guarantorIsFormal,
@@ -13446,6 +13480,49 @@ function confirmAction(opts) {
     const btn = document.getElementById('confirm-action-btn');
     if (btn) btn.onclick = function() { closeModal(); opts.onConfirm(); };
   }, 0);
+}
+
+// Lightweight, promise-based confirm dialog for spots that CAN'T safely use
+// confirmAction() above:
+//  - it renders in its OWN overlay, appended straight to <body>, instead of
+//    overwriting #modal-title/#modal-body/#modal-footer — so it can be shown
+//    on top of a form that's already occupying the shared modal (e.g. the
+//    Add Borrower form) without destroying that form's in-progress input.
+//  - its z-index (10050) is higher than both #modal-overlay (1000) AND
+//    #lock-screen (9999), so it also works correctly from the lock screen,
+//    where the shared modal would otherwise render invisibly underneath it.
+// The message is set via textContent (not innerHTML), since callers here
+// pass through free text (a borrower's or agent's own name) and this avoids
+// re-deriving an escaping rule for every call site.
+function themedConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise(function(resolve) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tc-overlay';
+    const danger = opts.danger !== false;
+    wrap.innerHTML =
+      '<div class="tc-card">' +
+        '<div class="tc-msg"></div>' +
+        '<div class="tc-actions">' +
+          '<button class="btn btn-ghost" data-tc="cancel">' + (opts.cancelLabel || 'Cancel') + '</button>' +
+          '<button class="btn ' + (danger ? 'btn-red' : 'btn-gold') + '" data-tc="ok">' + (opts.confirmLabel || 'Confirm') + '</button>' +
+        '</div>' +
+      '</div>';
+    wrap.querySelector('.tc-msg').textContent = message || '';
+    document.body.appendChild(wrap);
+    function done(result) {
+      document.removeEventListener('keydown', onKey);
+      wrap.remove();
+      resolve(result);
+    }
+    function onKey(e) { if (e.key === 'Escape') done(false); }
+    wrap.querySelector('[data-tc="cancel"]').onclick = function() { done(false); };
+    wrap.querySelector('[data-tc="ok"]').onclick = function() { done(true); };
+    wrap.addEventListener('mousedown', function(e) { if (e.target === wrap) done(false); });
+    document.addEventListener('keydown', onKey);
+    // Focus the primary action so Enter confirms, matching native confirm()'s feel
+    setTimeout(function() { wrap.querySelector('[data-tc="ok"]')?.focus(); }, 0);
+  });
 }
 
 // ── Swipe-down-to-close modals ─────────────────────────
@@ -14891,7 +14968,7 @@ let currentPage = 'dashboard';
   });
 })();
 
-function navigate(page) {
+async function navigate(page) {
   // Fix 8: Warn if a form has unsaved input before navigating away
   const dirtyInputs = document.querySelectorAll(
     '#page-new-borrower input[value=""], #page-settings .form-input:not([readonly])'
@@ -14901,7 +14978,10 @@ function navigate(page) {
     const hasData = [...activeForm.querySelectorAll('input,textarea')].some(
       el => el.value && el.value !== el.defaultValue
     );
-    if (hasData && !confirm('You have unsaved changes. Leave without saving?')) return;
+    if (hasData) {
+      const proceed = await themedConfirm('You have unsaved changes. Leave without saving?', { confirmLabel: 'Leave', danger: true });
+      if (!proceed) return;
+    }
   }
   // Save the current page's scroll position before leaving
   saveScrollPosition(currentPage);
@@ -24897,12 +24977,13 @@ function renderLockAgentList() {
 // Clears a saved profile from THIS device's sign-in screen only.
 // Does not touch Supabase / cloud data — the agent can always sign back in
 // elsewhere (or on this device again) with their Agent Code + PIN.
-function removeAgentFromDevice(id, name) {
+async function removeAgentFromDevice(id, name) {
   if (!id) return;
-  const ok = confirm(
+  const ok = await themedConfirm(
     'Remove "' + name + '" from this device?\n\n' +
     'This only clears the saved sign-in shortcut here — their account and data stay safe in the cloud. ' +
-    'They can sign back in anytime with their Agent Code and PIN.'
+    'They can sign back in anytime with their Agent Code and PIN.',
+    { confirmLabel: 'Remove', danger: true }
   );
   if (!ok) return;
 
@@ -27811,8 +27892,8 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
     var offlineBadge = document.getElementById('offline-badge');
     if (offlineBadge) offlineBadge.style.display = offline ? 'flex' : 'none';
   }
-  window.addEventListener('online',  function() { _setOfflineStatus(false); toast('Back online - syncing...', 'success'); replayOfflineQueue(); });
-  window.addEventListener('offline', function() { _setOfflineStatus(true);  toast('Offline - changes saved locally', 'info'); });
+  window.addEventListener('online',  function() { _setOfflineStatus(false); toast('Back online — syncing...', 'success'); replayOfflineQueue(); });
+  window.addEventListener('offline', function() { _setOfflineStatus(true);  toast('Offline — changes saved locally', 'info'); });
   if (!navigator.onLine) _setOfflineStatus(true);
 
 // ── Auto-lock: refresh session timestamp on activity ─────────────
