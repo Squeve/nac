@@ -7510,6 +7510,16 @@ function normalizePhone(phone) {
   return '+' + digits;
 }
 
+// Canonical WhatsApp-ready phone (digits only, full intl format, no "+").
+// Built on normalizePhone() so every wa.me link in the app derives from the
+// same logic, instead of ~20 slightly different ad-hoc versions scattered
+// across dispatch, PTP reminders, the Hit List, WhatsApp-check, etc. — some
+// of which only stripped non-digits without also converting a leading local
+// "0" to the "233" country code, which wa.me requires.
+function toWaPhone(phone) {
+  return normalizePhone(phone).replace('+', '');
+}
+
 // Format phone for display (add spaces: +233 24 123 4567)
 function formatPhoneDisplay(phone) {
   if (!phone) return '';
@@ -7952,13 +7962,8 @@ function getSmsMessage(b, useGenerous) {
 }
 
 function getWaLink(b, useGenerous) {
-  let phoneRaw = b.phone.replace(/\s/g, '');
-  if (phoneRaw.startsWith('0')) {
-    phoneRaw = '+233' + phoneRaw.substring(1);
-  }
-  const phoneDigits = phoneRaw.replace('+', ''); // e.g., 233241234567
   const msg = encodeURIComponent(getSmsMessage(b, useGenerous));
-  return 'https://wa.me/' + phoneDigits + '?text=' + msg;
+  return 'https://wa.me/' + toWaPhone(b.phone) + '?text=' + msg;
 }
 
 // Returns the agent stage day range [min, max] — dynamic per stage
@@ -9354,7 +9359,7 @@ function renderLoansTable() {
       else if (a === 'edit')    openEditModal(r.id);
       else if (a === 'delete')  deleteBorrower(r.id);
       else if (a === 'more')    openBorrowerMoreMenu(r.id, btn);
-      else if (a === 'wa') { const ph = r.phone.replace(/\D/g,''); const _customMsg = getDispatchCustomMsg(r); const msg = encodeURIComponent(_customMsg || getSmsMessage(r, dispatchMode==='generous')); window.open('https://wa.me/'+ph+'?text='+msg,'_blank'); }
+      else if (a === 'wa') { const ph = toWaPhone(r.phone); const _customMsg = getDispatchCustomMsg(r); const msg = encodeURIComponent(_customMsg || getSmsMessage(r, dispatchMode==='generous')); window.open('https://wa.me/'+ph+'?text='+msg,'_blank'); }
       haptic('light');
     });
 
@@ -9979,7 +9984,7 @@ function _updateDispatchCustomPreviews() {
     const msg   = hasCustom ? getDispatchCustomMsg(b) : getSmsMessage(b, useGenerous);
     const msgEl = row.querySelector('.dispatch-msg');
     const waEl  = row.querySelector('a.btn-green');
-    const phone = b.phone.replace(/\D/g,'');
+    const phone = toWaPhone(b.phone);
     if (msgEl) {
       msgEl.textContent = msg;
       msgEl.style.borderLeft = hasCustom ? '3px solid var(--green)' : '';
@@ -10314,8 +10319,7 @@ function openWaCheckPanel() {
     <div id="wa-check-list" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
       ${list.slice(0,40).map(b => {
         const st   = window._waStatusCache[b.id];
-        const ph   = (b.phone||'').replace(/\D/g,'');
-        const phGH = ph.startsWith('0') ? '233' + ph.slice(1) : ph;
+        const phGH = toWaPhone(b.phone);
         const bg   = st === 'active' ? 'rgba(37,211,102,0.07)' : st === 'unknown' ? 'rgba(239,68,68,0.05)' : 'var(--surface2)';
         const bor  = st === 'active' ? 'rgba(37,211,102,0.3)'  : st === 'unknown' ? 'rgba(239,68,68,0.2)'  : 'var(--border2)';
         const btns = !st
@@ -10348,8 +10352,7 @@ window.waCheckMark = function(id, status) {
   if (row) {
     const b = state.borrowers.find(x => x.id === id);
     if (!b) return;
-    const ph   = (b.phone||'').replace(/\D/g,'');
-    const phGH = ph.startsWith('0') ? '233' + ph.slice(1) : ph;
+    const phGH = toWaPhone(b.phone);
     const st   = window._waStatusCache[id];
     row.style.background  = st === 'active' ? 'rgba(37,211,102,0.07)' : st === 'unknown' ? 'rgba(239,68,68,0.05)' : 'var(--surface2)';
     row.style.borderColor = st === 'active' ? 'rgba(37,211,102,0.3)'  : st === 'unknown' ? 'rgba(239,68,68,0.2)'  : 'var(--border2)';
@@ -10399,8 +10402,7 @@ function _waRunScan() {
     return;
   }
   const b    = _waScanQueue[_waScanIdx];
-  const ph   = (b.phone||'').replace(/\D/g,'');
-  const phGH = ph.startsWith('0') ? '233' + ph.slice(1) : ph;
+  const phGH = toWaPhone(b.phone);
   const tot  = _waScanQueue.length;
   const idx  = _waScanIdx;
   document.getElementById('modal-title').textContent = 'WA Scan — ' + (idx+1) + ' of ' + tot;
@@ -14720,7 +14722,7 @@ function showSeqModal() {
   // iOS needs &body= not ?body=, and we detect iOS for the link format
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const smsLink = 'sms:' + phone + (isIOS ? '&body=' : '?body=') + encodeURIComponent(msg);
-  const phoneDigitsSeq = phone.replace('+','');
+  const phoneDigitsSeq = toWaPhone(b.phone);
   const isIOSSeq = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const waLink = isIOSSeq
     ? 'whatsapp://send?phone=' + phoneDigitsSeq + '&text=' + encodeURIComponent(msg)
@@ -17816,7 +17818,7 @@ function escalRenderModal() {
   const msg   = buildEscalationMsg(b, level);
   const useContactPhone = (level === 17 && !!b.guarantorPhone);
   const targetPhone = useContactPhone ? b.guarantorPhone : b.phone;
-  const ph    = targetPhone.replace(/\D/g,'');
+  const ph    = toWaPhone(targetPhone);
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
   const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d'};
@@ -18153,7 +18155,7 @@ function sendDunningMsg(tier) {
   const b = state.borrowers.find(function(x) { return x.id === window._dunningSingleId; });
   if (!b) { closeAllModals(); return; }
   const msg = buildDunningMsg(b, tier);
-  const ph = b.phone.replace(/\D/g, '');
+  const ph = toWaPhone(b.phone);
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   window.open(waLink, '_blank');
   markDispatchContacted(b.id);
@@ -18192,7 +18194,7 @@ function dunningQueueRenderModal() {
   const tier = _recommendDunningTier(b);
   const t = DUNNING_TIERS.find(function(x) { return x.tier === tier; });
   const msg = buildDunningMsg(b, tier);
-  const ph = b.phone.replace(/\D/g, '');
+  const ph = toWaPhone(b.phone);
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct = Math.round((idx / tot) * 100);
 
@@ -18511,7 +18513,6 @@ function renderHitList() {
   itemsEl.innerHTML = hl.map((id, idx) => {
     const b = state.borrowers.find(x => x.id === id);
     if (!b) return '';
-    const phone = b.phone.replace(/\s/g,'').replace('+','');
     return `<div class="hit-item" draggable="true" data-hit-id="${id}" data-idx="${idx}">
       <span style="cursor:grab;color:var(--text3);font-size:var(--text-2xl)">⋮⋮</span>
       <div style="flex:1">
@@ -18521,7 +18522,7 @@ function renderHitList() {
       <div style="display:flex;gap:6px">
         <a href="tel:${b.phone}" class="btn btn-ghost btn-xs" aria-label="Call ${escapeHtml(b.name.split(' ')[0])}" onclick="haptic('light')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span></a>
         <button class="btn btn-green btn-xs" aria-label="Record payment" onclick="openPayModal('${b.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.7 9.4c0-1.3 1-2.3 2.3-2.3s2.3.8 2.3 1.9c0 1.5-1.8 1.7-2.3 1.9-1.6.6-2.3 1-2.3 2.2 0 1.1 1 1.9 2.3 1.9s2.3-.9 2.3-2.1"/></svg></span></button>
-        <a href="https://wa.me/${phone}?text=${encodeURIComponent(getWaLink(b, true))}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></a>
+        <a href="${getWaLink(b, true)}" target="_blank" class="btn btn-ghost btn-xs" style="color:#25d366" aria-label="Message on WhatsApp"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span></a>
         <button class="btn btn-ghost btn-xs" aria-label="Remove from Hit List" onclick="removeFromHitList('${b.id}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
       </div>
     </div>`;
@@ -20559,8 +20560,7 @@ function _ptpSendViaWA(borrowerId) {
   if (!b) return;
   var tone = _ptpGetActiveTone();
   var msg = _ptpBuildMessage(b, tone);
-  var phone = (b.phone || '').replace(/\s/g, '').replace('+', '');
-  if (phone.startsWith('0')) phone = '233' + phone.slice(1);
+  var phone = toWaPhone(b.phone);
   var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
   _ptpLogSend(borrowerId, tone, 'whatsapp');
   closeModal();
@@ -20681,8 +20681,7 @@ function _showPtpSeqModal() {
   var tone      = isMissed ? 'missed' : isToday ? 'dayon' : 'friendly';
   var smsToneMap = { friendly: 'sms_friendly', dayon: 'sms_dayon', missed: 'sms_missed' };
   var msg       = _ptpBuildMessage(b, _ptpSeqChan === 'sms' ? smsToneMap[tone] : tone);
-  var phone     = (b.phone || '').replace(/\s/g, '').replace('+', '');
-  if (phone.startsWith('0')) phone = '233' + phone.slice(1);
+  var phone     = toWaPhone(b.phone);
   var link = _ptpSeqChan === 'wa'
     ? 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg)
     : 'sms:' + (b.phone || '').replace(/\s/g, '') + (/iPad|iPhone|iPod/.test(navigator.userAgent) ? '&body=' : '?body=') + encodeURIComponent(msg);
@@ -21372,7 +21371,7 @@ function buildPtpMorningHtml() {
       </div>
       <div id="${thisWeekId}" style="display:none">
         ${upcoming.slice(0,20).map(b => {
-          const phone = b.phone.replace(/\s/g,'').replace('+','');
+          const phone = toWaPhone(b.phone);
           const isTmrw = b.promiseDate.startsWith(tomorrow);
           const conf = b.ptpConfidence;
           const confBadge = conf ? `<span style="font-size:var(--text-2xs);color:${conf==='hot'?'var(--red)':conf==='warm'?'var(--gold)':'var(--blue)'};background:${conf==='hot'?'rgba(239,68,68,0.1)':conf==='warm'?'rgba(240,160,48,0.1)':'rgba(96,165,250,0.1)'};padding:1px 4px;border-radius:4px;font-weight:700">${conf==='hot'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-2.5-7-6.5C5 10 8 7 9 3c1 3 3 3 4 6 1-1 1-2 1-3 2 2 3 5 3 8.5C17 18.5 16 21 12 21z"/></svg></span>':conf==='warm'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4" y1="7" x2="20" y2="17"/><line x1="20" y1="7" x2="4" y2="17"/></svg></span>'}</span>` : '';
@@ -23163,7 +23162,7 @@ function waqRenderModal() {
   const ug = window._waqGenerous === true;
   const fn = b.name.split(' ')[0];
   const msg = (getDispatchCustomMsg && getDispatchCustomMsg(b)) || getSmsMessage(b, ug).replace(b.name, fn);
-  const ph  = b.phone.replace(/\D/g,'');
+  const ph  = toWaPhone(b.phone);
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct  = Math.round((idx / tot) * 100);
 
@@ -23452,9 +23451,7 @@ function _bulkDispatchNext() {
       ${borrowers.map(b => {
         const firstName = getFirstName(b);
         const filled    = msg.body.replace(/\[Name\]/g, firstName);
-        const rawPhone  = b.phone.replace(/\D/g,'');
-        const waPhone   = rawPhone.startsWith('0') ? '233' + rawPhone.slice(1) : rawPhone;
-        const waLink    = `https://wa.me/${waPhone}?text=${encodeURIComponent(filled)}`;
+        const waLink    = `https://wa.me/${toWaPhone(b.phone)}?text=${encodeURIComponent(filled)}`;
         const smsLink   = `sms:${b.phone.replace(/\s/g,'')}${isIOS?'&body=':'?body='}${encodeURIComponent(filled)}`;
         const od        = getOdAge(b.startDate, b);
         return `
@@ -27211,9 +27208,7 @@ function msgBankOpenBorrowerPicker(msgId, type) {
   borrowers.forEach(b => {
     const firstName = b.name.trim().split(/\s+/)[0];
     const filled    = msg.body.replace(/\[Name\]/g, firstName);
-    const rawPhone  = b.phone.replace(/\D/g,'');
-    const waPhone   = rawPhone.startsWith('0') ? '233' + rawPhone.slice(1) : rawPhone;
-    const waLink    = `https://wa.me/${waPhone}?text=${encodeURIComponent(filled)}`;
+    const waLink    = `https://wa.me/${toWaPhone(b.phone)}?text=${encodeURIComponent(filled)}`;
     const smsLink   = `sms:${b.phone.replace(/\s/g,'')}${isIOS?'&body=':'?body='}${encodeURIComponent(filled)}`;
 
     bHtml += `
@@ -27628,9 +27623,7 @@ function msgBankSuggestShowSend(i) {
 
   const firstName = getFirstName(b);
   const filled    = msg.body.replace(/\[Name\]/g, firstName);
-  const rawPhone  = (b.phone || '').replace(/\D/g,'');
-  const waPhone   = rawPhone.startsWith('0') ? '233' + rawPhone.slice(1) : rawPhone;
-  const waLink    = `https://wa.me/${waPhone}?text=${encodeURIComponent(filled)}`;
+  const waLink    = `https://wa.me/${toWaPhone(b.phone)}?text=${encodeURIComponent(filled)}`;
   const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const smsLink   = `sms:${b.phone.replace(/\s/g,'')}${isIOS?'&body=':'?body='}${encodeURIComponent(filled)}`;
 
