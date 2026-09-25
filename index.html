@@ -17544,11 +17544,13 @@ This is your final reminder for today. Act now.
   }
 
   // ══════════════ TIER 8 — Absolute Final Warning (Last Chance) ══════════════
-  // The ceiling of the entire ladder (not M0-specific), sent only once
-  // every earlier level has been exhausted and grace has genuinely run
-  // out. Still names only real, lawful consequences (legal filing,
-  // garnishee, Credit Bureau, workplace and emergency contact), never
-  // arrest, violence or unlawful seizure, same rule as the rest of this file.
+  // The ceiling of the pre-deadline ladder (not M0-specific) — the last
+  // message sent while there's still a choice to make, once every earlier
+  // level has been exhausted and grace has genuinely run out. Tier 9 below
+  // is what follows once this deadline has actually passed. Still names
+  // only real, lawful consequences (legal filing, garnishee, Credit
+  // Bureau, workplace and emergency contact), never arrest, violence or
+  // unlawful seizure, same rule as the rest of this file.
 
   // Level 31: Ultimate Final Warning — 24 Hour Deadline
   if (level === 31) {
@@ -17574,6 +17576,77 @@ If we do not receive payment or a response within 24 hours, the following procee
 There will be no second version of this message. The next contact you receive on this account will be from whoever we hand it to, not from us.
 
 To pay right now: ${_escalPayGuide(b)} Or call *${agentPhone}* immediately.
+
+*LoanBase Legal Recovery Unit*`;
+  }
+
+  // ══════════════ TIER 9 — Post-deadline follow-through ══════════════
+  // L31's 24-hour deadline has now actually passed with no resolution.
+  // These report what has genuinely happened next, in the same lawful
+  // sequence Ghanaian civil debt recovery actually follows: legal
+  // handover → civil suit filed → garnishee application following a
+  // judgment. Same rule as the rest of this file: only real, lawful,
+  // already-true steps are stated as fact; nothing here claims an order
+  // has been GRANTED before it actually has, and nothing threatens
+  // arrest, violence, or seizure without due process.
+
+  // Level 32: File Formally Handed to Legal Recovery Unit
+  if (level === 32) {
+    const agentPhone = _escalAgentPhone();
+    return _escalHeader('NOTICE: FILE HANDED TO LEGAL RECOVERY UNIT', b, caseRef, dateStr, [
+      { label: 'TOTAL OUTSTANDING', value: balance },
+      { label: 'STATUS', value: 'Legal handover completed ' + dateStr }
+    ]) + `
+
+${salute},
+
+The 24-hour deadline given to you has passed without payment or contact. As stated, your file on the outstanding balance of *${balance}* has now been formally handed to LoanBase's legal recovery unit.
+
+From this point, this account is handled as a legal matter, not a recovery reminder. Communication going forward may come as formal legal correspondence rather than messages from this number.
+
+*One thing has not changed:* settling in full, directly and now, is still the fastest way to close this before further legal costs are added and before a civil claim is filed. Once filed, this is out of the recovery team's hands.
+
+To pay right now: ${_escalPayGuide(b)} Or call *${agentPhone}* if you intend to resolve this today.
+
+*LoanBase Legal Recovery Unit*`;
+  }
+
+  // Level 33: Notice of Civil Suit Filed
+  if (level === 33) {
+    return _escalHeader('NOTICE OF CIVIL SUIT FILED', b, caseRef, dateStr, [
+      { label: 'TOTAL CLAIMED', value: balance + ' plus legal costs' },
+      { label: 'CASE REFERENCE', value: caseRef }
+    ]) + `
+
+${salute},
+
+A civil claim for recovery of your outstanding ${loanType} loan balance has been filed against you at the appropriate court, referencing case *${caseRef}*.
+
+You should expect to be formally served with court process in connection with this matter. Court filing fees and legal costs are now added on top of the amount you already owed, and will continue to increase the longer this remains unresolved.
+
+Settling the full amount now, before a hearing date is set, remains the only way to stop this matter from proceeding further and to avoid a default judgment being entered against you.
+
+To settle now: ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* to confirm settlement before the next court step.
+
+*LoanBase Legal Recovery Unit*`;
+  }
+
+  // Level 34: Garnishee Application Notice
+  if (level === 34) {
+    return _escalHeader('NOTICE: GARNISHEE APPLICATION FILED', b, caseRef, dateStr, [
+      { label: 'TOTAL CLAIMED', value: balance + ' plus legal costs' },
+      { label: 'CASE REFERENCE', value: caseRef }
+    ]) + `
+
+${salute},
+
+In connection with case *${caseRef}*, an application for a garnishee order has been filed with the court to attach funds directly from your bank and/or mobile money accounts toward this debt.
+
+This step follows the court process already under way on this file and is no longer something the recovery team can pause informally — only full settlement, confirmed with the court, or your bank/mobile money provider being formally notified, will affect it from here.
+
+If this balance is settled in full before the order is executed, we will confirm this to the court immediately.
+
+To settle now: ${_escalPayGuide(b)} Or call *${_escalAgentPhone()}* immediately if you can resolve this today.
 
 *LoanBase Legal Recovery Unit*`;
   }
@@ -17666,8 +17739,12 @@ function openEscalationPanel() {
     { level:28, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="12" y2="15"/></svg></span> L28 – M0 Due Today (Hard)', color:'#f97316', desc:'M0, still unpaid, any time of day — firm reminder that today is the only day this can be paid before default.', stageOnly:'M0', unpaidOnly:true },
     { level:29, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><circle cx="12" cy="16" r="0.9" fill="currentColor" stroke="none"/></svg></span> L29 – M0 Afternoon Firm Warning', color:'#ea580c', desc:'M0, still unpaid, from 2PM — firmer than L27, explicitly foreshadows the evening final notice (L30).', stageOnly:'M0', unpaidOnly:true, afterHour:14 },
     { level:30, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span> L30 – M0 Evening Final Notice (Hard)', color:'#dc2626', desc:'M0, still unpaid, from 7PM only — the hardest tone in the M0 ladder, before the account rolls into default overnight.', stageOnly:'M0', unpaidOnly:true, afterHour:19 },
-    // ── Tier 8: Absolute final warning (not M0-specific — the ceiling of the whole ladder) ──
+    // ── Tier 8: Absolute final warning (not M0-specific — the last message before the deadline actually passes) ──
     { level:31, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L22 20H2z"/><line x1="12" y1="9.5" x2="12" y2="14.3"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/></svg></span> L31 – Ultimate Final Warning (24hr)', color:'#7f1d1d', desc:'The absolute ceiling. 24 hour deadline, then legal, garnishee, Credit Bureau and contact outreach proceed without further notice.' },
+    // ── Tier 9: Post-deadline follow-through (only once L31's 24hr window has actually passed) ──
+    { level:32, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span> L32 – Legal Handover Confirmed', color:'#6b1717', desc:'L31\'s 24hr deadline has passed. Confirms the file is now with the legal recovery unit.' },
+    { level:33, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13" x2="15" y2="13"/></svg></span> L33 – Civil Suit Filed', color:'#5b1414', desc:'A civil claim has actually been filed at court. Cites a case reference and warns of a default judgment.' },
+    { level:34, label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="9" rx="1"/><path d="M6 10V7a6 6 0 0112 0v3"/></svg></span> L34 – Garnishee Application Filed', color:'#4a1010', desc:'A garnishee application to attach bank/MoMo funds has been filed with the court. The hardest tier in the ladder.' },
   ].filter(o => {
     const isM0Only = o.stageOnly === 'M0';
     // At M0, only M0-specific messages should ever show; everything else
