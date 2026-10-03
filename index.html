@@ -6274,6 +6274,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
+      <button class="settings-row" onclick="openWhatsNew(false)">
+        <div class="settings-row-icon" style="background:rgba(176,124,255,0.14);color:var(--purple)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2l1.8 4.6L16.5 8l-4.7 1.4L10 14l-1.8-4.6L3.5 8l4.7-1.4z"/><path d="M15.5 13.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">What's new</div>
+          <div class="settings-row-label-sub">Recent features and where to find them</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
       <button class="settings-row" onclick="openAlertSettings()">
         <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z"/><path d="M8.5 16a1.7 1.7 0 003 0"/></svg>
@@ -10085,6 +10095,7 @@ async function renderDashboard() {
           + '<span>Need <b style="color:var(--text)">' + fmtC(Math.round(neededPerDay)) + '/day</b> for the next <b style="color:var(--text)">' + dlF + ' days</b> to hit target</span>'
           + '</div>'
         : '')
+    + (function () { try { return _forecastCardHtml(); } catch (e) { return ''; } })()
     + '</div>';
 
   // Animate progress bar after paint
@@ -10942,6 +10953,7 @@ function openBorrowerMoreMenu(id, anchorEl) {
         + 'Call'
       + '</div>'
       + (b.phone2 ? '<div class="bc-more-item" data-maction="call2"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 015 5.2 2 2 0 016.5 3z"/></svg></span>Call alt number</div><div class="bc-more-item" data-maction="wa2"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span>WhatsApp alt number</div>' : '')
+      + '<div class="bc-more-item" data-maction="offers">Offer ladder</div>'
       + '<div class="bc-more-item" data-maction="note">'
         + '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg></span>'
         + (b.notes ? 'Edit note' : 'Add note')
@@ -10972,6 +10984,7 @@ function openBorrowerMoreMenu(id, anchorEl) {
       const ma = item.dataset.maction;
       closeBorrowerMoreMenu();
       if (ma === 'call') { if (!b.phone) toast('No phone number on file', 'error'); else window.location.href = 'tel:' + b.phone; }
+      else if (ma === 'offers') openOfferLadder(b.id);
       else if (ma === 'call2') window.location.href = 'tel:' + b.phone2;
       else if (ma === 'wa2') window.open('https://wa.me/' + toWaPhone(b.phone2), '_blank');
       else if (ma === 'note') openQuickNote(id);
@@ -11071,6 +11084,330 @@ function _saveCardOrderFromDom(container) {
   document.addEventListener('pointerup', end);
   document.addEventListener('pointercancel', end);
 })();
+
+
+// ═══ FORECAST + OFFER LADDER ═════════════════════════════════════════════════════════
+// Plain rules that run on the phone (no network, no AI). Numbers are rough guides built from your own history,
+// so they get more useful the more outcomes you log. Tunable constants are first.
+const FC_BACKGROUND_SHARE = 0.35;   // share of your recent daily pace assumed to come from accounts with no promise
+const FC_CONF = { hot: 1.15, warm: 1.0, cold: 0.7 };   // how much your own hot/warm/cold tag nudges a promise
+const FC_Z = 1.28;                  // 10th / 90th percentile band
+
+function _workingDaysLeft(from) {
+  var last = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate(), n = 0;
+  for (var d = from.getDate() + 1; d <= last; d++) { if (PACE_WORK_DAYS.indexOf(new Date(from.getFullYear(), from.getMonth(), d).getDay()) !== -1) n++; }
+  return n;
+}
+function _normCdf(z) { var t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+
+// Chance one promise is kept, from that borrower's own record (kept vs broken vs rescheduled) plus your hot/warm/cold tag
+function _promiseChance(b) {
+  var hist = b.promiseHistory || [];
+  var kept = hist.filter(function (h) { return h.outcome === 'paid'; }).length;
+  var broken = Math.max(hist.filter(function (h) { return h.outcome === 'broken'; }).length, b.brokenPromiseCount || 0);
+  var resched = (b.rescheduleHistory || []).length;
+  var p = (kept + 1.5) / (kept + broken + 3);               // starts at 50% and moves with the record
+  p *= Math.pow(0.9, Math.min(resched, 4));                  // each reschedule makes the next promise less reliable
+  p *= (FC_CONF[b.ptpConfidence] || 1);
+  if ((b.amountPaid || 0) > 0) p = Math.min(0.95, p * 1.1);  // already paid something: more committed
+  return Math.min(0.92, Math.max(0.08, p));
+}
+
+function _forecastMonth() {
+  var now = new Date(), st = state || {};
+  var target = st.monthlyTarget || 0;
+  var log = st.dailyLog || [];
+  var collected = log.reduce(function (t, e) { return t + (Number(e.collected) || 0); }, 0);
+  var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).getTime();
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  var promises = [];
+  (st.borrowers || []).forEach(function (b) {
+    if (!b.promisedToPay || !b.promiseDate || b.isPaid || b.ptpOutcome === 'paid') return;
+    var raw = String(b.promiseDate).trim();
+    var ms = new Date(raw.indexOf(' ') > -1 ? raw.replace(' ', 'T') : raw + 'T12:00:00').getTime();
+    if (isNaN(ms) || ms < todayStart || ms > monthEnd) return;   // only promises that can still land this month
+    var amt = Math.round(getDueToday(b));
+    if (amt <= 0) return;
+    promises.push({ id: b.id, name: b.name, amt: amt, date: raw.slice(0, 10), p: _promiseChance(b) });
+  });
+  promises.sort(function (a, c) { return c.p - a.p; });
+  var E = 0, V = 0, total = 0;
+  promises.forEach(function (x) { E += x.p * x.amt; V += x.p * (1 - x.p) * x.amt * x.amt; total += x.amt; });
+  var sigma = Math.sqrt(V);
+  var active = log.filter(function (e) { return (e.collected || 0) > 0; }).slice(-7);
+  var pace = active.length ? active.reduce(function (t, e) { return t + e.collected; }, 0) / active.length : 0;
+  var days = _workingDaysLeft(now);
+  var W = pace * FC_BACKGROUND_SHARE * days;
+  var f = {
+    collected: collected, target: target, days: days, promises: promises, E: E, sigma: sigma, W: W, promiseTotal: total,
+    low:    Math.round(collected + Math.max(0, E - FC_Z * sigma) + 0.5 * W),
+    likely: Math.round(collected + E + W),
+    high:   Math.round(collected + Math.min(total, E + FC_Z * sigma) + 1.5 * W)
+  };
+  // chance of reaching the target, and how many of the best promises must be kept to get there
+  if (target > 0) {
+    var need = target - collected - W;
+    f.chance = sigma > 0 ? Math.round((1 - _normCdf((need - E) / sigma)) * 100) : (collected + E + W >= target ? 100 : 0);
+    f.chance = Math.min(99, Math.max(1, f.chance));
+    if (collected >= target) f.chance = 100;
+    var run = 0, k = 0;
+    for (var i = 0; i < promises.length && run < need; i++) { run += promises[i].amt; k++; }
+    f.keepNeeded = need <= 0 ? 0 : (run >= need ? k : null);
+  }
+  return f;
+}
+
+function _forecastCardHtml() {
+  var f = _forecastMonth();
+  if (!f.target) return '';
+  var col = f.likely >= f.target ? 'var(--green)' : f.high >= f.target ? 'var(--gold)' : 'var(--red)';
+  var line = f.collected >= f.target ? 'Target already reached.'
+    : f.keepNeeded === 0 ? 'Your usual pace alone should cover the rest.'
+    : f.keepNeeded ? 'Keep your best <b style="color:var(--text)">' + f.keepNeeded + '</b> of <b style="color:var(--text)">' + f.promises.length + '</b> promises to hit target.'
+    : 'Promises alone will not reach target. Add new promises or part-payments.';
+  return '<div onclick="openForecastDetail()" style="margin-top:10px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border2);cursor:pointer">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span style="font-size:var(--text-sm);color:var(--text3);font-weight:700;letter-spacing:.04em">MONTH-END FORECAST</span>'
+    + '<span style="font-size:var(--text-sm);font-weight:800;color:' + col + '">' + f.chance + '% to hit target</span></div>'
+    + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;flex-wrap:wrap"><span style="font-family:var(--font-mono);font-weight:800;font-size:var(--text-lg);color:' + col + '">' + fmtC(f.likely) + '</span>'
+    + '<span style="font-size:var(--text-sm);color:var(--text3)">likely · range ' + fmtC(f.low) + ' – ' + fmtC(f.high) + '</span></div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2);margin-top:5px">' + line + ' <span style="color:var(--gold)">Details ›</span></div></div>';
+}
+
+function openForecastDetail() {
+  var f = _forecastMonth();
+  var rows = f.promises.map(function (x) {
+    var pc = Math.round(x.p * 100), c = pc >= 65 ? 'var(--green)' : pc >= 40 ? 'var(--gold)' : 'var(--red)';
+    return '<div onclick="closeModal();openBorrowerDetail(\'' + x.id + '\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+      + '<span><b>' + escapeHtml(x.name) + '</b><br><span style="font-size:var(--text-sm);color:var(--text3)">due ' + x.date + ' · ' + fmtC(x.amt) + '</span></span>'
+      + '<span style="font-family:var(--font-mono);font-weight:800;color:' + c + '">' + pc + '%</span></div>';
+  }).join('') || '<div style="color:var(--text3);padding:12px 0">No open promises landing before month-end.</div>';
+  _pushModal();
+  document.getElementById('modal-title').textContent = 'Month-end forecast';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'
+    + [['Low', f.low], ['Likely', f.likely], ['High', f.high]].map(function (r) { return '<div style="padding:10px;border-radius:12px;background:var(--surface2);text-align:center"><div style="font-size:var(--text-xs);color:var(--text3)">' + r[0] + '</div><div style="font-family:var(--font-mono);font-weight:800;margin-top:2px">' + fmtC(r[1]) + '</div></div>'; }).join('') + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Built from ' + fmtC(f.collected) + ' collected, ' + f.promises.length + ' open promises (' + fmtC(Math.round(f.E)) + ' expected of ' + fmtC(f.promiseTotal) + ' promised) and about ' + fmtC(Math.round(f.W)) + ' from your usual pace over ' + f.days + ' working days. Low and high are the 10th and 90th percentile of the promise part.</div>'
+    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);margin:6px 0">CHANCE EACH PROMISE IS KEPT</div>' + rows
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:10px">A rough guide from each borrower\'s kept, broken and rescheduled promises and your hot/warm/cold tag. It sharpens as you log more outcomes.</div>';
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+// ── Offer ladder: three ways to settle one account, with what each does for the borrower and for your target ──
+function _feeAfter(b, k) {   // estimated OD fee k days from now (2% of remaining principal per day, capped at principal)
+  var principal = b.principal || b.loanDue || 0;
+  var perDay = Math.round(0.02 * Math.max(0, principal - (b.amountPaid || 0)));
+  return Math.min(principal, _getOdFeeCached(b) + perDay * k);
+}
+function _offerLadder(b) {
+  var rate = (state && state.discountRate !== undefined) ? state.discountRate : 0.30;
+  var rem = getRemaining(b), fee = _getOdFeeCached(b), od = getOdAge(b.startDate, b), maxDay = getAgentDayRange()[1];
+  var cliffDays = Math.max(0, maxDay + 1 - od);
+  var full = rem + fee, gen = rem + Math.round(fee * rate);
+  var perDay = Math.round(0.02 * Math.max(0, (b.principal || b.loanDue || 0) - (b.amountPaid || 0)));
+  var part1 = Math.ceil(gen * 0.6 / 10) * 10, part2Days = Math.max(1, Math.min(3, cliffDays - 1 || 1));
+  var part2 = gen - part1;
+  var laterK = Math.max(2, Math.min(cliffDays || 3, 5)), later = rem + Math.round(_feeAfter(b, laterK));
+  return {
+    od: od, cliffDays: cliffDays, perDay: perDay, full: full,
+    offers: [
+      { key: 'today', title: 'Pay today, discounted', now: gen, later: 0, laterDays: 0, saves: full - gen,
+        pitch: 'Clear everything today for ' + fmtC(gen) + '. The late fee is reduced, and it stops growing.' },
+      { key: 'split', title: 'Two parts', now: part1, later: part2, laterDays: part2Days, saves: full - gen,
+        pitch: fmtC(part1) + ' today and ' + fmtC(part2) + ' within ' + part2Days + ' day' + (part2Days > 1 ? 's' : '') + ' keeps the discounted total of ' + fmtC(gen) + '. Miss the second part and the full fee returns.' },
+      { key: 'later', title: 'Full balance, later date', now: 0, later: later, laterDays: laterK, saves: 0,
+        pitch: 'Pay about ' + fmtC(later) + ' in ' + laterK + ' days, no discount. The fee grows by about ' + fmtC(perDay) + ' each day you wait.' }
+    ]
+  };
+}
+
+function openOfferLadder(id) {
+  var b = (state.borrowers || []).find(function (x) { return x.id === id; });
+  if (!b || b.isPaid) return;
+  var L = _offerLadder(b), first = getFirstName(b);
+  var cliffTxt = L.cliffDays > 0 ? L.cliffDays + ' day' + (L.cliffDays > 1 ? 's' : '') + ' until the account moves stage' : 'already at the stage limit';
+  var card = function (o, i) {
+    var parts = [];
+    if (o.now) parts.push('<b>' + fmtC(o.now) + '</b> today');
+    if (o.later) parts.push('<b>' + fmtC(o.later) + '</b> in ' + o.laterDays + ' day' + (o.laterDays > 1 ? 's' : ''));
+    var tone = i === 0 ? 'var(--green)' : i === 1 ? 'var(--gold)' : 'var(--text3)';
+    return '<div style="padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:' + tone + '">' + (i + 1) + '. ' + o.title + '</b>'
+      + (o.saves > 0 ? '<span style="font-size:var(--text-sm);color:var(--green);font-weight:700">saves ' + fmtC(o.saves) + '</span>' : '<span style="font-size:var(--text-sm);color:var(--red);font-weight:700">costs more</span>') + '</div>'
+      + '<div style="margin:5px 0;font-size:var(--text-md)">' + parts.join(' + ') + '</div>'
+      + '<div style="font-size:var(--text-sm);color:var(--text2)">' + o.pitch + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:9px"><button class="btn btn-ghost" style="flex:1" onclick="copyOffer(\'' + id + '\',' + i + ')">Copy</button>'
+      + '<button class="btn btn-gold" style="flex:1" onclick="sendOffer(\'' + id + '\',' + i + ')">WhatsApp</button></div>'
+      + '<button class="btn btn-ghost" style="width:100%;margin-top:8px;border-color:rgba(47,224,165,0.5);color:var(--green)" onclick="acceptOffer(\'' + id + '\',' + i + ')">Accepted: set up this plan</button></div>';
+  };
+  _pushModal(function () { openBorrowerDetail(id); });
+  document.getElementById('modal-title').textContent = 'Offer ladder: ' + first;
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Day ' + L.od + ' overdue · full amount today <b>' + fmtC(L.full) + '</b> · ' + cliffTxt + '. Start with option 1; move down only if they cannot.</div>'
+    + L.offers.map(card).join('')
+    + '<div style="font-size:var(--text-xs);color:var(--text3)">Later-date figures are estimates (fee grows about 2% of the remaining loan per day). Uses your discount setting of ' + Math.round(((state.discountRate !== undefined) ? state.discountRate : 0.30) * 100) + '% of the late fee.</div>';
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function _offerText(id, i) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return '';
+  var o = _offerLadder(b).offers[i];
+  return 'Hello ' + getFirstName(b) + ', regarding your ' + b.loanType + ' loan. Here is an offer: ' + o.pitch + payGuide(b);
+}
+function copyOffer(id, i) {
+  var t = _offerText(id, i);
+  try { navigator.clipboard.writeText(t); toast('Offer copied', 'success'); } catch (e) { toast('Could not copy', 'error'); }
+}
+function sendOffer(id, i) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return;
+  window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(_offerText(id, i)), '_blank');
+}
+
+
+// ═══ SETTLEMENT PLANS (accepted offers) ══════════════════════════════════════════════
+// When a borrower accepts an offer, the plan holds every part with its amount and due time. The live promise always points at the
+// next unpaid part, so the existing reminders, missed-promise alert and PTP lists follow it with no extra setup. If a part is
+// missed the plan is marked broken, because the discount is only valid while the plan is kept.
+function _planFmtDT(d) { var z = function (n) { return String(n).padStart(2, '0'); }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+function _planDueMs(due) { return new Date(String(due).replace(' ', 'T')).getTime(); }
+function _planApplyPromise(b, P) {
+  var next = P.parts.find(function (x) { return !x.paid; });
+  if (!next) return;
+  var k = P.parts.indexOf(next) + 1, n = P.parts.length;
+  b.promisedToPay = true;
+  b.promiseDate = next.due;
+  b.lastPtpDate = next.due.slice(0, 10);
+  b.promiseNote = (n > 1 ? 'Part ' + k + ' of ' + n + ': ' : 'Offer: ') + fmtC(next.amt) + '. Discount only if paid on time.';
+  b.ptpConfidence = b.ptpConfidence || 'warm';
+  b.promiseCreatedAt = b.promiseCreatedAt || new Date().toISOString();
+  b.ptpOutcome = 'pending';
+  b.ptpBreached = false;
+}
+function acceptOffer(id, i) {
+  var b = (state.borrowers || []).find(function (x) { return x.id === id; });
+  if (!b || b.isPaid) return;
+  if (b.settlementPlan && b.settlementPlan.status === 'active' && !confirm('Replace the settlement plan already running for ' + getFirstName(b) + '?')) return;
+  var o = _offerLadder(b).offers[i], now = new Date(), parts = [], first = null;
+  if (o.now > 0) {
+    var t = new Date(now.getTime() + 90 * 60000); t.setMinutes(Math.ceil(t.getMinutes() / 30) * 30, 0, 0);
+    if (t.getHours() >= 18 || t.getDate() !== now.getDate()) { t = new Date(now); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); }
+    first = t; parts.push({ amt: o.now, due: _planFmtDT(t), paid: false });
+  }
+  if (o.later > 0) {
+    var d = new Date(now); d.setDate(d.getDate() + o.laterDays); d.setHours(17, 0, 0, 0);
+    if (first && d.getTime() <= first.getTime()) { d = new Date(first); d.setDate(d.getDate() + 1); d.setHours(17, 0, 0, 0); }
+    parts.push({ amt: o.later, due: _planFmtDT(d), paid: false });
+  }
+  if (!parts.length) return;
+  var P = { id: 'sp' + Date.now(), offer: o.key, title: o.title, createdAt: now.toISOString(), baseline: b.amountPaid || 0, parts: parts, status: 'active', saves: o.saves };
+  b.settlementPlan = P;
+  _planApplyPromise(b, P);
+  if (!b.promiseHistory) b.promiseHistory = [];
+  b.promiseHistory.push({ rescheduled: now.toISOString(), to: parts[0].due, note: 'Offer accepted: ' + o.title });
+  haptic('medium'); saveState(); try { refreshPtpReminders(); } catch (e) {}
+  closeAllModals(); renderCurrentPage();
+  toast(getFirstName(b) + ': plan set, ' + parts.map(function (x) { return fmtC(x.amt) + ' by ' + x.due.slice(5, 16).replace('-', '/'); }).join(' then '), 'success');
+  setTimeout(function () { openBorrowerDetail(id); }, 250);
+}
+function cancelSettlementPlan(id) {
+  var b = (state.borrowers || []).find(function (x) { return x.id === id; });
+  if (!b || !b.settlementPlan) return;
+  if (!confirm('Cancel this settlement plan?')) return;
+  b.settlementPlan.status = 'cancelled';
+  saveState(); try { refreshPtpReminders(); } catch (e) {}
+  openBorrowerDetail(id);
+}
+// Runs with the other breach checks: ticks off parts as payments arrive, moves the promise to the next part, flags a missed part
+function _settlementCheck() {
+  if (!state || !state.borrowers) return false;
+  var now = Date.now(), changed = false, remind = false, broke = [];
+  state.borrowers.forEach(function (b) {
+    var P = b.settlementPlan;
+    if (!P || P.status !== 'active') return;
+    if (b.isPaid) { P.status = 'done'; P.doneAt = new Date().toISOString(); changed = true; return; }
+    var paid = Math.max(0, (b.amountPaid || 0) - (P.baseline || 0)), cum = 0;
+    P.parts.forEach(function (x) { cum += x.amt; if (!x.paid && paid >= cum * 0.98) { x.paid = true; x.paidAt = new Date().toISOString(); changed = true; remind = true; } });
+    var next = P.parts.find(function (x) { return !x.paid; });
+    if (!next) { P.status = 'done'; P.doneAt = new Date().toISOString(); changed = true; return; }
+    if (!b.promisedToPay || b.promiseDate !== next.due) { _planApplyPromise(b, P); changed = true; remind = true; }
+    if (now > _planDueMs(next.due) + PTP_MISS_MINS * 60000) {
+      P.status = 'broken'; P.brokenAt = new Date().toISOString(); P.brokenPart = P.parts.indexOf(next) + 1;
+      if (!b.promiseHistory) b.promiseHistory = [];
+      b.promiseHistory.push({ rescheduled: new Date().toISOString(), brokenDate: next.due.slice(0, 10), outcome: 'broken', note: 'Settlement plan broken at part ' + P.brokenPart + ': discount lost' });
+      b.ptpBreached = true; b.ptpOutcome = 'missed'; b.brokenPromiseCount = (b.brokenPromiseCount || 0) + 1;
+      broke.push(getFirstName(b)); changed = true;
+    }
+  });
+  if (changed) { saveState(); if (remind) { try { refreshPtpReminders(); } catch (e) {} } }
+  if (broke.length) { try { toast('Plan missed: ' + broke.join(', ') + '. Discount is lost, quote the full amount.', 'error'); } catch (e) {} }
+  return changed;
+}
+function _planBlockHtml(b) {
+  var P = b.settlementPlan;
+  if (!P || P.status === 'cancelled') return '';
+  var rows = P.parts.map(function (x, i) {
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0"><span>' + (P.parts.length > 1 ? 'Part ' + (i + 1) + ' · ' : '') + fmtC(x.amt) + '</span>'
+      + '<span style="color:' + (x.paid ? 'var(--green)' : 'var(--text2)') + ';font-weight:700">' + (x.paid ? 'paid' : 'due ' + x.due.slice(5, 16).replace('-', '/')) + '</span></div>';
+  }).join('');
+  var st = P.status === 'active' ? ['Settlement plan running', 'var(--gold)', 'rgba(255,166,43,0.10)']
+    : P.status === 'done' ? ['Settlement plan completed', 'var(--green)', 'rgba(47,224,165,0.10)']
+    : ['Plan broken at part ' + (P.brokenPart || '?') + '. Discount is lost, quote the full amount', 'var(--red)', 'rgba(255,107,125,0.10)'];
+  return '<div style="margin:0 0 12px;padding:11px 12px;border-radius:14px;background:' + st[2] + ';border:1px solid ' + st[1] + '">'
+    + '<div style="font-weight:800;color:' + st[1] + ';font-size:var(--text-sm);margin-bottom:4px">' + st[0] + ' · ' + escapeHtml(P.title) + '</div>' + rows
+    + (P.status === 'active' ? '<button class="btn btn-ghost" style="margin-top:6px;width:100%" onclick="cancelSettlementPlan(\'' + b.id + '\')">Cancel plan</button>' : '') + '</div>';
+}
+function _missTexts(b, timeStr) {
+  var first = getFirstName(b), P = b.settlementPlan;
+  if (P && P.status === 'active') {
+    var nx = P.parts.find(function (x) { return !x.paid; });
+    if (nx) {
+      var k = P.parts.indexOf(nx) + 1;
+      return { title: '\u23F0 ' + first + ': ' + (P.parts.length > 1 ? 'part ' + k : 'offer') + ' missed', body: 'Discount is lost if ' + fmtC(nx.amt) + ' is not paid. Follow up now' };
+    }
+  }
+  return { title: '\u23F0 ' + first + ': promise missed', body: fmtC(getDueToday(b)) + ' was due at ' + timeStr + ', not paid yet. Follow up now' };
+}
+
+// ═══ WHAT'S NEW ══════════════════════════════════════════════════════════════════════
+// Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
+// pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
+const WHATS_NEW = [
+  { id: '2026-10-03b', date: '3 Oct 2026', title: 'Settle smarter', items: [
+    ['Offer ladder', 'Borrower → Offer ladder. Three ways to settle, with what each saves. Tap "Accepted" and the plan is set up for you.'],
+    ['Settlement plans', 'Accepted offers split into parts. Reminders follow each part, and you get an alert the moment a part is missed.'],
+    ['Month-end forecast', 'Dashboard → under Monthly Collection. Likely total, a range, and the chance of hitting target.'],
+    ['Dunning Ladder fixed', 'Every notice from Day 6 to 15 builds and sends again.'],
+    ['My order', 'Borrowers → Sort → My order. Drag the grip on a card to arrange them your way.'] ] },
+  { id: '2026-10-03a', date: '3 Oct 2026', title: 'Alerts and contacts', items: [
+    ['Alert settings', 'Settings → Alerts. Choose which reminders you get and how early.'],
+    ['Snooze', 'Promise alerts have a Snooze 15m button, even with the app closed.'],
+    ['Alternative number', 'Add a second number on a borrower. It shows in the detail view and the card menu.'],
+    ['Missed-promise and Friday alerts', 'A nudge 45 minutes after a missed promise, and a Friday 3pm pacing check.'],
+    ['Place kept on screen', 'The app returns you to the same card after opening a borrower or reloading.'] ] }
+];
+function _whatsNewHtml(list) {
+  return list.map(function (e) {
+    return '<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:var(--text-md);color:var(--gold)">' + escapeHtml(e.title) + '</b><span style="font-size:var(--text-xs);color:var(--text3)">' + e.date + '</span></div>'
+      + e.items.map(function (it) { return '<div style="padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-weight:700;font-size:var(--text-sm)">' + escapeHtml(it[0]) + '</div><div style="font-size:var(--text-sm);color:var(--text2)">' + escapeHtml(it[1]) + '</div></div>'; }).join('') + '</div>';
+  }).join('');
+}
+function openWhatsNew(onlyLatest) {
+  _pushModal();
+  document.getElementById('modal-title').textContent = "What's new";
+  document.getElementById('modal-body').innerHTML = _whatsNewHtml(onlyLatest ? WHATS_NEW.slice(0, 2) : WHATS_NEW);
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-gold" onclick="markWhatsNewSeen();closeModal()">Got it</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function markWhatsNewSeen() { try { localStorage.setItem('sq_whatsnew_seen', WHATS_NEW[0].id); } catch (e) {} }
+function _maybeShowWhatsNew() {
+  if (window._wnDone || !_sessionUnlocked || !state || !_activeAgent) return;
+  var ov = document.getElementById('modal-overlay');
+  if (ov && ov.classList.contains('open')) return;           // never on top of something the user is doing
+  var seen = ''; try { seen = localStorage.getItem('sq_whatsnew_seen') || ''; } catch (e) {}
+  window._wnDone = true;
+  if (seen !== WHATS_NEW[0].id) openWhatsNew(true);
+}
 
 function blSortChange(val) {
   const [col, dir] = val.split('_');
@@ -14450,9 +14787,11 @@ function _openBorrowerDetailFill(id) {
     + '<button class="bd-btn" id="bd-tags"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5V4h7.5L21 14.5 13.5 22 3 11.5z"/><circle cx="7.5" cy="8" r="1.3" fill="currentColor" stroke="none"/></svg></span> Tags' + (b.tags&&b.tags.length?' <span class="bd-btn-badge">'+b.tags.length+'</span>':'') + '</button>'
     + '</div></div>'
     // Follow-up section
+    + _planBlockHtml(b)
     + '<div class="bd-section"><div class="bd-section-label">Follow-up</div><div class="bd-section-grid">'
     + '<button class="bd-btn' + ((state.hitList||[]).includes(id)?' bd-btn-active-gold':'') + '" id="bd-hitlist"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span> ' + ((state.hitList||[]).includes(id) ? 'In Hit List' : 'Hit List') + '</button>'
     + '<button class="bd-btn" id="bd-timeline"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Timeline</button>'
+    + (st !== 'Paid' ? '<button class="bd-btn full" id="bd-offers" style="background:linear-gradient(135deg,rgba(47,224,165,0.12),rgba(255,166,43,0.12));border-color:rgba(255,166,43,0.35);color:var(--gold);font-weight:700">Offer ladder: three ways to settle</button>' : '')
     + '<button class="bd-btn full" id="bd-escalate" style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(220,38,38,0.12));border-color:rgba(124,58,237,0.3);color:#a78bfa;font-weight:700"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Escalate</button>'
     + (st==='Paid' ? '<button class="bd-btn full warn" id="bd-undo-paid"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></span> Undo Fully Paid</button>' : '')
     + '</div></div>'
@@ -14477,6 +14816,8 @@ function _openBorrowerDetailFill(id) {
 
   setTimeout(function() {
     var elTags = document.getElementById('bd-tags');
+    var elOff = document.getElementById('bd-offers');
+    if (elOff) elOff.onclick = function(){ haptic('light'); openOfferLadder(id); };
     var elEsc  = document.getElementById('bd-escalate');
     if (elTags) elTags.onclick = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openTagManager(id); };
     if (elEsc)  elEsc.onclick  = function(){ haptic('light'); _pushModal(() => openBorrowerDetail(id)); openEscalFromBorrower(id); };
@@ -16643,6 +16984,7 @@ function renderCurrentPage() {
   // Restore scroll after DOM settles — use two rAF + small timeout for async renders
   if (scrollRec && mainEl) _restoreScroll(mainEl, scrollRec, pageId);
   else window._scrollRestoring = false;
+  if (!window._wnDone) setTimeout(_maybeShowWhatsNew, 1800);
 }
 
 function updateBadges() {
@@ -23676,9 +24018,8 @@ function schedulePtpReminders() {
       delete _ptpMissTimeouts[b.id];
       const cur = (state.borrowers || []).find(x => x.id === b.id);
       if (!cur || cur.isPaid || cur.ptpOutcome === 'paid' || cur.promiseDate !== promised) return;
-      _fireNotif('\u23F0 ' + cur.name.split(' ')[0] + ': promise missed',
-        fmtC(getDueToday(cur)) + ' was due at ' + (hasT ? raw.split(' ')[1] : '09:00') + ', not paid yet. Follow up now',
-        'ptp-miss-' + cur.id, cur.id);
+      const _mt = _missTexts(cur, hasT ? raw.split(' ')[1] : '09:00');
+      _fireNotif(_mt.title, _mt.body, 'ptp-miss-' + cur.id, cur.id);
     }, mDelay);
   });
 
@@ -23877,8 +24218,8 @@ function _pushBuildItems() {
     if (P.miss && missAt > now && missAt <= horizon) {
       items.push({
         k: 'x-' + b.id + '-' + b.promiseDate, at: missAt,
-        title: clean('\u23F0 ' + b.name.split(' ')[0] + ': promise missed').trim(),
-        body: clean(fmtC(getDueToday(b)) + ' was due at ' + (hasTime ? raw.split(' ')[1] : '09:00') + ', not paid yet. Follow up now'),
+        title: clean(_missTexts(b, hasTime ? raw.split(' ')[1] : '09:00').title).trim(),
+        body: clean(_missTexts(b, hasTime ? raw.split(' ')[1] : '09:00').body),
         tag: 'ptp-miss-' + b.id, url: '?notif=borrower:' + b.id
       });
     }
@@ -26249,6 +26590,7 @@ function openTomorrowList() {
 
 function checkPtpBreaches() {
   if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
+  try { _settlementCheck(); } catch (e) {}
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(b => {
