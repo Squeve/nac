@@ -4666,6 +4666,83 @@ html[data-theme="aurora"] .exp-section-label, html[data-theme="aurora"] .um-h { 
 /* ════ GLASSMORPHIC ════ */
 
 /* ════ CINEMATIC DARK ════ */
+
+/* ══ AURORA refinements ═════════════════════════════════════════════════════════════
+   1. Secondary text lifted so it stays readable on the lighter raised surfaces (was 3.7:1 on the brightest, now 4.7:1+)
+   2. Menus, sheets, hero, chips, skeletons and the drag handle that had no Aurora styling now match the theme
+   3. Hover lift only where a real pointer exists, so a tapped card on a phone no longer stays raised
+   4. Motion is switched off for people who ask their phone for reduced motion                                        */
+html[data-theme="aurora"] { --text2: #aab6e2; --text3: #93a1d3; }
+
+html[data-theme="aurora"] #bc-more-menu {
+  background: linear-gradient(145deg, #1b2560 0%, #121a44 100%) !important;
+  border: 1px solid rgba(150,165,255,0.22) !important;
+  box-shadow: 0 18px 44px rgba(1,4,18,0.7), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+html[data-theme="aurora"] .bc-more-item:hover { background: rgba(255,166,43,0.12) !important; color: var(--text) !important; }
+
+html[data-theme="aurora"] .rlog-overlay { background: rgba(3,6,20,0.72) !important; }
+html[data-theme="aurora"] .rlog-sheet {
+  background: linear-gradient(160deg, #1a2358 0%, #101838 60%, #0b1230 100%) !important;
+  border: 1px solid rgba(150,165,255,0.18) !important; border-bottom: none !important;
+  box-shadow: 0 -18px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+html[data-theme="aurora"] .rlog-drag { background: linear-gradient(90deg, #ffa62b, #b07cff, #4da3ff) !important; opacity: 0.8; }
+
+html[data-theme="aurora"] .bd-hero {
+  background: linear-gradient(145deg, #1b2660 0%, #121a3f 55%, #0b1230 100%) !important;
+  border: 1px solid rgba(150,165,255,0.2) !important;
+  box-shadow: var(--au-raise) !important;
+}
+
+html[data-theme="aurora"] .wa-chip {
+  background: linear-gradient(145deg, #172050, #101838); border-color: rgba(150,165,255,0.22); color: var(--text2);
+  box-shadow: 0 4px 12px -3px rgba(1,4,18,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+html[data-theme="aurora"] .wa-chip-neutral:hover { border-color: rgba(255,166,43,0.5); color: var(--text); background: linear-gradient(145deg, #1b2660, #121a44); }
+html[data-theme="aurora"] .wa-chip-green {
+  background: linear-gradient(135deg, rgba(47,224,165,0.20), rgba(47,224,165,0.05)); border-color: rgba(47,224,165,0.5); color: #2fe0a5;
+}
+html[data-theme="aurora"] .wa-chip-orange {
+  border: none; color: #2a1200; font-weight: 800;
+  background: linear-gradient(135deg, #ffb52e 0%, #ff8a2a 60%, #ff6a3d 100%);
+  box-shadow: 0 6px 16px rgba(255,120,40,0.38), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+html[data-theme="aurora"] .wa-chip-purple {
+  background: linear-gradient(135deg, #8b5cf6, #4da3ff); box-shadow: 0 6px 16px rgba(110,100,255,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+html[data-theme="aurora"] .skeleton {
+  background: linear-gradient(90deg, #121a3f 25%, #232f7a 50%, #121a3f 75%); background-size: 800px 100%;
+}
+
+/* Drag handle and the card being moved ("My order" sort) */
+html[data-theme="aurora"] .bc-drag { color: var(--gold2); background: rgba(255,166,43,0.10); border: 1px solid rgba(255,166,43,0.22); }
+html[data-theme="aurora"] .bc-drag:active { background: rgba(255,166,43,0.24); }
+html[data-theme="aurora"] .bl-card.dragging {
+  border-color: rgba(255,166,43,0.75) !important;
+  box-shadow: 0 22px 50px rgba(1,4,18,0.75), 0 0 0 1px rgba(255,166,43,0.4), 0 0 34px rgba(255,140,50,0.28) !important;
+}
+
+/* Native dropdown lists open dark instead of white on phones that honour it */
+html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
+
+/* Hover lift: pointer devices only. On a touchscreen :hover sticks after a tap and left cards floating. */
+@media (hover: none) {
+  html[data-theme="aurora"] .bl-card:hover,
+  html[data-theme="aurora"] .kpi-card:hover { transform: none !important; }
+  html[data-theme="aurora"] .bl-card:hover {
+    border-color: rgba(150,165,255,0.12) !important;
+    box-shadow: 0 8px 22px -6px rgba(1,4,18,0.6), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="aurora"] *, html[data-theme="aurora"] *::before, html[data-theme="aurora"] *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+  }
+  html[data-theme="aurora"] .bl-card:hover, html[data-theme="aurora"] .kpi-card:hover { transform: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -20164,6 +20241,7 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   document.body.setAttribute('data-theme', theme);
   localStorage.setItem('m2_theme', theme);
+  try { updateStatusBarColor(typeof currentPage !== 'undefined' ? currentPage : 'dashboard'); } catch (e) {}
   // Update dropdown UI for all 7 themes
   if (typeof _updateThemeDropdownUI === 'function') _updateThemeDropdownUI(theme);
   // Redraw current page so charts and dynamic elements pick up new colors
@@ -29062,7 +29140,11 @@ function updateStatusBarColor(page) {
     dashboard: '#06080f', loans: '#06080f', ptp: '#06080f',
     analytics: '#06080f', log: '#06080f', health: '#06080f',
   };
-  const color = colorMap[page] || '#06080f';
+  let color = colorMap[page] || '#06080f';
+  try {   // follow the active theme's own background so the phone's status bar blends in (Aurora is navy, Light is pale)
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (/^#[0-9a-f]{3,8}$/i.test(bg)) color = bg;
+  } catch (e) {}
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
   meta.content = color;
