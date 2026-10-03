@@ -1,0 +1,85 @@
+name: Deploy SqueveTrack
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Publish only what the app needs. (Uploading "." would also publish
+      # index.html.bak, this workflow, scripts and anything else in the repo.)
+      - name: Assemble site
+        run: |
+          mkdir dist
+          cp index.html sw.js manifest.json icon-192.png icon-512.png dist/
+          [ -f push-config.json ] && cp push-config.json dist/ || true
+          [ -f _headers ]   && cp _headers   dist/ || true
+          [ -f _redirects ] && cp _redirects dist/ || true
+
+      # run_number goes up by one on every run, so every deployment gets a
+      # higher version (v<base>.<run_number>). Run via bash so the file's
+      # executable bit doesn't matter.
+      - name: Stamp version
+        working-directory: dist
+        run: bash ../stamp-version.sh "${{ github.run_number }}"
+
+      # Fail the deploy instead of shipping a broken app.
+      - name: Sanity checks
+        working-directory: dist
+        run: |
+          if grep -q "__SQ_BUILD" index.html sw.js; then echo "version tokens left unstamped"; exit 1; fi
+          node -e '
+            const fs=require("fs"), vm=require("vm");
+            const html=fs.readFileSync("index.html","utf8");
+            const re=/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+            let m,n=0;
+            while((m=re.exec(html))){ n++; new vm.Script(m[1],{filename:"inline-script-"+n}); }
+            new vm.Script(fs.readFileSync("sw.js","utf8"),{filename:"sw.js"});
+            JSON.parse(fs.readFileSync("manifest.json","utf8"));
+            if (fs.existsSync("push-config.json")) JSON.parse(fs.readFileSync("push-config.json","utf8"));
+            console.log("OK: "+n+" inline scripts, sw.js and manifest.json parse");
+          '
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Logic tests (a few seconds): the reminder sender, the key generator, and the service worker.
+      - name: Unit tests
+        run: |
+          npm install --no-save playwright-core@1.49.1 web-push@3.6.7
+          node --experimental-strip-types tests/server.test.mjs
+          node tests/sw.test.js
+
+      # Boots the stamped site in headless Chrome (offline, with test data) and stops the deploy if a basic
+      # check fails: startup errors, any page crashing or overflowing, service worker, PTP alarms, the
+      # ranking sheet, and the two-device overwrite guard. See tests/smoke.js.
+      - name: Smoke test
+        timeout-minutes: 10
+        run: |
+          npx playwright-core install --with-deps chromium
+          node tests/smoke.js dist --stamped
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
