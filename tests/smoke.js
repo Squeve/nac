@@ -94,7 +94,10 @@ async function run(browser, base, vw, vh, label) {
   const why = alarms === 1 ? '' : await page.evaluate(() => JSON.stringify({ permission: Notification.permission, remindersFlag: localStorage.getItem('ptp_reminders_enabled'), borrowers: state && state.borrowers && state.borrowers.length, promiseDate: state && state.borrowers && state.borrowers[0] && state.borrowers[0].promiseDate, browserNow: new Date().toString() }));
   check(`[${label}] PTP alarm is scheduled for the promise due in 40 min`, alarms === 1, 'alarms = ' + alarms + ' ' + why);
   const badge = await page.evaluate(() => window.__badge);
-  check(`[${label}] icon badge shows 1 promise due today`, badge.length > 0 && badge[badge.length - 1] === 1, JSON.stringify(badge));
+  // The seeded promise is 40 minutes from now. If the run happens in the last 40 minutes before midnight (UTC), that promise
+  // lands on TOMORROW, so "due today" is correctly 0 and the badge is cleared. Expect whichever is right for the clock.
+  const wantBadge = due.startsWith(today) ? 1 : 0;
+  check(`[${label}] icon badge shows ${wantBadge} promise${wantBadge === 1 ? '' : 's'} due today`, badge.length > 0 && badge[badge.length - 1] === wantBadge, JSON.stringify(badge));
 
   await page.evaluate(() => navigate('ranking')); await sleep(400);
   await page.evaluate(() => openRankingLogPanel()); await sleep(600);
