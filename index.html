@@ -6274,6 +6274,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
+      <button class="settings-row" onclick="openFxSettings()">
+        <div class="settings-row-icon" style="background:rgba(77,163,255,0.14);color:var(--blue)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M11 2L4 11h5l-1 7 7-9h-5z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Effects</div>
+          <div class="settings-row-label-sub">Aurora motion and glow: Auto, Full or Lite</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
       <button class="settings-row" onclick="openWhatsNew(false)">
         <div class="settings-row-icon" style="background:rgba(176,124,255,0.14);color:var(--purple)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2l1.8 4.6L16.5 8l-4.7 1.4L10 14l-1.8-4.6L3.5 8l4.7-1.4z"/><path d="M15.5 13.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>
@@ -11376,6 +11386,11 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-04', date: '4 Oct 2026', title: 'Aurora, smoother', items: [
+    ['Effects', 'Settings → Effects. Auto, Full or Lite. Auto keeps weak phones and low battery on Lite.'],
+    ['Target ring', 'A glowing ring on the dashboard shows how far through your monthly target you are.'],
+    ['Springy touch and motion', 'Buttons press and spring back, pages ease in, sheets rise, the nav glows under the active tab.'],
+    ['Payment tick', 'Recording a payment now shows a quick drawn check mark.'] ] },
   { id: '2026-10-03b', date: '3 Oct 2026', title: 'Settle smarter', items: [
     ['Offer ladder', 'Borrower → Offer ladder. Three ways to settle, with what each saves. Tap "Accepted" and the plan is set up for you.'],
     ['Settlement plans', 'Accepted offers split into parts. Reminders follow each part, and you get an alert the moment a part is missed.'],
@@ -11411,6 +11426,146 @@ function _maybeShowWhatsNew() {
   window._wnDone = true;
   if (seen !== WHATS_NEW[0].id) openWhatsNew(true);
 }
+
+// ═══ AURORA EFFECTS ══════════════════════════════════════════════════════════════════
+// Everything fancy is switched by html[data-fx="full"|"lite"]. Lite keeps the colours and drops motion, blur and glow.
+// Auto picks Lite on weak phones, low battery, data-saver or reduce-motion, and drops to Lite if the first seconds stutter.
+function _fxMode() {
+  var pref = 'auto'; try { pref = localStorage.getItem('sq_fx') || 'auto'; } catch (e) {}
+  if (pref === 'full' || pref === 'lite') return pref;
+  try { if (localStorage.getItem('sq_fx_auto') === 'lite') return 'lite'; } catch (e) {}
+  var weak = (navigator.deviceMemory && navigator.deviceMemory <= 3) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+    || (navigator.connection && navigator.connection.saveData) || window._fxSaver
+    || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  return weak ? 'lite' : 'full';
+}
+function _fxApply() { document.documentElement.setAttribute('data-fx', _fxMode()); }
+function setFxPref(v) {
+  try { localStorage.setItem('sq_fx', v); localStorage.removeItem('sq_fx_auto'); } catch (e) {}
+  _fxApply(); haptic('light'); closeAllModals(); openFxSettings();
+}
+function openFxSettings() {
+  var pref = 'auto'; try { pref = localStorage.getItem('sq_fx') || 'auto'; } catch (e) {}
+  var opt = function (v, t, d) { return '<button class="btn ' + (pref === v ? 'btn-gold' : 'btn-ghost') + '" style="width:100%;text-align:left;margin-bottom:8px;display:block" onclick="setFxPref(\'' + v + '\')"><b>' + t + '</b><br><span style="font-size:var(--text-sm);opacity:.8">' + d + '</span></button>'; };
+  _pushModalIfOpen();
+  document.getElementById('modal-title').textContent = 'Effects';
+  document.getElementById('modal-body').innerHTML = '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">Applies to the Aurora theme. Now running: <b style="color:var(--text)">' + _fxMode() + '</b></div>'
+    + opt('auto', 'Auto', 'Full on capable phones, Lite on weak ones or low battery')
+    + opt('full', 'Full', 'Moving glow, frosted bars, number roll-ups, springs')
+    + opt('lite', 'Lite', 'Same colours, no motion or blur. Fastest and best for battery');
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Done</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function fxSuccess() {
+  if (document.documentElement.getAttribute('data-theme') !== 'aurora') return;
+  var d = document.createElement('div'); d.className = 'au-ok';
+  d.innerHTML = '<svg viewBox="0 0 80 80"><circle class="r" cx="40" cy="40" r="30"/><path d="M26 41l10 10 19-21"/></svg>';
+  document.body.appendChild(d); setTimeout(function () { d.remove(); }, 1100);
+}
+function _fxPill() {
+  var a = document.querySelector('.mnav-item.active'); if (!a || !a.parentElement) return;
+  var p = a.parentElement; if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
+  var pill = p.querySelector('.au-pill'); if (!pill) { pill = document.createElement('div'); pill.className = 'au-pill'; p.appendChild(pill); }
+  pill.style.width = Math.round(a.offsetWidth * 0.5) + 'px';
+  pill.style.transform = 'translateX(' + Math.round(a.offsetLeft + a.offsetWidth * 0.25) + 'px)';
+}
+function _fxRing() {
+  var sec = document.getElementById('dash-target-section');
+  if (!sec || sec.querySelector('.au-ring')) return;
+  var t = (state && state.monthlyTarget) || 0; if (!t) return;
+  var c = (state.dailyLog || []).reduce(function (a, e) { return a + (Number(e.collected) || 0); }, 0);
+  var pct = Math.min(1, c / t), R = 26, C = 2 * Math.PI * R, first = !window._ringShown; window._ringShown = true;
+  if (getComputedStyle(sec).position === 'static') sec.style.position = 'relative';
+  var d = document.createElement('div'); d.className = 'au-ring';
+  d.innerHTML = '<svg viewBox="0 0 64 64"><defs><linearGradient id="auRg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffa62b"/><stop offset=".5" stop-color="#b07cff"/><stop offset="1" stop-color="#4da3ff"/></linearGradient></defs>'
+    + '<circle cx="32" cy="32" r="' + R + '" fill="none" stroke="rgba(150,165,255,.16)" stroke-width="6"/>'
+    + '<circle class="pg" cx="32" cy="32" r="' + R + '" fill="none" stroke="url(#auRg)" stroke-width="6" stroke-linecap="round" transform="rotate(-90 32 32)" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (first ? C : C * (1 - pct)).toFixed(1) + '"/></svg>'
+    + '<span>' + Math.round(pct * 100) + '%</span>';
+  sec.appendChild(d);
+  if (first) requestAnimationFrame(function () { requestAnimationFrame(function () { var g = d.querySelector('.pg'); if (g) g.style.strokeDashoffset = (C * (1 - pct)).toFixed(1); }); });
+}
+function _fxRoll() {
+  if (document.documentElement.getAttribute('data-fx') !== 'full') return;
+  document.querySelectorAll('.kpi-value').forEach(function (el) {
+    var txt = el.textContent, m = txt.match(/^(\D*)([\d,]+(?:\.\d+)?)(.*)$/);
+    if (!m || el.dataset.rolled === txt || el.children.length) return;
+    el.dataset.rolled = txt;
+    var end = parseFloat(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length, t0 = performance.now();
+    if (!isFinite(end) || end === 0) return;
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 650), e = 1 - Math.pow(1 - k, 3), v = end * e;
+      el.textContent = m[1] + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[3];
+      if (k < 1) requestAnimationFrame(step); else el.textContent = txt;
+    })(t0);
+  });
+}
+function _fxAfterRender(fresh, pageId) {
+  if (document.documentElement.getAttribute('data-theme') !== 'aurora') return;
+  _fxPill();
+  if (pageId === 'dashboard') _fxRing();
+  if (!fresh) return;
+  var m = document.getElementById('main');
+  if (m) { m.classList.remove('au-enter'); void m.offsetWidth; m.classList.add('au-enter'); }
+  var tb = document.getElementById('loans-tbody');
+  if (tb && pageId === 'loans') { tb.classList.add('au-stagger'); setTimeout(function () { tb.classList.remove('au-stagger'); }, 800); }
+  _fxRoll();
+}
+(function _fxInit() {
+  var css = [
+    // buttery press: every tappable thing dips and springs back
+    'html[data-theme="aurora"] :is(.btn,.bd-btn,.wa-chip,.settings-row,.mnav-item,.kpi-card){transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,background-color .2s}',
+    'html[data-theme="aurora"] :is(.btn,.bd-btn,.wa-chip,.settings-row,.mnav-item,.kpi-card):active{transform:scale(.965)}',
+    // one cheap shadow layer on the long list instead of several
+    'html[data-theme="aurora"] .bl-card{box-shadow:0 8px 20px -8px rgba(1,4,18,.6),inset 0 1px 0 rgba(255,255,255,.06)!important}',
+    'html[data-theme="aurora"][data-fx="lite"] *{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}',
+    // full only: drifting colour glow (transform only, so it costs almost nothing)
+    'html[data-theme="aurora"][data-fx="full"] body::after{content:"";position:fixed;left:-30%;top:-30%;width:160%;height:160%;z-index:0;pointer-events:none;will-change:transform;'
+      + 'background:radial-gradient(40% 35% at 25% 30%,rgba(77,163,255,.11),transparent 70%),radial-gradient(35% 30% at 75% 25%,rgba(176,124,255,.10),transparent 70%),radial-gradient(40% 35% at 55% 80%,rgba(47,224,165,.08),transparent 70%);animation:auDrift 38s ease-in-out infinite alternate}',
+    '@keyframes auDrift{to{transform:translate3d(8%,6%,0) rotate(6deg)}}',
+    // frosted glass on the fixed bars only (never on scrolling cards)
+    'html[data-theme="aurora"][data-fx="full"] :has(>.mnav-item){background:rgba(10,17,48,.72)!important;-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border-top:1px solid rgba(150,165,255,.2)!important}',
+    'html[data-theme="aurora"][data-fx="full"] #modal-overlay.open{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}',
+    // gradient hairline edge
+    'html[data-theme="aurora"][data-fx="full"] :is(.kpi-card,.bd-hero)::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.38),rgba(150,165,255,.04) 42%,rgba(176,124,255,.36));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}',
+    // page, sheet and first-cards motion
+    '@keyframes auIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}',
+    '@keyframes auSheet{from{opacity:0;transform:translate3d(0,26px,0) scale(.985)}to{opacity:1;transform:none}}',
+    'html[data-theme="aurora"][data-fx="full"] main.au-enter{animation:auIn .26s cubic-bezier(.2,.8,.25,1)}',
+    'html[data-theme="aurora"][data-fx="full"] #modal-overlay.open .modal{animation:auSheet .34s cubic-bezier(.2,.9,.25,1.04)}',
+    // sliding nav pill
+    '.au-pill{position:absolute;left:0;bottom:3px;height:3px;border-radius:3px;pointer-events:none;background:linear-gradient(90deg,#ffa62b,#b07cff,#4da3ff);box-shadow:0 0 12px rgba(176,124,255,.8);transition:transform .38s cubic-bezier(.34,1.3,.5,1),width .38s}',
+    'html:not([data-theme="aurora"]) .au-pill{display:none}',
+    // target ring
+    '.au-ring{position:absolute;right:14px;top:14px;width:58px;height:58px;display:none}',
+    'html[data-theme="aurora"] .au-ring{display:block}',
+    '.au-ring svg{width:100%;height:100%}.au-ring .pg{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)}',
+    'html[data-theme="aurora"][data-fx="full"] .au-ring .pg{filter:drop-shadow(0 0 4px rgba(176,124,255,.85))}',
+    '.au-ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 13px var(--font-mono,monospace);color:var(--text)}',
+    // payment success moment
+    '.au-ok{position:fixed;left:50%;top:42%;width:92px;height:92px;margin:-46px 0 0 -46px;z-index:99999;pointer-events:none}',
+    '.au-ok svg{width:100%;height:100%;fill:none;stroke:#2fe0a5;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 10px rgba(47,224,165,.7))}',
+    '.au-ok .r{transform-origin:center;animation:auRing .7s ease-out both}.au-ok path{stroke-dasharray:60;stroke-dashoffset:60;animation:auDraw .45s .15s ease-out forwards}',
+    '@keyframes auRing{from{transform:scale(.4);opacity:0}40%{opacity:1}to{transform:scale(1.15);opacity:0}}@keyframes auDraw{to{stroke-dashoffset:0}}',
+    // header eases smaller once you scroll
+    'html[data-theme="aurora"][data-fx="full"] .page-header{transition:transform .25s ease,opacity .25s ease;transform-origin:left top}',
+    'html[data-theme="aurora"][data-fx="full"].au-scrolled .page-header{transform:scale(.94);opacity:.88}'
+  ];
+  for (var i = 1; i <= 8; i++) css.push('html[data-theme="aurora"][data-fx="full"] #loans-tbody.au-stagger .bl-card:nth-child(' + i + '){animation:auIn .34s cubic-bezier(.2,.8,.25,1) ' + (i * 30) + 'ms both}');
+  var st = document.createElement('style'); st.id = 'au-fx-css'; st.textContent = css.join('\n'); document.head.appendChild(st);
+  _fxApply();
+  try { if (navigator.getBattery) navigator.getBattery().then(function (b) { var chk = function () { var low = !b.charging && b.level < 0.2; if (low !== !!window._fxSaver) { window._fxSaver = low; _fxApply(); } }; b.addEventListener('chargingchange', chk); b.addEventListener('levelchange', chk); chk(); }); } catch (e) {}
+  var tk = false, on = false;
+  document.addEventListener('scroll', function (e) { if (!e.target || e.target.id !== 'main' || tk) return; tk = true; requestAnimationFrame(function () { tk = false; var v = e.target.scrollTop > 36; if (v !== on) { on = v; document.documentElement.classList.toggle('au-scrolled', v); } }); }, { capture: true, passive: true });
+  try { var _t = toast; toast = function (m, t) { try { if (t === 'success' && /payment|paid in full|recorded/i.test(String(m))) fxSuccess(); } catch (e) {} return _t.apply(this, arguments); }; } catch (e) {}
+  // if the first seconds stutter in Auto mode, drop to Lite and say so once
+  setTimeout(function () {
+    var pref = 'auto'; try { pref = localStorage.getItem('sq_fx') || 'auto'; } catch (e) {}
+    if (pref !== 'auto' || document.documentElement.getAttribute('data-fx') !== 'full' || document.documentElement.getAttribute('data-theme') !== 'aurora') return;
+    var n = 0, t0 = 0, ds = [];
+    (function f(t) { if (t0) ds.push(t - t0); t0 = t; if (++n < 50) return requestAnimationFrame(f); ds.sort(function (a, b) { return a - b; });
+      if (ds[ds.length >> 1] > 26) { try { localStorage.setItem('sq_fx_auto', 'lite'); } catch (e) {} _fxApply(); try { toast('Effects set to Lite to keep things smooth. Change it in Settings → Effects.'); } catch (e) {} } })(0 + performance.now());
+  }, 4000);
+})();
 
 function blSortChange(val) {
   const [col, dir] = val.split('_');
@@ -16994,6 +17149,7 @@ function renderCurrentPage() {
   if (scrollRec && mainEl) _restoreScroll(mainEl, scrollRec, pageId);
   else window._scrollRestoring = false;
   if (!window._wnDone) setTimeout(_maybeShowWhatsNew, 1800);
+  try { _fxAfterRender(!isRerender, pageId); } catch (e) {}
 }
 
 function updateBadges() {
