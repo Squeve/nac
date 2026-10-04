@@ -8144,6 +8144,9 @@ function _showSyncConflict() {
   if (_syncConflictOpen()) return;
   var o = document.getElementById('modal-overlay');
   if (!o) return;
+  // The "What's new" card is only information, so a sync conflict (which protects data) takes its place instead of waiting behind it
+  var _tt = document.getElementById('modal-title');
+  if (o.classList.contains('open') && _tt && _tt.textContent === "What's new") closeModal();
   if (o.classList.contains('open')) { // never replace something the user is in the middle of (payment, note...)
     toast('Sync is on hold — another device saved newer data. Finish here and it will ask you.', 'error');
     clearTimeout(_conflictRetry); _conflictRetry = setTimeout(_showSyncConflict, 8000);
@@ -11182,7 +11185,7 @@ function openForecastDetail() {
       + '<span><b>' + escapeHtml(x.name) + '</b><br><span style="font-size:var(--text-sm);color:var(--text3)">due ' + x.date + ' · ' + fmtC(x.amt) + '</span></span>'
       + '<span style="font-family:var(--font-mono);font-weight:800;color:' + c + '">' + pc + '%</span></div>';
   }).join('') || '<div style="color:var(--text3);padding:12px 0">No open promises landing before month-end.</div>';
-  _pushModal();
+  _pushModalIfOpen();
   document.getElementById('modal-title').textContent = 'Month-end forecast';
   document.getElementById('modal-body').innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'
@@ -11241,7 +11244,7 @@ function openOfferLadder(id) {
       + '<button class="btn btn-gold" style="flex:1" onclick="sendOffer(\'' + id + '\',' + i + ')">WhatsApp</button></div>'
       + '<button class="btn btn-ghost" style="width:100%;margin-top:8px;border-color:rgba(47,224,165,0.5);color:var(--green)" onclick="acceptOffer(\'' + id + '\',' + i + ')">Accepted: set up this plan</button></div>';
   };
-  _pushModal(function () { openBorrowerDetail(id); });
+  _pushModalIfOpen(function () { openBorrowerDetail(id); });
   document.getElementById('modal-title').textContent = 'Offer ladder: ' + first;
   document.getElementById('modal-body').innerHTML =
     '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Day ' + L.od + ' overdue · full amount today <b>' + fmtC(L.full) + '</b> · ' + cliffTxt + '. Start with option 1; move down only if they cannot.</div>'
@@ -11393,7 +11396,7 @@ function _whatsNewHtml(list) {
   }).join('');
 }
 function openWhatsNew(onlyLatest) {
-  _pushModal();
+  _pushModalIfOpen();
   document.getElementById('modal-title').textContent = "What's new";
   document.getElementById('modal-body').innerHTML = _whatsNewHtml(onlyLatest ? WHATS_NEW.slice(0, 2) : WHATS_NEW);
   document.getElementById('modal-footer').innerHTML = '<button class="btn btn-gold" onclick="markWhatsNewSeen();closeModal()">Got it</button>';
@@ -15248,6 +15251,12 @@ function _syncModalBackBtn() {
 
 // Push current modal state onto the stack before opening a new one.
 // Pass restoreFn so back re-calls the original render fn (avoids dead listeners).
+// Open one of the newer sheets: stack it on top of a modal that is already open (so Back works), but when nothing is open
+// start clean. _pushModal() alone would stash the empty default "Add Borrower" form and bring it back on Close.
+function _pushModalIfOpen(restoreFn) {
+  var o = document.getElementById('modal-overlay');
+  if (o && o.classList.contains('open')) _pushModal(restoreFn); else _modalStack = [];
+}
 function _pushModal(restoreFn) {
   const overlay = document.getElementById('modal-overlay');
   if (!overlay?.classList.contains('open')) _modalStack = [];
@@ -23892,7 +23901,7 @@ function openAlertSettings() {
       + '<span><span style="font-weight:700;font-size:var(--text-md)">' + label + '</span><br><span style="font-size:var(--text-sm);color:var(--text3)">' + sub + '</span></span>'
       + '<input type="checkbox" ' + (P[k] ? 'checked' : '') + ' onchange="setAlertPref(\'' + k + '\', this.checked)" style="width:20px;height:20px;flex:none"></label>';
   };
-  _pushModal();
+  _pushModalIfOpen();
   document.getElementById('modal-title').textContent = 'Alert settings';
   document.getElementById('modal-body').innerHTML =
     '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:6px">Choose which reminders you get on this phone. Switching one off also stops it arriving when the app is closed.</div>'
