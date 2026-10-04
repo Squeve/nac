@@ -70,6 +70,16 @@ document.addEventListener('DOMContentLoaded', function () {
   };
   window._diagGet = function () { return buf.slice(); };
   window._diagClear = function () { buf = []; persist(); };
+  // Report an error that the code deliberately keeps from the user. Same message + place is logged twice at most per page load,
+  // so a failure in a loop cannot push real errors out of the 50-entry log.
+  var _swSeen = {};
+  window._sw = function (e, where) {
+    try {
+      var m = (e && e.message) || String(e), k = where + '|' + m;
+      _swSeen[k] = (_swSeen[k] || 0) + 1;
+      if (_swSeen[k] <= 2) window._diagLog('hidden', m, where);
+    } catch (x) {}
+  };
   window.addEventListener('error', function (e) {
     _diagLog('error', e.message, String(e.filename || '').split('/').pop() + ':' + e.lineno + ':' + e.colno);
   });
@@ -77,12 +87,38 @@ document.addEventListener('DOMContentLoaded', function () {
     var r = e && e.reason; _diagLog('promise', (r && r.message) || r, '');
   });
 })();
+// Heavy, rarely used libraries load on first use instead of on every start.
+(function () {
+  var URL = {
+    xlsx: 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js',
+    ocr:  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+  };
+  var READY = { xlsx: function () { return !!window.XLSX; }, ocr: function () { return !!window.Tesseract; } };
+  var pending = {};
+  window._loadLib = function (name) {
+    if (!URL[name]) return Promise.reject(new Error('unknown library ' + name));
+    if (READY[name]()) return Promise.resolve();
+    if (pending[name]) return pending[name];
+    pending[name] = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = URL[name]; s.async = true;
+      s.onload = function () { if (READY[name]()) resolve(); else { delete pending[name]; reject(new Error(name + ' loaded but is not ready')); } };
+      s.onerror = function () { delete pending[name]; if (s.parentNode) s.parentNode.removeChild(s); reject(new Error('could not load ' + name)); };
+      document.head.appendChild(s);
+    });
+    return pending[name];
+  };
+})();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Start the network handshakes early, then download the sync library without blocking the first paint.
+     SheetJS (Excel) and Tesseract (scan) are not here any more: _loadLib() fetches them the first time they are used. -->
+<link rel="preconnect" href="https://bbjpifrkzvzskwvjbhot.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"></noscript>
 <style>
 :root {
   color-scheme: dark;
@@ -2016,7 +2052,7 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
 .export-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 6px;font-size:var(--text-base);font-weight:700;color:var(--text3);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;letter-spacing:0.3px;user-select:none;}
 .export-tab:hover{color:var(--text2);}
 .export-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
-.export-tab-num{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:19px;height:19px;border-radius:50%;font-size:11px;font-weight:700;background:var(--surface2);border:1.5px solid var(--border2);color:var(--text3);transition:all 0.15s;}
+.export-tab-num{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:19px;height:19px;border-radius:50%;font-size:12px;font-weight:700;background:var(--surface2);border:1.5px solid var(--border2);color:var(--text3);transition:all 0.15s;}
 .export-tab.active .export-tab-num{background:var(--gold);border-color:var(--gold);color:#1a1206;}
 .export-tab-panel{display:none;}.export-tab-panel.active{display:block;}
 .exp-section-label{font-size:var(--text-xs);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
@@ -2047,7 +2083,7 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
 .exp-step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text3);background:var(--surface2);border:1.5px solid var(--border2);transition:all 0.3s cubic-bezier(.34,1.4,.64,1);position:relative;z-index:2;}
 .exp-step-node.active .exp-step-circle{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1200;border-color:transparent;box-shadow:0 0 14px rgba(240,160,48,0.45);transform:scale(1.08);}
 .exp-step-node.done .exp-step-circle{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:var(--green);}
-.exp-step-label{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
+.exp-step-label{font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
 .exp-step-node.active .exp-step-label{color:var(--gold);}
 .exp-step-line{flex:1;height:2px;background:var(--border2);margin:0 -2px;position:relative;top:-9px;overflow:hidden;}
 .exp-step-line::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--gold),var(--gold2));transform:scaleX(0);transform-origin:left;transition:transform 0.4s ease;}
@@ -2094,13 +2130,13 @@ tr.promised td:first-child{border-left:3px solid var(--purple);}
 .exp-search-row{display:flex;align-items:center;gap:10px;padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;}
 .exp-search-row:last-child{border-bottom:none;}
 .exp-search-row:hover{background:rgba(255,255,255,0.04);}
-.exp-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.exp-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
 .exp-srr-name{font-size:var(--text-base);font-weight:600;}
 .exp-srr-sub{font-size:var(--text-xs);color:var(--text3);margin-top:1px;}
 .exp-srr-add{font-size:var(--text-2xs);color:var(--red);font-weight:700;margin-left:auto;background:rgba(239,68,68,0.1);padding:4px 8px;border-radius:999px;flex-shrink:0;}
 .exp-chips{display:flex;flex-wrap:wrap;gap:6px;}
 .exp-chip{display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;border-radius:999px;padding:5px 5px 5px 11px;font-size:var(--text-xs);font-weight:600;}
-.exp-chip button{background:rgba(239,68,68,0.2);border:none;color:#f87171;width:15px;height:15px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;}
+.exp-chip button{background:rgba(239,68,68,0.2);border:none;color:#f87171;width:15px;height:15px;border-radius:50%;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;}
 .exp-chip-empty{font-size:var(--text-xs);color:var(--text3);font-style:italic;}
 
 /* Colored format cards */
@@ -2600,7 +2636,7 @@ input.bl-chip-sel[type="number"] { -moz-appearance: textfield; }
   position: absolute; bottom: -4px; right: -4px;
   width: 17px; height: 17px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 9px; font-weight: 800;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 800;
   border: 2px solid var(--surface);
 }
 .bc-priority-badge.p-high { background: var(--red); color: #fff; }
@@ -5479,7 +5515,7 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
             <input class="bl-search" id="sms-search" placeholder="Search…" oninput="_smsSearchDebounce()" style="padding-left:30px;padding-right:28px;font-size:var(--text-base);height:34px">
             <button onclick="clearSearch('sms-search',renderSmsBlast)" class="bl-clear-btn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
           </div>
-          <button class="btn btn-ghost btn-sm" id="sms-filters-toggle" onclick="smsToggleFiltersPanel()" style="position:relative"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2" fill="var(--bg)"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2" fill="var(--bg)"/></svg></span> Filters<span id="sms-filter-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--gold);color:#000;font-size:9px;font-weight:800;border-radius:20px;min-width:15px;height:15px;align-items:center;justify-content:center;font-family:var(--font-mono)"></span></button>
+          <button class="btn btn-ghost btn-sm" id="sms-filters-toggle" onclick="smsToggleFiltersPanel()" style="position:relative"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2" fill="var(--bg)"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2" fill="var(--bg)"/></svg></span> Filters<span id="sms-filter-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--gold);color:#000;font-size:11px;font-weight:800;border-radius:20px;min-width:15px;height:15px;align-items:center;justify-content:center;font-family:var(--font-mono)"></span></button>
         </div>
       </div>
 
@@ -6612,8 +6648,8 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
   }
   #daily-pill-ring-wrap { width: 40px !important; height: 40px !important; }
   #daily-pill-amount { font-size: var(--text-lg) !important; }
-  #daily-pill-label { font-size: 9px !important; }
-  #daily-pill-sub { font-size: 10px !important; }
+  #daily-pill-label { font-size: 11px !important; }
+  #daily-pill-sub { font-size: 11px !important; }
   #daily-pill-pct { font-size: var(--text-xs) !important; }
 }
 </style>
@@ -7845,6 +7881,7 @@ let loanSortDir = parseInt(localStorage.getItem('sort_dir') || '1') || 1;
 let charts = {};
 let dispatchMode = 'generous';
 let _saveTimer = null;           // debounce handle
+let _remotePushDue = false;      // a debounced Supabase push is waiting on _saveTimer
 let _db = null;                  // Supabase client
 
 // ── Smart chart updater — updates data in-place if chart exists,
@@ -8467,7 +8504,7 @@ async function _loadStateCore() {
         // refreshed, but the offline fallback reads IndexedDB first — so a later
         // fallback could serve an older IndexedDB copy than what Supabase just gave us.
         try { localStorage.setItem(getStateKey(), JSON.stringify(_stateForSync(state))); } catch(_e) {}
-        if (window.indexedDB) _saveStateToIndexedDB(getStateKey(), _stateForSync(state)).catch(function(){});
+        if (window.indexedDB) _saveStateToIndexedDB(getStateKey(), _stateForSync(state)).catch(function (e) { _sw(e, '_loadStateCore:idb-copy'); });
 
         // One-time phone normalisation
         const migrationFlag = localStorage.getItem('sq_phone_migration_done_' + loadingForAgentId);
@@ -8604,7 +8641,7 @@ function _scheduleRemoteRecovery() {
     setTimeout(function() {
       if (!_sessionUnlocked || !_activeAgent || !navigator.onLine) return;
       _lastRemotePull = Date.now();
-      pullRemoteState().catch(function() {});
+      pullRemoteState().catch(function (e) { _sw(e, '_scheduleRemoteRecovery:pull'); });
     }, ms);
   });
 }
@@ -8728,6 +8765,13 @@ function saveState() {
 function _doSaveState() {
   _saveStatePending = false;
   if (!_sessionUnlocked && !_activeAgent) return;
+  // Ask the browser to keep this app's data under storage pressure. Chrome decides silently; it is best effort.
+  if (!window._persistAsked && navigator.storage && navigator.storage.persist) {
+    window._persistAsked = true;
+    navigator.storage.persist().then(function (ok) {
+      if (!ok) _diagLog('storage', 'persistent storage not granted (the browser may clear data if the phone runs low on space)', 'persist');
+    }).catch(function (e) { _sw(e, 'persist'); });
+  }
 
   // CRITICAL: If the agent changed between saveState() and _doSaveState(),
   // do not write — we would be saving the previous agent's data to the wrong key
@@ -8771,7 +8815,8 @@ function _doSaveState() {
     _persist(json);
   }
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(_pushToSupabaseIncremental, 400);
+  _remotePushDue = true;
+  _saveTimer = setTimeout(function () { _remotePushDue = false; _pushToSupabaseIncremental(); }, 400);
 }
 
 async function _pushToSupabase(retries = 3) {
@@ -8831,6 +8876,20 @@ async function _pushToSupabase(retries = 3) {
 // ── COMPUTED ───────────────────────────────────────────
 
 
+
+// Write anything still waiting the moment the app goes to the background. Phones can freeze or kill a tab right after this
+// without ever firing beforeunload. The local copy is the guarantee; the Supabase push is best effort, and if it is cut off
+// pullRemoteState() sends it on the next open because it re-pushes whenever the local copy is newer.
+function _flushPendingSaves() {
+  try {
+    if (!_sessionUnlocked || !_activeAgent) return;
+    if (_saveStatePending) { clearTimeout(_saveStateTimer); _doSaveState(); }
+    if (_remotePushDue) { clearTimeout(_saveTimer); _remotePushDue = false; _pushToSupabaseIncremental(); }
+  } catch (e) { _sw(e, '_flushPendingSaves'); }
+}
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') _flushPendingSaves(); });
+window.addEventListener('pagehide', _flushPendingSaves);
+document.addEventListener('freeze', _flushPendingSaves);
 
 const _odAgeCache = new Map();
 let   _odAgeCacheDay = '';
@@ -11318,7 +11377,7 @@ function acceptOffer(id, i) {
   _planApplyPromise(b, P);
   if (!b.promiseHistory) b.promiseHistory = [];
   b.promiseHistory.push({ rescheduled: now.toISOString(), to: parts[0].due, note: 'Offer accepted: ' + o.title });
-  haptic('medium'); saveState(); try { refreshPtpReminders(); } catch (e) {}
+  haptic('medium'); saveState(); try { refreshPtpReminders(); } catch (e) { _sw(e, 'acceptOffer:reminders'); }
   closeAllModals(); renderCurrentPage();
   toast(getFirstName(b) + ': plan set, ' + parts.map(function (x) { return fmtC(x.amt) + ' by ' + x.due.slice(5, 16).replace('-', '/'); }).join(' then '), 'success');
   setTimeout(function () { openBorrowerDetail(id); }, 250);
@@ -11328,7 +11387,7 @@ function cancelSettlementPlan(id) {
   if (!b || !b.settlementPlan) return;
   if (!confirm('Cancel this settlement plan?')) return;
   b.settlementPlan.status = 'cancelled';
-  saveState(); try { refreshPtpReminders(); } catch (e) {}
+  saveState(); try { refreshPtpReminders(); } catch (e) { _sw(e, 'cancelSettlementPlan:reminders'); }
   openBorrowerDetail(id);
 }
 // Runs with the other breach checks: ticks off parts as payments arrive, moves the promise to the next part, flags a missed part
@@ -11352,7 +11411,7 @@ function _settlementCheck() {
       broke.push(getFirstName(b)); changed = true;
     }
   });
-  if (changed) { saveState(); if (remind) { try { refreshPtpReminders(); } catch (e) {} } }
+  if (changed) { saveState(); if (remind) { try { refreshPtpReminders(); } catch (e) { _sw(e, '_settlementCheck:reminders'); } } }
   if (broke.length) { try { toast('Plan missed: ' + broke.join(', ') + '. Discount is lost, quote the full amount.', 'error'); } catch (e) {} }
   return changed;
 }
@@ -11386,6 +11445,11 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-04c', date: '4 Oct 2026', title: 'Faster start, easier to read', items: [
+    ['Faster start', 'Excel and scan tools now load only when you use them, so the app opens sooner on slow data.'],
+    ['Safer saving', 'Your latest changes are written the moment you switch away from the app.'],
+    ['Easier to read', 'Small labels are bigger, the Escalate button and borrower initials have better contrast, and tappable items can be used with a keyboard or screen reader.'],
+    ['Clearer diagnostics', 'Errors that used to be hidden now appear in Settings \u2192 Diagnostics.'] ] },
   { id: '2026-10-04b', date: '4 Oct 2026', title: 'Aurora, polished', items: [
     ['Swipe borrower cards', 'On Borrowers, swipe a card right to open WhatsApp, left to set a promise. It springs back when you let go.'],
     ['Balanced effects', 'Settings \u2192 Effects has a new middle tier. It keeps colours, springs and page motion, and drops blur and moving glow.'],
@@ -11517,8 +11581,8 @@ function _fxRoll() {
 function _fxAfterRender(fresh, pageId) {
   if (document.documentElement.getAttribute('data-theme') !== 'aurora') return;
   _fxPill();
-  try { _auTone(); } catch (e) {}
-  if (pageId === 'dashboard') { _fxRing(); try { _auEdge(); } catch (e) {} }
+  try { _auTone(); } catch (e) { _sw(e, 'aurora:tone'); }
+  if (pageId === 'dashboard') { _fxRing(); try { _auEdge(); } catch (e) { _sw(e, 'aurora:edge'); } }
   if (!fresh) return;
   var m = document.getElementById('main');
   if (m && !window._auVTBusy) { m.classList.remove('au-enter'); void m.offsetWidth; m.classList.add('au-enter'); }
@@ -11691,6 +11755,86 @@ function _auEdge() {
     var _nd = navigateDrawer;
     navigateDrawer = function (p) { window._auNoVT = true; try { return _nd.apply(this, arguments); } finally { window._auNoVT = false; } };
   } catch (e) { try { _diagLog('error', 'au-vt: ' + e.message, 'aurora'); } catch (e2) {} }
+})();
+// Excel and scan tools now load on first use (see _loadLib in the head). These wrappers make the existing entry points wait for them.
+(function _lazyLibs() {
+  try {
+    var MAP = { xlsx: ['doExportXLSX', 'previewXLSX', 'doSmsExportXLSX', 'obHandleFileUpload'], ocr: ['_runLocalOcr'] };
+    var READY = { xlsx: function () { return !!window.XLSX; }, ocr: function () { return !!window.Tesseract; } };
+    var LABEL = { xlsx: 'Excel tools', ocr: 'scan tool' };
+    Object.keys(MAP).forEach(function (lib) {
+      MAP[lib].forEach(function (name) {
+        var orig = window[name];
+        if (typeof orig !== 'function' || orig._lazyLib) return;
+        var wrapped = function () {
+          if (READY[lib]()) return orig.apply(this, arguments);
+          var self = this, args = arguments;
+          var slow = setTimeout(function () { try { toast('Loading ' + LABEL[lib] + '\u2026', 'info'); } catch (e) {} }, 500);
+          return window._loadLib(lib).then(function () { clearTimeout(slow); return orig.apply(self, args); }, function (err) {
+            clearTimeout(slow);
+            _sw(err, 'lazyLib:' + lib);
+            try { toast('Could not load the ' + LABEL[lib] + '. Check your connection and try again.', 'error'); } catch (e) {}
+          });
+        };
+        wrapped._lazyLib = true;
+        window[name] = wrapped;
+      });
+    });
+  } catch (e) { _sw(e, '_lazyLibs'); }
+})();
+// Accessibility: clickable divs/spans become real buttons for screen readers and keyboards, and icon-only controls get a name.
+(function _auA11y() {
+  try {
+    var NATIVE = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL)$/;
+    var LABELS = [['.bl-clear-btn', 'Clear search'], ['[onclick*="ptpShareMorning"]', 'Share morning brief']];
+    function roleFor(el) {
+      if (NATIVE.test(el.tagName) || el.hasAttribute('role') || el.hasAttribute('tabindex')) return;
+      if (el.closest('#decoy-calc')) return;
+      if (/overlay|backdrop|scrim/i.test((el.id || '') + ' ' + (typeof el.className === 'string' ? el.className : ''))) return;
+      if (el.querySelector('button,a,input,select,textarea,summary,[onclick],[role="button"]')) return;
+      el.setAttribute('role', 'button'); el.tabIndex = 0;
+    }
+    function nameFor(el) {
+      if (el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby')) return;
+      if (el.textContent.trim()) return;
+      var t = el.getAttribute('title'); if (t) el.setAttribute('aria-label', t);
+    }
+    function scan(root) {
+      if (!root || root.nodeType !== 1) return;
+      var box = [root];
+      if (root.querySelectorAll) box = box.concat(Array.prototype.slice.call(root.querySelectorAll('[onclick],button,a')));
+      box.forEach(function (el) {
+        if (el.hasAttribute && el.hasAttribute('onclick')) roleFor(el);
+        if (el.tagName === 'BUTTON' || el.tagName === 'A') nameFor(el);
+      });
+      LABELS.forEach(function (p) {
+        var hits = root.querySelectorAll ? Array.prototype.slice.call(root.querySelectorAll(p[0])) : [];
+        if (root.matches && root.matches(p[0])) hits.push(root);
+        hits.forEach(function (el) { if (!el.hasAttribute('aria-label')) el.setAttribute('aria-label', p[1]); });
+      });
+    }
+    var queue = [], timer = 0;
+    function flush() {
+      timer = 0; var batch = queue.splice(0, queue.length);
+      batch.forEach(function (n) { if (n.isConnected) { try { scan(n); } catch (e) { _sw(e, 'a11y:scan'); } } });
+    }
+    function later() {
+      if (timer) return;
+      timer = window.requestIdleCallback ? requestIdleCallback(flush, { timeout: 600 }) : setTimeout(flush, 120);
+    }
+    new MutationObserver(function (muts) {
+      muts.forEach(function (m) { for (var i = 0; i < m.addedNodes.length; i++) if (m.addedNodes[i].nodeType === 1) queue.push(m.addedNodes[i]); });
+      if (queue.length) later();
+    }).observe(document.body, { childList: true, subtree: true });
+    // Enter or Space presses a role="button" element the same way a tap does
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var t = e.target;
+      if (!t || t.getAttribute('role') !== 'button' || NATIVE.test(t.tagName) || !t.hasAttribute('onclick')) return;
+      e.preventDefault(); t.click();
+    });
+    scan(document.body);
+  } catch (e) { _sw(e, '_auA11y'); }
 })();
 // Swipe a borrower card: right opens WhatsApp, left sets a promise. Drag follows the finger, springs back on release.
 (function _auSwipe() {
@@ -13204,7 +13348,7 @@ function openExportModal() {
       if(fill) fill.style.width = Math.min(100, Math.round(n/Math.max(1,state.borrowers.length)*100))+'%';
       var dlc=document.getElementById('exp-dl-count');
       if(dlc) dlc.textContent = n;
-    } catch(e){}
+    } catch (e) { _sw(e, 'openExportModal:count'); }
   }
 
   var _expTab = 'columns';
@@ -17347,7 +17491,7 @@ function renderCurrentPage() {
   if (scrollRec && mainEl) _restoreScroll(mainEl, scrollRec, pageId);
   else window._scrollRestoring = false;
   if (!window._wnDone) setTimeout(_maybeShowWhatsNew, 1800);
-  try { _fxAfterRender(!isRerender, pageId); } catch (e) {}
+  try { _fxAfterRender(!isRerender, pageId); } catch (e) { _sw(e, 'renderCurrentPage:fx'); }
 }
 
 function updateBadges() {
@@ -22430,7 +22574,7 @@ function openRankingAgentDetail(name) {
     <div style="display:flex;gap:6px;justify-content:space-between;margin-bottom:4px">
       ${recentDaily.map(r => r ? `<div style="flex:1;text-align:center">
         <div style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:800;color:${r.pos===1?'var(--gold)':'var(--text2)'}">#${r.pos}</div>
-        <div style="font-size:9px;color:var(--text3);margin-top:2px">${r.date.slice(5)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${r.date.slice(5)}</div>
       </div>` : '<div style="flex:1"></div>').join('')}
     </div>` : '<div style="text-align:center;color:var(--text3);font-size:var(--text-sm);padding:10px 0">No daily history yet</div>';
 
@@ -24245,7 +24389,7 @@ function _leadMins() { return _alertPrefs().lead; }
 function setAlertPref(key, val) {
   var cur = _alertPrefs(); cur[key] = val;
   try { localStorage.setItem('sq_alert_prefs', JSON.stringify(cur)); } catch (e) {}
-  try { schedulePtpReminders(); } catch (e) {}   // re-arms local alarms and re-uploads the server schedule
+  try { schedulePtpReminders(); } catch (e) { _sw(e, 'setAlertPref:schedule'); }   // re-arms local alarms and re-uploads the server schedule
   haptic('light');
 }
 function openAlertSettings() {
@@ -24455,7 +24599,7 @@ function schedulePtpReminders() {
     );
   }, schedEod);
 
-  try { _pushQueueUpload(); } catch (e) {} // mirror these alerts to the server (only if background reminders are set up)
+  try { _pushQueueUpload(); } catch (e) { _sw(e, '_pushQueueUpload'); } // mirror these alerts to the server (only if background reminders are set up)
 }
 
 // Re-schedule whenever a PTP is saved or cleared
@@ -26953,7 +27097,7 @@ function openTomorrowList() {
 
 function checkPtpBreaches() {
   if (!state || !state.borrowers) return; // state may be briefly null mid-load/agent-switch
-  try { _settlementCheck(); } catch (e) {}
+  try { _settlementCheck(); } catch (e) { _sw(e, 'checkPtpBreaches:settlement'); }
   const today = new Date().toISOString().split('T')[0];
   let changed = false;
   state.borrowers.forEach(b => {
@@ -28132,7 +28276,7 @@ function renderLockAgentList() {
     // so the common "just continue where I left off" tap is obvious at a
     // glance instead of all cards reading as equally weighted options.
     const mostRecentBadge = (idx === 0 && sorted.length > 1 && lastTs > 0)
-      ? '<div style="font-size:9px;font-weight:800;letter-spacing:0.6px;color:var(--ls-gold);text-transform:uppercase;margin:0 0 6px 4px;display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--ls-gold);box-shadow:0 0 6px var(--ls-gold)"></span>Continue as</div>'
+      ? '<div style="font-size:11px;font-weight:800;letter-spacing:0.6px;color:var(--ls-gold);text-transform:uppercase;margin:0 0 6px 4px;display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--ls-gold);box-shadow:0 0 6px var(--ls-gold)"></span>Continue as</div>'
       : '';
 
     return '<div style="margin-bottom:10px;position:relative">'
@@ -28142,9 +28286,9 @@ function renderLockAgentList() {
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-weight:800;font-size:var(--text-lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ls-text);margin-bottom:3px;padding-right:34px">'+displayName+'</div>'
       + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;row-gap:4px;padding-right:34px">'
-      + '<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0">'+(a.stage||'M2')+'</span>'
+      + '<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0">'+(a.stage||'M2')+'</span>'
       + '<span style="font-size:var(--text-sm);color:var(--ls-muted);white-space:nowrap">'+stageName+'</span>'
-      + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:var(--ls-muted);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
+      + (isActive ? '<span style="background:rgba(34,197,94,0.22);color:#4ade80;font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.4px;flex-shrink:0;white-space:nowrap;margin-left:auto;box-shadow:0 0 8px rgba(34,197,94,0.25)">ACTIVE</span>' : (lastSeenStr ? '<span style="font-size:var(--text-xs);color:var(--ls-muted);white-space:nowrap;margin-left:auto">'+lastSeenStr+'</span>' : ''))
       + '</div>'
       + '</div>'
       + '</button>'
@@ -28855,7 +28999,7 @@ async function authSignInWithCode() {
       try {
         const mainRow = await fetchRow('main');
         if (mainRow?.data?.pinHash) pinHash = mainRow.data.pinHash;
-      } catch {}
+      } catch (e) { _sw(e, 'login:main-row-fetch'); }
     }
 
     // Migrate to slug key if needed
@@ -28865,7 +29009,7 @@ async function authSignInWithCode() {
       try {
         await db.from('app_state').upsert({ id: 'agent_' + slugCode, data: foundData, updated_at: new Date().toISOString() });
         if (foundId !== 'main') await db.from('app_state').delete().eq('id', 'agent_' + foundId);
-      } catch {}
+      } catch (e) { _sw(e, 'login:slug-migration'); }
     }
 
     // ========== NEW: Restore avatar & display name from _profile into localStorage ==========
@@ -29653,7 +29797,7 @@ function settingsPinPress(k) {
         state._pinHash=hash;
         const db=initSupabase();if(db){try{
           await db.from('app_state').upsert({id:'agent_'+_pinTarget.id,data:{..._stateForSync(state),_pinHash:hash},updated_at:new Date().toISOString()});
-        }catch{}}
+        }catch (e) { _sw(e, 'settingsPinPress:remote-pin'); }}
         for(let i=0;i<4;i++){const d=document.getElementById('modal-pindot-'+i);if(d)d.classList.add('success');}
         for(let i=0;i<3;i++){const s=document.getElementById('cp-step-'+i);if(s){s.classList.remove('active');s.classList.add('done');}}
         haptic('success');
@@ -32873,6 +33017,13 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   </div>
 </div>
 
+<style id="aurora-contrast">
+/* Contrast fixes found by sampling the rendered pixels behind text. Aurora only. */
+/* "Escalate" had no colour of its own, so it inherited pale grey-blue on a bright purple-to-blue gradient (about 1.8:1). */
+html[data-theme="aurora"] .wa-chip-purple { color: #fff; font-weight: 800; background: linear-gradient(135deg, #6a3fe0, #2f6fe8); }
+/* Borrower initials were white on light pastel avatars (2.5:1 to 3:1). A fixed dark wash lifts them without a filter. */
+html[data-theme="aurora"] .bc-avatar { box-shadow: inset 0 0 0 40px rgba(2, 6, 24, 0.34); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+</style>
 <style id="mobile-perf">
 /* ═══ MOBILE PERFORMANCE LAYER — phones/tablets only, loads last so it wins ═══ */
 @keyframes pageFade { from { opacity: 0; } to { opacity: 1; } }
