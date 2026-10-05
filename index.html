@@ -11266,74 +11266,196 @@ function openForecastDetail() {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-// ── Offer ladder: three ways to settle one account, with what each does for the borrower and for your target ──
-function _feeAfter(b, k) {   // estimated OD fee k days from now (2% of remaining principal per day, capped at principal)
+// ── Offer ladder: every way to settle one account inside the days left in this stage. Tick the ones to send. ──
+// Model (all figures are estimates for later dates):
+//  - late fee grows about 2% of the remaining principal per day (capped at the principal), same as the OD fee rules
+//  - "rate" (Settings / Dispatch slider) is the share of the late fee the borrower pays when settling today
+//  - for a later date that share climbs from "rate" towards 100% (no discount) at the last day the account is still in this stage
+//  - a first payment today stops the fee growing, so split plans keep the price quoted today if every part lands on time
+function _feeAfter(b, k) {   // estimated OD fee k days from now
   var principal = b.principal || b.loanDue || 0;
   var perDay = Math.round(0.02 * Math.max(0, principal - (b.amountPaid || 0)));
   return Math.min(principal, _getOdFeeCached(b) + perDay * k);
 }
+var _offerSel = {};      // borrower id -> keys ticked
+var _offerCtx = null;    // { id, L } for the open ladder
 function _offerLadder(b) {
   var rate = (state && state.discountRate !== undefined) ? state.discountRate : 0.30;
+  rate = Math.min(1, Math.max(0, Number(rate) || 0));
   var rem = getRemaining(b), fee = _getOdFeeCached(b), od = getOdAge(b.startDate, b), maxDay = getAgentDayRange()[1];
-  var cliffDays = Math.max(0, maxDay + 1 - od);
-  var full = rem + fee, gen = rem + Math.round(fee * rate);
+  var cliffDays = Math.max(0, maxDay + 1 - od);                 // days until the account leaves this stage
+  var W = Math.min(14, Math.max(0, cliffDays - 1));             // last day an offer can still land inside the stage (0 = today only)
   var perDay = Math.round(0.02 * Math.max(0, (b.principal || b.loanDue || 0) - (b.amountPaid || 0)));
-  var part1 = Math.ceil(gen * 0.6 / 10) * 10, part2Days = Math.max(1, Math.min(3, cliffDays - 1 || 1));
-  var part2 = gen - part1;
-  var laterK = Math.max(2, Math.min(cliffDays || 3, 5)), later = rem + Math.round(_feeAfter(b, laterK));
-  return {
-    od: od, cliffDays: cliffDays, perDay: perDay, full: full,
-    offers: [
-      { key: 'today', title: 'Pay today, discounted', now: gen, later: 0, laterDays: 0, saves: full - gen,
-        pitch: 'Clear everything today for ' + fmtC(gen) + '. The late fee is reduced, and it stops growing.' },
-      { key: 'split', title: 'Two parts', now: part1, later: part2, laterDays: part2Days, saves: full - gen,
-        pitch: fmtC(part1) + ' today and ' + fmtC(part2) + ' within ' + part2Days + ' day' + (part2Days > 1 ? 's' : '') + ' keeps the discounted total of ' + fmtC(gen) + '. Miss the second part and the full fee returns.' },
-      { key: 'later', title: 'Full balance, later date', now: 0, later: later, laterDays: laterK, saves: 0,
-        pitch: 'Pay about ' + fmtC(later) + ' in ' + laterK + ' days, no discount. The fee grows by about ' + fmtC(perDay) + ' each day you wait.' }
-    ]
+  var full = rem + fee, gen = rem + Math.round(fee * rate), disc = fee > 0 && gen < full;
+  var B = function (n) { return '*' + fmtC(n) + '*'; };
+  var within = function (k) { return k === 1 ? 'by tomorrow' : 'within ' + k + ' days'; };
+  var inDays = function (k) { return k === 1 ? 'tomorrow' : 'in ' + k + ' days'; };
+  var feeAt = function (k) { return k === 0 ? fee : Math.round(_feeAfter(b, k)); };
+  var share = function (k) { return Math.min(1, rate + (1 - rate) * k / (W + 1)); };
+  var up10 = function (n) { return Math.ceil(n / 10) * 10; };
+  var offers = [], add = function (o) {
+    o.total = o.parts.reduce(function (t, p) { return t + p.amt; }, 0);
+    o.lastDay = o.parts.reduce(function (m, p) { return Math.max(m, p.day); }, 0);
+    offers.push(o);
   };
+
+  // 1. everything today at the best price
+  add({ key: 'today', title: disc ? 'Pay today, best price' : 'Pay in full today', saves: full - gen, parts: [{ amt: gen, day: 0 }],
+    pitch: disc ? 'Clear everything today for ' + B(gen) + '. The late fee is reduced, and it stops growing.'
+                : 'Clear the full balance of ' + B(gen) + ' today.' });
+
+  // 2. two parts, same discounted price
+  if (W >= 1) {
+    var p1 = up10(gen * 0.6), p2 = gen - p1, d2 = Math.min(3, W);
+    if (p2 > 0) add({ key: 'split2', title: 'Two parts', saves: full - gen, parts: [{ amt: p1, day: 0 }, { amt: p2, day: d2 }],
+      pitch: 'Pay ' + B(p1) + ' today and ' + B(p2) + ' ' + within(d2) + (disc ? ' to keep the discounted total of ' + B(gen) + '. Miss the second part and the full fee returns.' : '.') });
+  }
+
+  // 3. three parts, same discounted price
+  if (W >= 2) {
+    var D = Math.min(5, W), e1 = Math.max(1, Math.round(D / 2)), e2 = D;
+    var q1 = up10(gen * 0.5), q2 = up10((gen - q1) / 2), q3 = gen - q1 - q2;
+    if (e1 < e2 && q2 > 0 && q3 > 0) add({ key: 'split3', title: 'Three parts', saves: full - gen, parts: [{ amt: q1, day: 0 }, { amt: q2, day: e1 }, { amt: q3, day: e2 }],
+      pitch: 'Pay ' + B(q1) + ' today, ' + B(q2) + ' ' + within(e1) + ' and ' + B(q3) + ' ' + within(e2) + (disc ? ' to keep the discounted total of ' + B(gen) + '. Miss a part and the full fee returns.' : '.') });
+  }
+
+  // 4. longer plan across the stage window, half the discount kept
+  if (disc && W >= 6) {
+    var T = rem + Math.round(fee * (rate + (1 - rate) * 0.5));
+    var l1 = up10(T * 0.4), l2 = up10(T * 0.3), l3 = T - l1 - l2, f1 = Math.ceil(W / 2), f2 = W;
+    if (l3 > 0 && f1 < f2) add({ key: 'splitLong', title: 'Longer plan, ' + f2 + ' days', saves: full - T, parts: [{ amt: l1, day: 0 }, { amt: l2, day: f1 }, { amt: l3, day: f2 }],
+      pitch: 'Pay ' + B(l1) + ' today, ' + B(l2) + ' ' + within(f1) + ' and ' + B(l3) + ' ' + within(f2) + '. The late fee stops growing and part of the discount stays: total ' + B(T) + '. Miss a part and the full fee returns.' });
+  }
+
+  // 5. one payment later, discount shrinking each day
+  if (disc) {
+    var seen = {};
+    [Math.round(W / 3), Math.round(2 * W / 3)].forEach(function (k) {
+      if (k < 1 || k > W - 1 || seen[k]) return;
+      seen[k] = 1;
+      var t = rem + Math.round(feeAt(k) * share(k)), fk = rem + feeAt(k);
+      if (t >= fk) return;
+      add({ key: 'day' + k, title: 'Pay ' + inDays(k) + ', smaller discount', saves: fk - t, parts: [{ amt: t, day: k }],
+        pitch: 'Pay ' + B(t) + ' ' + within(k) + '. A smaller discount still applies, but it shrinks and the fee grows by about ' + fmtC(perDay) + ' each day you wait.' });
+    });
+  }
+
+  // 6. last safe day, no discount
+  if (W >= 1) {
+    var tl = rem + feeAt(W);
+    add({ key: 'last', title: 'Full balance, no discount', saves: 0, parts: [{ amt: tl, day: W }],
+      pitch: 'Pay about ' + B(tl) + ' ' + inDays(W) + ', no discount.' + (perDay > 0 ? ' The fee grows by about ' + fmtC(perDay) + ' each day you wait.' : '') });
+  }
+  return { od: od, cliffDays: cliffDays, W: W, perDay: perDay, full: full, rate: rate, disc: disc, offers: offers };
 }
+function _offerRecommended(L) {
+  var keys = L.offers.map(function (o) { return o.key; });
+  var pick = ['today', 'split2', 'last'].filter(function (k) { return keys.indexOf(k) >= 0; });
+  return pick.length ? pick : keys.slice(0, 1);
+}
+function _offerPicked(id) {
+  var c = _offerCtx; if (!c || c.id !== id) return [];
+  var sel = _offerSel[id] || [];
+  return c.L.offers.filter(function (o) { return sel.indexOf(o.key) >= 0; });
+}
+// The message: first offer, then *OR* between the middle ones and *Lastly* before the final one, then the payment guide.
+function _offersMessage(b, list) {
+  var intro = 'Hello ' + getFirstName(b) + ', regarding your ' + b.loanType + ' loan.', n = list.length, body;
+  if (n === 1) body = intro + ' Here is an offer: ' + list[0].pitch;
+  else {
+    body = intro + ' Here are your options:\n\n' + list[0].pitch;
+    for (var i = 1; i < n; i++) body += '\n\n' + (i === n - 1 && n > 2 ? '*Lastly*' : '*OR*') + '\n\n' + list[i].pitch;
+  }
+  return { body: body, guide: payGuide(b) };
+}
+function _ofBold(t) { return escapeHtml(t).replace(/\*([^*\n]+)\*/g, '<b>$1</b>'); }
 
 function openOfferLadder(id) {
   var b = (state.borrowers || []).find(function (x) { return x.id === id; });
   if (!b || b.isPaid) return;
   var L = _offerLadder(b), first = getFirstName(b);
-  var cliffTxt = L.cliffDays > 0 ? L.cliffDays + ' day' + (L.cliffDays > 1 ? 's' : '') + ' until the account moves stage' : 'already at the stage limit';
-  var card = function (o, i) {
-    var parts = [];
-    if (o.now) parts.push('<b>' + fmtC(o.now) + '</b> today');
-    if (o.later) parts.push('<b>' + fmtC(o.later) + '</b> in ' + o.laterDays + ' day' + (o.laterDays > 1 ? 's' : ''));
-    var tone = i === 0 ? 'var(--green)' : i === 1 ? 'var(--gold)' : 'var(--text3)';
-    return '<div style="padding:12px;border-radius:14px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:10px">'
-      + '<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:' + tone + '">' + (i + 1) + '. ' + o.title + '</b>'
-      + (o.saves > 0 ? '<span style="font-size:var(--text-sm);color:var(--green);font-weight:700">saves ' + fmtC(o.saves) + '</span>' : '<span style="font-size:var(--text-sm);color:var(--red);font-weight:700">costs more</span>') + '</div>'
-      + '<div style="margin:5px 0;font-size:var(--text-md)">' + parts.join(' + ') + '</div>'
-      + '<div style="font-size:var(--text-sm);color:var(--text2)">' + o.pitch + '</div>'
-      + '<div style="display:flex;gap:8px;margin-top:9px"><button class="btn btn-ghost" style="flex:1" onclick="copyOffer(\'' + id + '\',' + i + ')">Copy</button>'
-      + '<button class="btn btn-gold" style="flex:1" onclick="sendOffer(\'' + id + '\',' + i + ')">WhatsApp</button></div>'
-      + '<button class="btn btn-ghost" style="width:100%;margin-top:8px;border-color:rgba(47,224,165,0.5);color:var(--green)" onclick="acceptOffer(\'' + id + '\',' + i + ')">Accepted: set up this plan</button></div>';
+  _offerCtx = { id: id, L: L };
+  if (!_offerSel[id]) _offerSel[id] = _offerRecommended(L);
+  _offerSel[id] = _offerSel[id].filter(function (k) { return L.offers.some(function (o) { return o.key === k; }); });
+  if (!_offerSel[id].length) _offerSel[id] = _offerRecommended(L);
+  var cliffTxt = L.cliffDays > 1 ? L.cliffDays + ' days until the account moves stage' : L.cliffDays === 1 ? 'today is the last day before the account moves stage' : 'already past the stage limit, so only today is offered';
+  var tone = function (k) { return k === 'last' ? 'var(--text3)' : (k === 'today' || k === 'split2' || k === 'split3') ? 'var(--green)' : 'var(--gold)'; };
+  var when = function (p) { return p.day === 0 ? 'today' : p.day === 1 ? 'tomorrow' : 'in ' + p.day + ' days'; };
+  var card = function (o) {
+    var figs = o.parts.map(function (p) { return '<b>' + fmtC(p.amt) + '</b> ' + when(p); }).join(' + ');
+    return '<div class="of-card" data-key="' + o.key + '" role="checkbox" aria-checked="false" tabindex="0"'
+      + ' onclick="toggleOfferPick(\'' + id + '\',\'' + o.key + '\')"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleOfferPick(\'' + id + '\',\'' + o.key + '\')}">'
+      + '<span class="of-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
+      + '<div class="of-main"><div class="of-top"><b style="color:' + tone(o.key) + '">' + escapeHtml(o.title) + '</b>'
+      + (o.saves > 0 ? '<span style="font-size:var(--text-sm);color:var(--green);font-weight:700">saves ' + fmtC(o.saves) + '</span>'
+                     : '<span style="font-size:var(--text-sm);color:var(--text3);font-weight:700">no discount</span>') + '</div>'
+      + '<div style="margin:4px 0;font-size:var(--text-md)">' + figs + '</div>'
+      + '<div class="of-pitch">' + _ofBold(o.pitch) + '</div>'
+      + '<button class="btn btn-ghost" style="width:100%;margin-top:9px;border-color:rgba(47,224,165,0.5);color:var(--green);white-space:normal"'
+      + ' onclick="event.stopPropagation();acceptOffer(\'' + id + '\',\'' + o.key + '\')">Accepted: set up this plan</button></div></div>';
   };
   _pushModalIfOpen(function () { openBorrowerDetail(id); });
   document.getElementById('modal-title').textContent = 'Offer ladder: ' + first;
   document.getElementById('modal-body').innerHTML =
-    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Day ' + L.od + ' overdue · full amount today <b>' + fmtC(L.full) + '</b> · ' + cliffTxt + '. Start with option 1; move down only if they cannot.</div>'
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Day ' + L.od + ' overdue \u00b7 full amount today <b>' + fmtC(L.full) + '</b> \u00b7 ' + cliffTxt
+    + '. Tick the offers to send. ' + L.offers.length + ' fit inside the days left.</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'rec\')">Recommended</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'all\')">All</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'none\')">None</button>'
+    + '<span id="of-count" style="align-self:center;font-size:var(--text-sm);color:var(--text3)"></span></div>'
     + L.offers.map(card).join('')
-    + '<div style="font-size:var(--text-xs);color:var(--text3)">Later-date figures are estimates (fee grows about 2% of the remaining loan per day). Uses your discount setting of ' + Math.round(((state.discountRate !== undefined) ? state.discountRate : 0.30) * 100) + '% of the late fee.</div>';
-  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);margin:12px 0 6px;letter-spacing:.04em">MESSAGE PREVIEW</div>'
+    + '<div id="of-preview" class="of-prev"></div>'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:10px">Later-date figures are estimates. The late fee grows about ' + fmtC(L.perDay) + ' a day (2% of the remaining loan) and the discount shrinks each day, to none at the stage limit. Today\'s offers have the borrower paying ' + Math.round(L.rate * 100) + '% of the late fee (your discount setting).</div>';
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
+    + '<button class="btn btn-ghost" id="of-copy" onclick="copyOffers(\'' + id + '\')">Copy</button>'
+    + '<button class="btn btn-gold" id="of-send" onclick="sendOffers(\'' + id + '\')">WhatsApp</button>';
   document.getElementById('modal-overlay').classList.add('open');
+  _offerRefresh();
 }
-function _offerText(id, i) {
-  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return '';
-  var o = _offerLadder(b).offers[i];
-  return 'Hello ' + getFirstName(b) + ', regarding your ' + b.loanType + ' loan. Here is an offer: ' + o.pitch + payGuide(b);
+function _offerRefresh() {
+  var c = _offerCtx; if (!c) return;
+  var sel = _offerSel[c.id] || [], list = _offerPicked(c.id), b = (state.borrowers || []).find(function (x) { return x.id === c.id; });
+  Array.prototype.forEach.call(document.querySelectorAll('.of-card'), function (el) {
+    var on = sel.indexOf(el.getAttribute('data-key')) >= 0;
+    el.classList.toggle('on', on); el.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  var prev = document.getElementById('of-preview'), cnt = document.getElementById('of-count');
+  var send = document.getElementById('of-send'), copy = document.getElementById('of-copy');
+  if (cnt) cnt.textContent = list.length + ' of ' + c.L.offers.length + ' ticked';
+  if (prev) {
+    if (!b || !list.length) prev.innerHTML = '<span style="color:var(--text3)">Tick at least one offer to build the message.</span>';
+    else { var m = _offersMessage(b, list); prev.innerHTML = _ofBold(m.body) + escapeHtml(m.guide); }
+  }
+  [send, copy].forEach(function (el) { if (el) { el.disabled = !list.length; el.style.opacity = list.length ? '' : '0.5'; } });
+  if (send) send.textContent = list.length ? 'WhatsApp (' + list.length + ')' : 'WhatsApp';
 }
-function copyOffer(id, i) {
-  var t = _offerText(id, i);
-  try { navigator.clipboard.writeText(t); toast('Offer copied', 'success'); } catch (e) { toast('Could not copy', 'error'); }
+function toggleOfferPick(id, key) {
+  var sel = _offerSel[id] || (_offerSel[id] = []), i = sel.indexOf(key);
+  if (i >= 0) sel.splice(i, 1); else sel.push(key);
+  haptic('light'); _offerRefresh();
 }
-function sendOffer(id, i) {
-  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return;
-  window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(_offerText(id, i)), '_blank');
+function offerPickPreset(id, mode) {
+  var c = _offerCtx; if (!c || c.id !== id) return;
+  _offerSel[id] = mode === 'all' ? c.L.offers.map(function (o) { return o.key; }) : mode === 'none' ? [] : _offerRecommended(c.L);
+  haptic('light'); _offerRefresh();
+}
+function _offerMessageText(id) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }), list = _offerPicked(id);
+  if (!b || !list.length) return '';
+  var m = _offersMessage(b, list); return m.body + m.guide;
+}
+function copyOffers(id) {
+  var t = _offerMessageText(id); if (!t) { toast('Tick at least one offer first', 'error'); return; }
+  try { navigator.clipboard.writeText(t).then(function () { toast('Offer message copied', 'success'); }, function () { toast('Could not copy', 'error'); }); }
+  catch (e) { toast('Could not copy', 'error'); }
+}
+function sendOffers(id) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }), t = _offerMessageText(id);
+  if (!b || !t) { toast('Tick at least one offer first', 'error'); return; }
+  window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(t), '_blank');
 }
 
 
@@ -11356,21 +11478,22 @@ function _planApplyPromise(b, P) {
   b.ptpOutcome = 'pending';
   b.ptpBreached = false;
 }
-function acceptOffer(id, i) {
+function acceptOffer(id, key) {
   var b = (state.borrowers || []).find(function (x) { return x.id === id; });
   if (!b || b.isPaid) return;
   if (b.settlementPlan && b.settlementPlan.status === 'active' && !confirm('Replace the settlement plan already running for ' + getFirstName(b) + '?')) return;
-  var o = _offerLadder(b).offers[i], now = new Date(), parts = [], first = null;
-  if (o.now > 0) {
-    var t = new Date(now.getTime() + 90 * 60000); t.setMinutes(Math.ceil(t.getMinutes() / 30) * 30, 0, 0);
-    if (t.getHours() >= 18 || t.getDate() !== now.getDate()) { t = new Date(now); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); }
-    first = t; parts.push({ amt: o.now, due: _planFmtDT(t), paid: false });
-  }
-  if (o.later > 0) {
-    var d = new Date(now); d.setDate(d.getDate() + o.laterDays); d.setHours(17, 0, 0, 0);
-    if (first && d.getTime() <= first.getTime()) { d = new Date(first); d.setDate(d.getDate() + 1); d.setHours(17, 0, 0, 0); }
-    parts.push({ amt: o.later, due: _planFmtDT(d), paid: false });
-  }
+  var o = _offerLadder(b).offers.find(function (x) { return x.key === key; });
+  if (!o) { toast('That offer is no longer available. Reopen the ladder.', 'error'); return; }
+  var now = new Date(), parts = [], prev = null;
+  o.parts.forEach(function (pt) {
+    var t;
+    if (pt.day === 0) {
+      t = new Date(now.getTime() + 90 * 60000); t.setMinutes(Math.ceil(t.getMinutes() / 30) * 30, 0, 0);
+      if (t.getHours() >= 18 || t.getDate() !== now.getDate()) { t = new Date(now); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); }
+    } else { t = new Date(now); t.setDate(t.getDate() + pt.day); t.setHours(17, 0, 0, 0); }
+    if (prev && t.getTime() <= prev.getTime()) { t = new Date(prev); t.setDate(t.getDate() + 1); t.setHours(17, 0, 0, 0); }
+    prev = t; parts.push({ amt: pt.amt, due: _planFmtDT(t), paid: false });
+  });
   if (!parts.length) return;
   var P = { id: 'sp' + Date.now(), offer: o.key, title: o.title, createdAt: now.toISOString(), baseline: b.amountPaid || 0, parts: parts, status: 'active', saves: o.saves };
   b.settlementPlan = P;
@@ -11445,6 +11568,13 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-05b', date: '5 Oct 2026', title: 'Ranking: first names only', items: [
+    ['Cleaner names', 'Agent names on the Ranking page now show the first name only, with no hyphens or spaces. Your saved scans are not changed, so trends and your rival tracking keep working.'] ] },
+  { id: '2026-10-05a', date: '5 Oct 2026', title: 'Offer ladder: pick what to send', items: [
+    ['Up to 7 offers', 'The ladder now works out every way to settle that fits inside the days left in the borrower\'s stage: pay today, two or three parts, a longer plan, a later payment with a shrinking discount, and a last-day full balance.'],
+    ['Tick and send', 'Tick the offers you want and send them in one WhatsApp message, with OR and Lastly between them. A live preview shows exactly what will be sent.'],
+    ['Plans for every offer', 'Accepted: set up this plan now works for multi-part offers and sets a reminder for each part.'],
+    ['Effects fix', 'The Effects sheet no longer runs off the edge of the screen.'] ] },
   { id: '2026-10-04c', date: '4 Oct 2026', title: 'Faster start, easier to read', items: [
     ['Faster start', 'Excel and scan tools now load only when you use them, so the app opens sooner on slow data.'],
     ['Safer saving', 'Your latest changes are written the moment you switch away from the app.'],
@@ -11516,7 +11646,7 @@ function setFxPref(v) {
 }
 function openFxSettings() {
   var pref = 'auto'; try { pref = localStorage.getItem('sq_fx') || 'auto'; } catch (e) {}
-  var opt = function (v, t, d) { return '<button class="btn ' + (pref === v ? 'btn-gold' : 'btn-ghost') + '" style="width:100%;text-align:left;margin-bottom:8px;display:block" onclick="setFxPref(\'' + v + '\')"><b>' + t + '</b><br><span style="font-size:var(--text-sm);opacity:.8">' + d + '</span></button>'; };
+  var opt = function (v, t, d) { return '<button class="btn ' + (pref === v ? 'btn-gold' : 'btn-ghost') + '" style="width:100%;text-align:left;margin-bottom:8px;display:block;white-space:normal;height:auto;line-height:1.35;overflow-wrap:anywhere" onclick="setFxPref(\'' + v + '\')"><b>' + t + '</b><span style="display:block;margin-top:3px;font-size:var(--text-sm);opacity:.8;white-space:normal">' + d + '</span></button>'; };
   _pushModalIfOpen();
   document.getElementById('modal-title').textContent = 'Effects';
   document.getElementById('modal-body').innerHTML = '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">Applies to the Aurora theme. Now running: <b style="color:var(--text)">' + _fxMode() + '</b></div>'
@@ -21919,6 +22049,13 @@ function scanRanking() {
 // ── Ranking analytics: streaks, personal records, achievements ──
 // All derived purely from state.rankingHistory — no new state fields needed
 // except a small "seen achievements" set so we only celebrate an unlock once.
+// Ranking labels show the first name only. "Janet-Nortey", "Janet Nortey" and "Janet - Nortey" all show "Janet".
+// Stored scan data keeps the full text, so matching, trends and rival tracking behave exactly as before.
+function _rkFirst(name) {
+  var raw = String(name == null ? '' : name).trim();
+  var t = raw.split(/[\s\-\u2010-\u2015_]+/).filter(Boolean);
+  return t[0] || raw;
+}
 function _rankMyPos(scan, myName) {
   if (!scan || !myName) return null;
   const me = scan.agents.find(a => a.name.toLowerCase().includes(myName));
@@ -22242,7 +22379,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
         const gapN= parseFloat(gap);
         html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
           <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Gap to #${posGap-1}</div>
-          <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(above.name.split(' ')[0])}</div>
+          <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(above.name))}</div>
           <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${gapN<0?'var(--red)':'var(--green)'}">${gapN>0?'+':''}${gap}%</div>
           <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${gapN<0?'You trail by '+Math.abs(gapN).toFixed(2)+'%':'You lead by '+gapN.toFixed(2)+'%'} · tap to view</div>
         </div>`;
@@ -22252,7 +22389,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
         const gapFN=parseFloat(gapF);
         html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
           <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Gap to #1</div>
-          <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(first.name.split(' ')[0])}</div>
+          <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(first.name))}</div>
           <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${gapFN<0?'var(--red)':'var(--green)'}">${gapFN>0?'+':''}${gapF}%</div>
           <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${gapFN<0?'Behind leader by '+Math.abs(gapFN).toFixed(2)+'% · tap to view':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 11v3M14 11v3"/><path d="M8 19h8"/><path d="M12 14v5"/></svg></span> You are the leader!'}</div>
         </div>`;
@@ -22365,7 +22502,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
   function buildPodium(scan) {
     if (!scan || scan.agents.length < 2) return '';
     const top = scan.agents.slice(0, 3);
-    const initials = (n) => n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const initials = (n) => (_rkFirst(n).charAt(0) || '?').toUpperCase();
     const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
     const heights = {0:88,1:66,2:52};
     const medalColor = {0:'#d4af37',1:'#b0b8c1',2:'#b5652f'};
@@ -22381,7 +22518,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;flex:${isFirst?'1.15':'1'};min-width:0">
           <div style="font-size:20px;line-height:1;margin-bottom:3px;visibility:${isFirst?'visible':'hidden'}">👑</div>
           <div style="width:${isFirst?54:42}px;height:${isFirst?54:42}px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:${isFirst?'17px':'13px'};font-weight:700;color:#fff;box-shadow:0 0 0 3px ${medalColor[i]}${isFirst?', 0 4px 18px rgba(212,175,55,0.45)':''};flex-shrink:0">${initials(a.name)}</div>
-          <div style="font-size:var(--text-xs);font-weight:${isMe?800:600};color:${isMe?'var(--gold)':'var(--text2)'};text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px">${escapeHtml(a.name.split(' ')[0])}${isMe?' (You)':''}</div>
+          <div style="font-size:var(--text-xs);font-weight:${isMe?800:600};color:${isMe?'var(--gold)':'var(--text2)'};text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px">${escapeHtml(_rkFirst(a.name))}${isMe?' (You)':''}</div>
           <div style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:800;color:${medalColor[i]}">${a.pct}%</div>
           <div style="width:100%;height:${heights[i]}px;background:linear-gradient(180deg,${medalColor[i]}2e,${medalColor[i]}10);border:1px solid ${medalColor[i]}55;border-bottom:none;border-radius:8px 8px 0 0;margin-top:8px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px">
             <span style="font-family:var(--font-mono);font-weight:800;font-size:var(--text-lg);color:${medalColor[i]}">#${i+1}</span>
@@ -22428,7 +22565,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':isRival?'background:rgba(167,139,250,0.06);border-left:3px solid var(--purple)':''}">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
             <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:${isMe?'var(--gold)':'var(--text3)'};min-width:24px;font-weight:${isMe?700:400}">${medal||'#'+(i+1)}</div>
-            <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':isRival?'var(--purple)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
+            <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':isRival?'var(--purple)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(a.name))}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
             <div style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:${isMe?'var(--gold)':'var(--text2)'}">${a.pct}%</div>
             <div style="min-width:28px;text-align:right">${trendIco}</div>
             ${pinBtn}
@@ -22457,7 +22594,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     const ahead = gapN >= 0;
     return `<div class="rank-rival-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:var(--text-sm);font-weight:700;color:var(--purple)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> You vs ${escapeHtml(rival.name.split(' ')[0])}</span>
+        <span style="font-size:var(--text-sm);font-weight:700;color:var(--purple)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> You vs ${escapeHtml(_rkFirst(rival.name))}</span>
         <button class="rank-rival-close" onclick="toggleRankingRival('${escapeHtml(rivalName).replace(/'/g,"\\'")}')" title="Stop tracking">✕</button>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -22471,7 +22608,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
         </div>
         <div style="text-align:center;flex:1">
           <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:var(--purple)">#${rivalPos}</div>
-          <div style="font-size:var(--text-xs);color:var(--text3)">${escapeHtml(rival.name.split(' ')[0])} · ${rival.pct}%</div>
+          <div style="font-size:var(--text-xs);color:var(--text3)">${escapeHtml(_rkFirst(rival.name))} · ${rival.pct}%</div>
         </div>
       </div>
     </div>`;
@@ -22514,10 +22651,10 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     const current = localStorage.getItem('ranking_rival_name');
     if (current && current.toLowerCase() === name.toLowerCase()) {
       localStorage.removeItem('ranking_rival_name');
-      toast('Stopped tracking ' + name.split(' ')[0], 'info');
+      toast('Stopped tracking ' + _rkFirst(name), 'info');
     } else {
       localStorage.setItem('ranking_rival_name', name);
-      toast('Tracking ' + name.split(' ')[0] + ' as rival', 'success');
+      toast('Tracking ' + _rkFirst(name) + ' as rival', 'success');
       haptic('medium');
     }
     window._switchBoard();
@@ -22550,7 +22687,7 @@ function openRankingAgentDetail(name) {
 
   const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
   const [ac1,ac2] = avatarColors[name.charCodeAt(0) % 6];
-  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const initials = (_rkFirst(name).charAt(0) || '?').toUpperCase();
   const rivalName = (localStorage.getItem('ranking_rival_name')||'').toLowerCase();
   const isRival = !isMe && rivalName && name.toLowerCase() === rivalName;
 
@@ -22563,7 +22700,7 @@ function openRankingAgentDetail(name) {
     const gap = (parseFloat(me.pct) - parseFloat(them.pct)).toFixed(2);
     const gapN = parseFloat(gap);
     return `<div style="background:var(--surface2);border-radius:var(--radius-md);padding:12px;margin-bottom:14px;text-align:center">
-      <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Your gap vs ${escapeHtml(name.split(' ')[0])}</div>
+      <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Your gap vs ${escapeHtml(_rkFirst(name))}</div>
       <div style="font-family:var(--font-mono);font-size:var(--text-2xl);font-weight:800;color:${gapN>=0?'var(--green)':'var(--red)'}">${gapN>0?'+':''}${gap}%</div>
       <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${gapN>=0?'You lead':'You trail'} · from most recent scan</div>
     </div>`;
@@ -22578,11 +22715,11 @@ function openRankingAgentDetail(name) {
       </div>` : '<div style="flex:1"></div>').join('')}
     </div>` : '<div style="text-align:center;color:var(--text3);font-size:var(--text-sm);padding:10px 0">No daily history yet</div>';
 
-  document.getElementById('modal-title').textContent = name;
+  document.getElementById('modal-title').textContent = _rkFirst(name);
   document.getElementById('modal-body').innerHTML = `
     <div style="text-align:center;padding:6px 0 16px">
       <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;margin:0 auto 10px">${initials}</div>
-      <div style="font-size:var(--text-lg);font-weight:700;color:var(--text)">${escapeHtml(name)}</div>
+      <div style="font-size:var(--text-lg);font-weight:700;color:var(--text)">${escapeHtml(_rkFirst(name))}</div>
       ${isMe?'<div style="font-size:var(--text-xs);color:var(--gold);font-weight:700;margin-top:2px">This is you</div>':isRival?'<div style="font-size:var(--text-xs);color:var(--purple);font-weight:700;margin-top:2px">Tracked as your rival</div>':''}
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
@@ -26022,8 +26159,8 @@ function checkRankingGapAlert() {
   const gapVal = above ? (meLatestPct - parseFloat(above.pct)) : null;
   const gapHtml = above
     ? (gapVal < 0
-        ? `Now <strong style="color:var(--red)">${Math.abs(gapVal).toFixed(2)}%</strong> behind <strong>${escapeHtml(above.name.split(' ')[0])}</strong> at #${posLatest-1}.`
-        : `Ahead of <strong>${escapeHtml(above.name.split(' ')[0])}</strong> at #${posLatest-1} by ${gapVal.toFixed(2)}% on rate — worth a second look.`)
+        ? `Now <strong style="color:var(--red)">${Math.abs(gapVal).toFixed(2)}%</strong> behind <strong>${escapeHtml(_rkFirst(above.name))}</strong> at #${posLatest-1}.`
+        : `Ahead of <strong>${escapeHtml(_rkFirst(above.name))}</strong> at #${posLatest-1} by ${gapVal.toFixed(2)}% on rate — worth a second look.`)
     : '';
   const html = `<div style="flex:1;font-size:var(--text-md)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 9"/><path d="M15 18h6v-6"/></svg></span> You slipped from <strong>#${posPrev}</strong> to <strong style="color:var(--red)">#${posLatest}</strong> since your last scan. ${gapHtml}</div>
     <button class="btn btn-ghost btn-xs" onclick="dismissRankingAlert('${dismissKey}')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>`;
@@ -33017,6 +33154,19 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
   </div>
 </div>
 
+<style id="offer-ladder-css">
+.of-card{display:flex;gap:11px;padding:12px;border-radius:14px;background:var(--surface2);border:1.5px solid var(--border2);margin-bottom:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s ease,background-color .15s ease}
+.of-card.on{border-color:var(--gold);background:rgba(255,166,43,.10)}
+.of-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.of-box{flex:0 0 24px;height:24px;border-radius:8px;border:2px solid var(--text3);display:flex;align-items:center;justify-content:center;margin-top:1px;transition:background-color .15s ease,border-color .15s ease}
+.of-card.on .of-box{background:var(--gold);border-color:var(--gold)}
+.of-box svg{width:15px;height:15px;fill:none;stroke:#1a0d00;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .12s ease}
+.of-card.on .of-box svg{opacity:1}
+.of-main{flex:1;min-width:0}
+.of-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.of-pitch{font-size:var(--text-sm);color:var(--text2);overflow-wrap:anywhere}
+.of-prev{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;border-radius:14px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.35);font-size:var(--text-sm);color:var(--text);line-height:1.5}
+</style>
 <style id="aurora-contrast">
 /* Contrast fixes found by sampling the rendered pixels behind text. Aurora only. */
 /* "Escalate" had no colour of its own, so it inherited pale grey-blue on a bright purple-to-blue gradient (about 1.8:1). */
