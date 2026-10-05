@@ -1211,6 +1211,159 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-body);
 .rank-cal-day.has-data { cursor: pointer; }
 .rank-cal-day.has-data:hover { outline: 1.5px solid var(--text3); }
 
+/* ═══ Ranking — Futuristic HUD ═════════════════════════════
+   Everything is driven by one custom property, --rk-c, set per element,
+   so the same classes carry gold / silver / bronze / rival / you colours. */
+@keyframes rkScan   { from { transform: translateY(-110%); } to { transform: translateY(300%); } }
+@keyframes rkSpin   { to { transform: rotate(360deg); } }
+@keyframes rkBreath { 0%,100% { box-shadow: 0 0 0 1px color-mix(in srgb,var(--rk-c) 14%,transparent), 0 10px 36px color-mix(in srgb,var(--rk-c) 16%,transparent); }
+                      50%     { box-shadow: 0 0 0 1px color-mix(in srgb,var(--rk-c) 30%,transparent), 0 10px 56px color-mix(in srgb,var(--rk-c) 34%,transparent); } }
+.rk-brackets { position: relative; }
+.rk-brackets::before {
+  content: ''; position: absolute; inset: 8px; border-radius: inherit; pointer-events: none; z-index: 2;
+  --b: color-mix(in srgb, var(--rk-c) 75%, transparent);
+  background:
+    linear-gradient(var(--b),var(--b)) top left / 18px 2px no-repeat,    linear-gradient(var(--b),var(--b)) top left / 2px 18px no-repeat,
+    linear-gradient(var(--b),var(--b)) top right / 18px 2px no-repeat,   linear-gradient(var(--b),var(--b)) top right / 2px 18px no-repeat,
+    linear-gradient(var(--b),var(--b)) bottom left / 18px 2px no-repeat, linear-gradient(var(--b),var(--b)) bottom left / 2px 18px no-repeat,
+    linear-gradient(var(--b),var(--b)) bottom right / 18px 2px no-repeat,linear-gradient(var(--b),var(--b)) bottom right / 2px 18px no-repeat;
+}
+/* Hero */
+.rk-hero {
+  --rk-c: var(--gold); position: relative; overflow: hidden; isolation: isolate;
+  text-align: center; padding: 22px 16px 18px; margin-bottom: 14px; border-radius: 18px;
+  background:
+    radial-gradient(120% 85% at 50% 0%, color-mix(in srgb,var(--rk-c) 24%,transparent), transparent 62%),
+    linear-gradient(color-mix(in srgb,var(--text) 5%,transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, color-mix(in srgb,var(--text) 5%,transparent) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--surface);
+  border: 1px solid color-mix(in srgb,var(--rk-c) 45%,transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb,var(--rk-c) 12%,transparent), 0 10px 40px color-mix(in srgb,var(--rk-c) 16%,transparent);
+}
+.rk-hero.first { animation: rkBreath 3s ease-in-out infinite; }
+.rk-hero::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 38%; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb,var(--rk-c) 15%,transparent), transparent);
+  animation: rkScan 6s linear infinite;
+}
+.rk-hero > * { position: relative; z-index: 1; }
+.rk-hero-label { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.24em; text-transform: uppercase; color: var(--rk-c); opacity: 0.9; margin-bottom: 10px; }
+.rk-hero-label .ico svg { width: 12px; height: 12px; vertical-align: -2px; }
+.rk-hero-rank { font-family: var(--font-mono); font-size: 68px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--rk-c);
+  text-shadow: 0 0 28px color-mix(in srgb,var(--rk-c) 65%,transparent), 0 0 3px color-mix(in srgb,var(--rk-c) 80%,transparent); }
+.rk-hash { font-size: 0.5em; opacity: 0.6; margin-right: 2px; vertical-align: 0.55em; }
+.rk-hero-pct { font-family: var(--font-mono); font-size: var(--text-6xl); font-weight: 800; color: var(--text); margin-top: 6px; }
+.rk-hero-pct small { font-size: 0.55em; color: var(--text3); margin-left: 2px; }
+.rk-hero-meta { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+.rk-chip { font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px; color: var(--rk-c); background: color-mix(in srgb,var(--rk-c) 12%,transparent); border: 1px solid color-mix(in srgb,var(--rk-c) 40%,transparent); }
+.rk-chip.dim { color: var(--text3); background: transparent; border-color: var(--border2); }
+/* Position cards */
+.rk-stat {
+  --rk-c: var(--blue); position: relative; overflow: hidden; cursor: pointer; text-align: center; padding: 13px 6px 10px; border-radius: 14px;
+  background: linear-gradient(165deg, color-mix(in srgb,var(--rk-c) 13%,var(--surface)), var(--surface) 72%);
+  border: 1px solid color-mix(in srgb,var(--rk-c) 28%,transparent); transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+}
+.rk-stat::before { content: ''; position: absolute; left: 18%; right: 18%; top: 0; height: 2px; border-radius: 0 0 4px 4px;
+  background: var(--rk-c); opacity: 0.35; box-shadow: 0 0 10px var(--rk-c); transition: opacity 0.2s; }
+.rk-stat.on { border-color: var(--rk-c); box-shadow: 0 0 0 1px var(--rk-c), 0 0 24px color-mix(in srgb,var(--rk-c) 32%,transparent); }
+.rk-stat.on::before { opacity: 1; }
+.rk-stat:active { transform: scale(0.97); }
+.rk-stat.off { opacity: 0.4; cursor: default; background: var(--surface2); border-color: var(--border2); }
+.rk-stat.off::before { display: none; }
+.rk-stat-label { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); }
+.rk-stat.on .rk-stat-label { color: var(--rk-c); }
+.rk-stat-label .ico svg { width: 11px; height: 11px; vertical-align: -1px; }
+.rk-stat-pos { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: 800; color: var(--rk-c); margin-top: 4px; text-shadow: 0 0 14px color-mix(in srgb,var(--rk-c) 45%,transparent); }
+.rk-stat-pct { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; color: var(--text); }
+.rk-stat-diff { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; margin-top: 2px; }
+.rk-stat-date { font-size: var(--text-2xs); color: var(--text3); margin-top: 3px; }
+/* Gap cards */
+.rk-gap { --rk-c: var(--green); position: relative; overflow: hidden; cursor: pointer; padding: 12px; border-radius: 14px; transition: transform 0.15s;
+  background: linear-gradient(165deg, color-mix(in srgb,var(--rk-c) 10%,var(--surface)), var(--surface) 70%);
+  border: 1px solid color-mix(in srgb,var(--rk-c) 30%,transparent); border-left: 3px solid var(--rk-c); }
+.rk-gap:active { transform: scale(0.98); }
+.rk-gap > div:first-child { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.14em; }
+/* Panel (7-day trend etc.) */
+.rk-panel { --rk-c: var(--green); padding: 14px; margin-bottom: 14px; border-radius: 14px; position: relative;
+  background: linear-gradient(165deg, color-mix(in srgb,var(--rk-c) 8%,var(--surface)), var(--surface) 70%);
+  border: 1px solid color-mix(in srgb,var(--rk-c) 25%,transparent); }
+/* Team Board shell + tabs */
+.rk-shell { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; overflow: hidden;
+  box-shadow: 0 0 0 1px color-mix(in srgb,var(--gold) 6%,transparent), 0 12px 40px rgba(0,0,0,0.25); }
+.rk-tabs { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); background: color-mix(in srgb,var(--text) 3%,transparent); }
+.rk-tab { flex: 1; padding: 9px 4px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text3); cursor: pointer;
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; transition: all 0.18s; }
+.rk-tab .ico svg { width: 12px; height: 12px; vertical-align: -1px; }
+.rk-tab.on { color: var(--gold); background: color-mix(in srgb,var(--gold) 12%,transparent); border-color: color-mix(in srgb,var(--gold) 45%,transparent);
+  box-shadow: 0 0 16px color-mix(in srgb,var(--gold) 22%,transparent), inset 0 0 12px color-mix(in srgb,var(--gold) 8%,transparent); }
+.rk-meta { font-family: var(--font-mono); font-size: var(--text-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.rk-meta .ico svg { width: 11px; height: 11px; vertical-align: -1px; }
+/* Podium */
+.rk-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; padding: 20px 12px 0; border-bottom: 1px solid var(--border);
+  background: radial-gradient(85% 75% at 50% 100%, color-mix(in srgb,var(--gold) 15%,transparent), transparent 72%); }
+.rk-pod { --rk-c: var(--gold); display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; cursor: pointer; }
+.rk-pod.first { flex: 1.15; }
+.rk-crown { height: 22px; color: var(--rk-c); display: flex; align-items: center; filter: drop-shadow(0 0 6px var(--rk-c)); }
+.rk-crown svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.rk-avatar { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+  font-family: var(--font-mono); font-weight: 800; font-size: 15px; color: var(--rk-c);
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb,var(--rk-c) 30%,#0b0f1a), #0b0f1a 75%);
+  text-shadow: 0 0 10px var(--rk-c); box-shadow: 0 0 18px color-mix(in srgb,var(--rk-c) 35%,transparent); }
+.rk-pod.first .rk-avatar { width: 56px; height: 56px; font-size: 19px; }
+.rk-avatar::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, var(--rk-c), transparent 38%, var(--rk-c) 68%, transparent);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px)); }
+.rk-avatar.spin::before { animation: rkSpin 7s linear infinite; }
+.rk-pod-name { max-width: 100%; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.02em; color: var(--text2); }
+.rk-pod-name.me { color: var(--gold); }
+.rk-pod-pct { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 800; color: var(--rk-c); text-shadow: 0 0 10px color-mix(in srgb,var(--rk-c) 50%,transparent); }
+.rk-plinth { position: relative; width: 100%; margin-top: 8px; border-radius: 10px 10px 0 0; display: flex; justify-content: center; padding-top: 8px;
+  border: 1px solid color-mix(in srgb,var(--rk-c) 45%,transparent); border-bottom: none;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, color-mix(in srgb,var(--rk-c) 9%,transparent) 5px 6px),
+    linear-gradient(180deg, color-mix(in srgb,var(--rk-c) 30%,transparent), color-mix(in srgb,var(--rk-c) 4%,transparent)); }
+.rk-plinth::before { content: ''; position: absolute; left: 8px; right: 8px; top: -1px; height: 2px; background: var(--rk-c); box-shadow: 0 0 12px var(--rk-c); border-radius: 2px; }
+.rk-plinth span { font-family: var(--font-mono); font-weight: 900; font-size: var(--text-lg); color: var(--rk-c); text-shadow: 0 0 12px var(--rk-c); }
+/* Board rows */
+.rk-row { --rk-c: var(--blue); position: relative; padding: 11px 14px 12px; cursor: pointer; border-bottom: 1px solid color-mix(in srgb,var(--border) 70%,transparent); transition: background 0.2s; }
+.rk-row:active { background: color-mix(in srgb,var(--rk-c) 8%,transparent); }
+.rk-row.me    { background: linear-gradient(90deg, color-mix(in srgb,var(--gold) 15%,transparent), transparent 78%); }
+.rk-row.rival { background: linear-gradient(90deg, color-mix(in srgb,var(--purple) 13%,transparent), transparent 78%); }
+.rk-row.me::before, .rk-row.rival::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--rk-c); box-shadow: 0 0 12px var(--rk-c); }
+.rk-row-top { display: flex; align-items: center; gap: 10px; }
+.rk-pos { min-width: 34px; height: 26px; display: grid; place-items: center; border-radius: 7px; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 800; letter-spacing: 0.04em;
+  color: var(--rk-c); background: color-mix(in srgb,var(--rk-c) 12%,transparent); border: 1px solid color-mix(in srgb,var(--rk-c) 38%,transparent); }
+.rk-row.top .rk-pos { box-shadow: 0 0 12px color-mix(in srgb,var(--rk-c) 35%,transparent); }
+.rk-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-md); font-weight: 600; letter-spacing: 0.01em; color: var(--text); }
+.rk-row.me .rk-name { color: var(--gold); font-weight: 800; }
+.rk-row.rival .rk-name { color: var(--purple); }
+.rk-you { font-style: normal; margin-left: 7px; padding: 2px 6px; border-radius: 999px; vertical-align: 1px; font-family: var(--font-mono); font-size: 9px; font-weight: 800; letter-spacing: 0.16em;
+  color: var(--gold); border: 1px solid color-mix(in srgb,var(--gold) 55%,transparent); background: color-mix(in srgb,var(--gold) 10%,transparent); }
+.rk-pct { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 800; color: var(--text); }
+.rk-row.top .rk-pct, .rk-row.me .rk-pct { color: var(--rk-c); text-shadow: 0 0 10px color-mix(in srgb,var(--rk-c) 40%,transparent); }
+.rk-mvwrap { min-width: 30px; text-align: right; }
+.rk-mv { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; color: var(--text3); }
+.rk-mv.up { color: var(--green); } .rk-mv.dn { color: var(--red); }
+.rk-track { position: relative; height: 6px; margin: 9px 0 0 44px; border-radius: 99px; background: color-mix(in srgb,var(--text) 8%,transparent); }
+.rk-track > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb,var(--rk-c) 40%,transparent), var(--rk-c)); box-shadow: 0 0 10px color-mix(in srgb,var(--rk-c) 65%,transparent); }
+.rk-track::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1.5px), var(--surface) calc(10% - 1.5px) 10%); }
+/* Existing Overview pieces, restyled in place */
+.rank-streak-banner { border-radius: 14px; border-color: color-mix(in srgb,var(--gold) 45%,transparent); box-shadow: 0 0 20px color-mix(in srgb,var(--gold) 14%,transparent); }
+.rank-streak-banner .ico { filter: drop-shadow(0 0 6px var(--gold)); }
+.rank-record-chip { border-radius: 14px; border-color: color-mix(in srgb,var(--text) 14%,transparent); background: linear-gradient(165deg, color-mix(in srgb,var(--gold) 6%,var(--surface)), var(--surface) 70%); }
+.rank-record-label { font-family: var(--font-mono); letter-spacing: 0.14em; }
+.rank-record-val { text-shadow: 0 0 12px color-mix(in srgb,var(--gold) 30%,transparent); }
+.rank-badge { border-radius: 14px; }
+.rank-badge.unlocked { border-color: color-mix(in srgb,var(--gold) 55%,transparent); box-shadow: 0 0 18px color-mix(in srgb,var(--gold) 26%,transparent), inset 0 0 12px color-mix(in srgb,var(--gold) 8%,transparent); }
+.rank-badge.unlocked .ico { filter: drop-shadow(0 0 5px var(--gold)); }
+.rank-rival-card { border-radius: 14px; border-color: color-mix(in srgb,var(--purple) 45%,transparent); box-shadow: 0 0 20px color-mix(in srgb,var(--purple) 14%,transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .rk-hero::after, .rk-hero.first, .rk-avatar.spin::before { animation: none; }
+}
+
 .rlog-overlay {
   display: none; position: fixed; inset: 0; z-index: 9500;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -5781,14 +5934,152 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
     <div id="settings-agent-card" style="margin-bottom:6px"></div>
     <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="settingsLoadAvatar(this)">
 
+    <!-- Collection Rules -->
+    <div class="settings-mega" data-section="rules" data-default-open="1">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('rules')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(240,160,48,0.14);color:var(--gold)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Collection Rules</div>
+            <div class="settings-mega-sub">Target, discount, thresholds, alerts</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-rules">
+    <div class="settings-group" style="margin-top:14px">
+      <!-- Monthly Target -->
+      <div class="settings-row" style="cursor:default;flex-wrap:wrap;row-gap:10px">
+        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Monthly Target</div>
+          <div class="settings-row-label-sub">Collection goal in GHS</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;padding-left:44px">
+          <input type="number" id="settings-target-input" class="form-input" style="flex:1;padding:8px 12px;font-size:var(--text-md);font-family:var(--font-mono)" placeholder="e.g. 50000" min="0">
+          <button class="btn btn-gold btn-sm" onclick="settingsSaveTarget()" style="flex-shrink:0">Save</button>
+        </div>
+      </div>
+      <!-- Default discount -->
+      <div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(252,192,68,0.12);color:var(--gold2)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="14" r="3"/><line x1="3" y1="17" x2="17" y2="3"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Default OD Discount</div>
+          <div class="settings-row-label-sub" id="settings-discount-sub">30% of OD fee</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="settings-discount-slider" min="0" max="80" value="30" oninput="settingsUpdateDiscount(this.value)" style="width:70px">
+          <span id="settings-discount-pct" style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:var(--gold);min-width:32px;text-align:right">30%</span>
+        </div>
+      </div>
+      <!-- Aged-out day threshold -->
+      <div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(249,115,22,0.12);color:var(--orange)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/><line x1="10" y1="13" x2="10" y2="14"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Aged-Out Threshold</div>
+          <div class="settings-row-label-sub" id="settings-agedout-sub">Accounts outside your stage range are moved here</div>
+        </div>
+        <span class="settings-row-value" style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:700;color:var(--orange)" id="settings-agedout-day">—</span>
+      </div>
+      <!-- Show stage badges -->
+      <div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2l1.5 4h4.5l-3.5 2.5 1.5 4-4-2.5-4 2.5 1.5-4L4 6h4.5z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Stage Badges on Cards</div>
+          <div class="settings-row-label-sub">Show M0–M5 badge on borrower cards</div>
+        </div>
+        <label style="position:relative;width:44px;height:26px;display:inline-block;flex-shrink:0;cursor:pointer">
+          <input type="checkbox" id="stage-badges-toggle" checked onchange="settingsToggleStageBadges(this.checked)" style="opacity:0;width:0;height:0">
+          <span id="stage-badges-slider" style="position:absolute;inset:0;background:var(--gold);border-radius:24px;transition:background 0.2s"></span>
+          <span id="stage-badges-knob" style="position:absolute;right:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
+        </label>
+      </div>
+      <button class="settings-row" onclick="openAlertSettings()">
+        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z"/><path d="M8.5 16a1.7 1.7 0 003 0"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Alerts</div>
+          <div class="settings-row-label-sub">Choose which reminders you get, and how early</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
+    </div>
+      </div>
+    </div>
+
+    <!-- Archives & History -->
+    <div class="settings-mega" data-section="archives" data-default-open="0">
+      <button class="settings-mega-header" onclick="toggleSettingsMega('archives')" type="button">
+        <div class="settings-mega-left">
+          <span class="settings-mega-icon" style="background:rgba(167,139,250,0.14);color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M4 9v9a2 2 0 002 2h12a2 2 0 002-2V9"/><line x1="9" y1="13" x2="15" y2="13"/></svg></span>
+          <div>
+            <div class="settings-mega-title">Archives &amp; History</div>
+            <div class="settings-mega-sub">Undo, aged-out, monthly records</div>
+          </div>
+        </div>
+        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+      </button>
+      <div class="settings-mega-body" id="settings-mega-body-archives">
+    <!-- Undo History -->
+    <p class="settings-section-label" style="padding-top:14px">Undo History</p>
+    <div class="settings-group" id="undo-history-panel">
+      <div id="undo-history-body" style="padding:4px 0"></div>
+    </div>
+
+    <!-- Aged Out Accounts -->
+    <p class="settings-section-label">Aged Out Accounts</p>
+    <div class="settings-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsAgedOut()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span></div>
+          <div>
+            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-aged-count">0 accounts</div>
+            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Auto-removed past stage range · tap to expand</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-red btn-xs" id="settings-aged-clear-btn" onclick="event.stopPropagation();settingsClearAgedOut()" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5a1 1 0 011-1h4a1 1 0 011 1V7"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Clear</button>
+          <span id="settings-aged-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+        </div>
+      </div>
+      <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+    </div>
+
+    <!-- Monthly History -->
+    <p class="settings-section-label">Monthly History</p>
+    <div class="settings-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span></div>
+          <div>
+            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
+            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
+          </div>
+        </div>
+        <span id="settings-monthly-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+      </div>
+      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+    </div>
+      </div>
+    </div>
+
     <!-- Appearance -->
-    <div class="settings-mega" data-section="appearance" data-default-open="1">
+    <div class="settings-mega" data-section="appearance" data-default-open="0">
       <button class="settings-mega-header" onclick="toggleSettingsMega('appearance')" type="button">
         <div class="settings-mega-left">
           <span class="settings-mega-icon" style="background:rgba(160,120,240,0.15);color:#a78bfa"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/><path d="M10 2v16M2 10h16" opacity=".4"/></svg></span>
           <div>
             <div class="settings-mega-title">Appearance</div>
-            <div class="settings-mega-sub">Theme, card style, haptics</div>
+            <div class="settings-mega-sub">Theme, card style, haptics, effects</div>
           </div>
         </div>
         <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
@@ -5919,12 +6210,22 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <span id="haptic-knob" style="position:absolute;left:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
         </label>
       </div>
+      <button class="settings-row" onclick="openFxSettings()">
+        <div class="settings-row-icon" style="background:rgba(77,163,255,0.14);color:var(--blue)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M11 2L4 11h5l-1 7 7-9h-5z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Effects</div>
+          <div class="settings-row-label-sub">Aurora motion and glow: Auto, Full, Balanced or Lite</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
     </div>
       </div>
     </div>
 
     <!-- Security -->
-    <div class="settings-mega" data-section="security" data-default-open="1">
+    <div class="settings-mega" data-section="security" data-default-open="0">
       <button class="settings-mega-header" onclick="toggleSettingsMega('security')" type="button">
         <div class="settings-mega-left">
           <span class="settings-mega-icon" style="background:rgba(240,160,48,0.14);color:var(--gold)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2C9.24 2 7 4.24 7 7v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-2V7c0-2.76-2.24-5-5-5z"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg></span>
@@ -5954,36 +6255,6 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">Change PIN</div>
           <div class="settings-row-label-sub">Update your 4-digit lock code</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="startOnboarding(true)">
-        <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 3"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Agent Setup</div>
-          <div class="settings-row-label-sub">Change stage or profile details</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="settingsLockApp()">
-        <div class="settings-row-icon" style="background:rgba(249,115,22,0.12);color:var(--orange)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2L2 7v11h16V7z"/><polyline points="7,18 7,12 13,12 13,18"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Lock App</div>
-          <div class="settings-row-label-sub">Return to PIN screen</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="settingsLogOut()">
-        <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3"/><path d="M13 14l4-4-4-4"/><path d="M17 10H7"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Log Out</div>
-          <div class="settings-row-label-sub">Exit this profile and return to the sign-in screen</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -6034,134 +6305,36 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <span id="badge-knob" style="position:absolute;left:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);transform:translateX(20px)"></span>
         </label>
       </div>
-    </div>
-      </div>
-    </div>
-
-    <!-- Collection Rules -->
-    <div class="settings-mega" data-section="rules" data-default-open="0">
-      <button class="settings-mega-header" onclick="toggleSettingsMega('rules')" type="button">
-        <div class="settings-mega-left">
-          <span class="settings-mega-icon" style="background:rgba(240,160,48,0.14);color:var(--gold)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg></span>
-          <div>
-            <div class="settings-mega-title">Collection Rules</div>
-            <div class="settings-mega-sub">Target, discount, thresholds</div>
-          </div>
-        </div>
-        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
-      </button>
-      <div class="settings-mega-body" id="settings-mega-body-rules">
-    <div class="settings-group" style="margin-top:14px">
-      <!-- Monthly Target -->
-      <div class="settings-row" style="cursor:default;flex-wrap:wrap;row-gap:10px">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="4"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Monthly Target</div>
-          <div class="settings-row-label-sub">Collection goal in GHS</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;width:100%;padding-left:44px">
-          <input type="number" id="settings-target-input" class="form-input" style="flex:1;padding:8px 12px;font-size:var(--text-md);font-family:var(--font-mono)" placeholder="e.g. 50000" min="0">
-          <button class="btn btn-gold btn-sm" onclick="settingsSaveTarget()" style="flex-shrink:0">Save</button>
-        </div>
-      </div>
-      <!-- Default discount -->
-      <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(252,192,68,0.12);color:var(--gold2)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="14" r="3"/><line x1="3" y1="17" x2="17" y2="3"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Default OD Discount</div>
-          <div class="settings-row-label-sub" id="settings-discount-sub">30% of OD fee</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="range" id="settings-discount-slider" min="0" max="80" value="30" oninput="settingsUpdateDiscount(this.value)" style="width:70px">
-          <span id="settings-discount-pct" style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:var(--gold);min-width:32px;text-align:right">30%</span>
-        </div>
-      </div>
-      <!-- Aged-out day threshold -->
-      <div class="settings-row" style="cursor:default">
-        <div class="settings-row-icon" style="background:rgba(249,115,22,0.12);color:var(--orange)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/><line x1="10" y1="13" x2="10" y2="14"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Aged-Out Threshold</div>
-          <div class="settings-row-label-sub" id="settings-agedout-sub">Accounts outside your stage range are moved here</div>
-        </div>
-        <span class="settings-row-value" style="font-family:var(--font-mono);font-size:var(--text-md);font-weight:700;color:var(--orange)" id="settings-agedout-day">—</span>
-      </div>
-      <!-- Show stage badges -->
-      <div class="settings-row" style="cursor:default">
+      <button class="settings-row" onclick="startOnboarding(true)">
         <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2l1.5 4h4.5l-3.5 2.5 1.5 4-4-2.5-4 2.5 1.5-4L4 6h4.5z"/></svg>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 3"/></svg>
         </div>
         <div class="settings-row-label">
-          <div class="settings-row-label-main">Stage Badges on Cards</div>
-          <div class="settings-row-label-sub">Show M0–M5 badge on borrower cards</div>
+          <div class="settings-row-label-main">Agent Setup</div>
+          <div class="settings-row-label-sub">Change stage or profile details</div>
         </div>
-        <label style="position:relative;width:44px;height:26px;display:inline-block;flex-shrink:0;cursor:pointer">
-          <input type="checkbox" id="stage-badges-toggle" checked onchange="settingsToggleStageBadges(this.checked)" style="opacity:0;width:0;height:0">
-          <span id="stage-badges-slider" style="position:absolute;inset:0;background:var(--gold);border-radius:24px;transition:background 0.2s"></span>
-          <span id="stage-badges-knob" style="position:absolute;right:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
-        </label>
-      </div>
-    </div>
-      </div>
-    </div>
-
-    <!-- Archives & History -->
-    <div class="settings-mega" data-section="archives" data-default-open="0">
-      <button class="settings-mega-header" onclick="toggleSettingsMega('archives')" type="button">
-        <div class="settings-mega-left">
-          <span class="settings-mega-icon" style="background:rgba(167,139,250,0.14);color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M4 9v9a2 2 0 002 2h12a2 2 0 002-2V9"/><line x1="9" y1="13" x2="15" y2="13"/></svg></span>
-          <div>
-            <div class="settings-mega-title">Archives &amp; History</div>
-            <div class="settings-mega-sub">Undo, aged-out, monthly records</div>
-          </div>
-        </div>
-        <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
+        <span class="settings-chevron">›</span>
       </button>
-      <div class="settings-mega-body" id="settings-mega-body-archives">
-    <!-- Undo History -->
-    <p class="settings-section-label" style="padding-top:14px">Undo History</p>
-    <div class="settings-group" id="undo-history-panel">
-      <div id="undo-history-body" style="padding:4px 0"></div>
-    </div>
-
-    <!-- Aged Out Accounts -->
-    <p class="settings-section-label">Aged Out Accounts</p>
-    <div class="settings-group">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsAgedOut()">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><line x1="4" y1="21" x2="20" y2="21"/></svg></span></div>
-          <div>
-            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-aged-count">0 accounts</div>
-            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Auto-removed past stage range · tap to expand</div>
-          </div>
+      <button class="settings-row" onclick="settingsLockApp()">
+        <div class="settings-row-icon" style="background:rgba(249,115,22,0.12);color:var(--orange)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2L2 7v11h16V7z"/><polyline points="7,18 7,12 13,12 13,18"/></svg>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-red btn-xs" id="settings-aged-clear-btn" onclick="event.stopPropagation();settingsClearAgedOut()" style="display:none"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.5a1 1 0 011-1h4a1 1 0 011 1V7"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Clear</button>
-          <span id="settings-aged-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Lock App</div>
+          <div class="settings-row-label-sub">Return to PIN screen</div>
         </div>
-      </div>
-      <div id="settings-agedout-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
-    </div>
-
-    <!-- Monthly History -->
-    <p class="settings-section-label">Monthly History</p>
-    <div class="settings-group">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer" onclick="toggleSettingsMonthlyHistory()">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:var(--radius);background:rgba(167,139,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-2xl)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg></span></div>
-          <div>
-            <div style="font-size:var(--text-md);font-weight:600;color:var(--text)" id="settings-monthly-count">0 months archived</div>
-            <div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">Recovery rate, PTP honour rate, OD mix · tap to expand</div>
-          </div>
+        <span class="settings-chevron">›</span>
+      </button>
+      <button class="settings-row" onclick="settingsLogOut()">
+        <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3"/><path d="M13 14l4-4-4-4"/><path d="M17 10H7"/></svg>
         </div>
-        <span id="settings-monthly-chevron" style="font-size:var(--text-3xl);color:var(--text3);transition:transform 0.22s">›</span>
-      </div>
-      <div id="settings-monthly-list" style="max-height:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);padding:0 18px"></div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Log Out</div>
+          <div class="settings-row-label-sub">Exit this profile and return to the sign-in screen</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
     </div>
       </div>
     </div>
@@ -6173,7 +6346,7 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <span class="settings-mega-icon" style="background:rgba(96,165,250,0.14);color:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></span>
           <div>
             <div class="settings-mega-title">Data &amp; Backup</div>
-            <div class="settings-mega-sub">Sync status, export, restore</div>
+            <div class="settings-mega-sub">Sync, backup, export, restore</div>
           </div>
         </div>
         <span class="settings-mega-chevron"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="5,7 10,13 15,7"/></svg></span>
@@ -6185,11 +6358,6 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
       <div class="settings-row" style="cursor:default;flex-direction:column;align-items:stretch;gap:0;padding:0">
         <div id="health-body" style="padding:14px 18px"></div>
       </div>
-    </div>
-
-    <!-- Data management -->
-    <p class="settings-section-label">Backup &amp; Export</p>
-    <div class="settings-group">
       <button class="settings-row" onclick="settingsForceSync()">
         <div class="settings-row-icon" style="background:rgba(34,197,94,0.12);color:var(--green)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 10a6 6 0 016-6 6 6 0 015.66 4M16 10a6 6 0 01-6 6 6 6 0 01-5.66-4"/><polyline points="17,4 17,8 13,8"/><polyline points="3,16 3,12 7,12"/></svg>
@@ -6197,6 +6365,21 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">Force Cloud Sync</div>
           <div class="settings-row-label-sub">Push latest data to Supabase now</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
+    </div>
+
+    <!-- Backup & Export -->
+    <p class="settings-section-label">Backup &amp; Export</p>
+    <div class="settings-group">
+      <button class="settings-row" onclick="_runWeeklyBackup(true)">
+        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Run Weekly Backup Now</div>
+          <div class="settings-row-label-sub" id="settings-weekly-backup-sub">Auto-runs every 7 days · saves to cloud + share sheet</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -6230,13 +6413,18 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
-      <button class="settings-row" onclick="_runWeeklyBackup(true)">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+    </div>
+
+    <!-- Maintenance -->
+    <p class="settings-section-label">Maintenance</p>
+    <div class="settings-group">
+      <button class="settings-row" onclick="scanImportErrors()">
+        <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2L1 17h18L10 2z"/><line x1="10" y1="8" x2="10" y2="12"/><circle cx="10" cy="14.5" r="0.8" fill="currentColor"/></svg>
         </div>
         <div class="settings-row-label">
-          <div class="settings-row-label-main">Run Weekly Backup Now</div>
-          <div class="settings-row-label-sub" id="settings-weekly-backup-sub">Auto-runs every 7 days · saves to cloud + share sheet</div>
+          <div class="settings-row-label-main">Fix Import Errors</div>
+          <div class="settings-row-label-sub">Find & correct records with a misaligned paste</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -6247,16 +6435,6 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">Clear PTP History</div>
           <div class="settings-row-label-sub" id="settings-ptp-hist-count">0 days recorded</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="scanImportErrors()">
-        <div class="settings-row-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2L1 17h18L10 2z"/><line x1="10" y1="8" x2="10" y2="12"/><circle cx="10" cy="14.5" r="0.8" fill="currentColor"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Fix Import Errors</div>
-          <div class="settings-row-label-sub">Find & correct records with a misaligned paste</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -6300,26 +6478,6 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <div class="settings-row-label-sub">Shadrack Agyei Arthur</div>
         </div>
       </div>
-      <button class="settings-row" onclick="openChangelog()">
-        <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 2h8l4 4v12H4V2z"/><polyline points="12,2 12,6 16,6"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="10" y2="15"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Changelog</div>
-          <div class="settings-row-label-sub">What's new in <span data-sq-v>v2.3.0-dev</span></div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="openFxSettings()">
-        <div class="settings-row-icon" style="background:rgba(77,163,255,0.14);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M11 2L4 11h5l-1 7 7-9h-5z"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Effects</div>
-          <div class="settings-row-label-sub">Aurora motion and glow: Auto, Full, Balanced or Lite</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
       <button class="settings-row" onclick="openWhatsNew(false)">
         <div class="settings-row-icon" style="background:rgba(176,124,255,0.14);color:var(--purple)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M10 2l1.8 4.6L16.5 8l-4.7 1.4L10 14l-1.8-4.6L3.5 8l4.7-1.4z"/><path d="M15.5 13.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>
@@ -6330,23 +6488,13 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
-      <button class="settings-row" onclick="openAlertSettings()">
-        <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z"/><path d="M8.5 16a1.7 1.7 0 003 0"/></svg>
-        </div>
-        <div class="settings-row-label">
-          <div class="settings-row-label-main">Alerts</div>
-          <div class="settings-row-label-sub">Choose which reminders you get, and how early</div>
-        </div>
-        <span class="settings-chevron">›</span>
-      </button>
-      <button class="settings-row" onclick="openDiagnostics()">
+      <button class="settings-row" onclick="openChangelog()">
         <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><polyline points="2,10 6,10 8,4 12,16 14,10 18,10"/></svg>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 2h8l4 4v12H4V2z"/><polyline points="12,2 12,6 16,6"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="10" y2="15"/></svg>
         </div>
         <div class="settings-row-label">
-          <div class="settings-row-label-main">Diagnostics</div>
-          <div class="settings-row-label-sub">Errors, sync and storage status for troubleshooting</div>
+          <div class="settings-row-label-main">Changelog</div>
+          <div class="settings-row-label-sub">What's new in <span data-sq-v>v2.3.0-dev</span></div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -6357,6 +6505,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">User Manual</div>
           <div class="settings-row-label-sub">How to use SqueveTrack</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
+      <button class="settings-row" onclick="openDiagnostics()">
+        <div class="settings-row-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><polyline points="2,10 6,10 8,4 12,16 14,10 18,10"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Diagnostics</div>
+          <div class="settings-row-label-sub">Errors, sync and storage status for troubleshooting</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -11568,6 +11726,12 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-05d', date: '5 Oct 2026', title: 'Settings: new order', items: [
+    ['Grouped by use', 'Settings now run from daily work to housekeeping: Collection Rules, Archives & History, Appearance, Security & Access, Data & Backup, then About. Only Collection Rules opens by default.'],
+    ['Related items together', 'Alerts moved into Collection Rules and Effects into Appearance. Lock App and Log Out now sit at the bottom of Security & Access, and Clear PTP History sits under Maintenance in Data & Backup.'] ] },
+  { id: '2026-10-05c', date: '5 Oct 2026', title: 'Ranking: new look and two-name labels', items: [
+    ['Two-name labels', 'Agent names on the Ranking page now show the first two names with a single space and no hyphens, for example Janet Nortey. Saved scans are not changed, so trends and rival tracking keep working.'],
+    ['Futuristic redesign', 'New glowing hero card, HUD-style position cards, a neon podium and a segmented Team Board with energy bars.'] ] },
   { id: '2026-10-05b', date: '5 Oct 2026', title: 'Ranking: first names only', items: [
     ['Cleaner names', 'Agent names on the Ranking page now show the first name only, with no hyphens or spaces. Your saved scans are not changed, so trends and your rival tracking keep working.'] ] },
   { id: '2026-10-05a', date: '5 Oct 2026', title: 'Offer ladder: pick what to send', items: [
@@ -22049,12 +22213,13 @@ function scanRanking() {
 // ── Ranking analytics: streaks, personal records, achievements ──
 // All derived purely from state.rankingHistory — no new state fields needed
 // except a small "seen achievements" set so we only celebrate an unlock once.
-// Ranking labels show the first name only. "Janet-Nortey", "Janet Nortey" and "Janet - Nortey" all show "Janet".
+// Ranking labels show the first two names only, separated by a single space, with no hyphens.
+// "Janet-Nortey-Amoah", "Janet Nortey Amoah" and "Janet - Nortey" all show "Janet Nortey".
 // Stored scan data keeps the full text, so matching, trends and rival tracking behave exactly as before.
 function _rkFirst(name) {
   var raw = String(name == null ? '' : name).trim();
   var t = raw.split(/[\s\-\u2010-\u2015_]+/).filter(Boolean);
-  return t[0] || raw;
+  return t.slice(0, 2).join(' ') || raw;
 }
 function _rankMyPos(scan, myName) {
   if (!scan || !myName) return null;
@@ -22200,7 +22365,7 @@ function renderRanking() {
   const myName = (_rankingSyncMyName() || '').toLowerCase();
   checkRankingGapAlert();
   const sub = document.getElementById('ranking-sub');
-  if (sub) sub.textContent = myName ? 'Tracking ' + localStorage.getItem('ranking_my_name') : 'Set your agent name in ＋ Log to start';
+  if (sub) sub.textContent = myName ? 'Tracking ' + _rkFirst(localStorage.getItem('ranking_my_name')) : 'Set your agent name in ＋ Log to start';
   _renderRankingTab(_rankingTab);
 }
 
@@ -22319,12 +22484,13 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
     const medal      = posMain===1?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#d4af37" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':posMain===2?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b0b8c1" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':posMain===3?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b5652f" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':'';
     const focusLabel = focus==='daily'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily Position':focus==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly Standing':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected Tomorrow';
 
+    const tier = !posMain ? '' : isFirst ? 'LEADER' : isTop3 ? 'TOP 3' : topHalf ? 'UPPER HALF' : 'LOWER HALF';
     html += `
-    <div style="background:linear-gradient(135deg,${heroCol}14,${heroCol}06);border:1px solid ${heroCol}33;border-radius:16px;padding:20px;margin-bottom:14px;text-align:center;box-shadow:var(--el-2), var(--el-bevel), 0 0 32px ${heroCol}14;transition:all 0.25s;${heroPulse}">
-      <div style="font-size:var(--text-sm);color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px">${focusLabel}</div>
-      <div style="font-size:56px;font-weight:900;color:${heroCol};line-height:1;font-family:var(--font-mono)">#${posMain||'?'}${medal}</div>
-      <div style="font-size:var(--text-5xl);font-weight:800;color:${heroCol};margin-top:4px">${meMain?.pct||'—'}%</div>
-      <div style="font-size:var(--text-sm);color:var(--text3);margin-top:6px">of ${totalAgents} agents · ${mainScan?.date||''}</div>
+    <div class="rk-hero rk-brackets${isFirst?' first':''}" style="--rk-c:${heroCol}">
+      <div class="rk-hero-label">${focusLabel}</div>
+      <div class="rk-hero-rank"><span class="rk-hash">#</span>${posMain||'?'}</div>
+      <div class="rk-hero-pct">${meMain?.pct||'—'}<small>%</small></div>
+      <div class="rk-hero-meta">${tier?`<span class="rk-chip">${tier}</span>`:''}<span class="rk-chip dim">${totalAgents} agents</span>${mainScan?.date?`<span class="rk-chip dim">${mainScan.date}</span>`:''}</div>
     </div>`;
 
     // Mini cards row: Daily | Monthly | Projected — now tappable. Tapping
@@ -22338,7 +22504,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
       {type:'proj',    label:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Proj',    me:meP, scan:latestProj,    prev:null,                col:'var(--gold)'},
     ];
     cards.forEach(({type,label,me,scan,prev,col}) => {
-      if (!me) { html+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:10px;text-align:center;opacity:0.4"><div style="font-size:var(--text-xs);color:var(--text3)">${label}</div><div style="font-size:var(--text-sm);color:var(--text3);margin-top:6px">No data</div></div>`; return; }
+      if (!me) { html+=`<div class="rk-stat off"><div class="rk-stat-label">${label}</div><div style="font-size:var(--text-sm);color:var(--text3);margin-top:8px">No data</div></div>`; return; }
       const isFocus = type === focus;
       const pos    = myPos(scan);
       const pctNow = parseFloat(me.pct||0);
@@ -22346,12 +22512,12 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
       const diff   = pctPrev !== null ? (pctNow - pctPrev).toFixed(2) : null;
       const dirCol = diff===null?'':parseFloat(diff)>0?'var(--green)':parseFloat(diff)<0?'var(--red)':'var(--text3)';
       const arrow  = diff===null?'':parseFloat(diff)>0?'▲':parseFloat(diff)<0?'▼':'—';
-      html+=`<div onclick="setRankingFocus('${type}')" style="cursor:pointer;background:var(--surface);border:1.5px solid ${isFocus?col:col+'30'};border-radius:var(--radius-lg);padding:10px;text-align:center;box-shadow:${isFocus?'0 0 0 1px '+col+', var(--el-1)':'var(--el-1)'}, var(--el-bevel);transition:all 0.15s">
-        <div style="font-size:var(--text-xs);color:${isFocus?col:'var(--text3)'};font-weight:${isFocus?700:400}">${label}</div>
-        <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${col}">#${pos||'?'}</div>
-        <div style="font-size:var(--text-base);font-weight:700;color:${col};margin-top:1px">${me.pct}%</div>
-        ${diff!==null?`<div style="font-size:var(--text-xs);color:${dirCol};font-weight:700;margin-top:2px">${arrow} ${Math.abs(parseFloat(diff))}%</div>`:''}
-        <div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">${scan?.date||''}</div>
+      html+=`<div class="rk-stat${isFocus?' on':''}" style="--rk-c:${col}" onclick="setRankingFocus('${type}')">
+        <div class="rk-stat-label">${label}</div>
+        <div class="rk-stat-pos">#${pos||'?'}</div>
+        <div class="rk-stat-pct">${me.pct}%</div>
+        ${diff!==null?`<div class="rk-stat-diff" style="color:${dirCol}">${arrow} ${Math.abs(parseFloat(diff))}%</div>`:''}
+        <div class="rk-stat-date">${scan?.date||''}</div>
       </div>`;
     });
     html += `</div>`;
@@ -22377,7 +22543,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
       if (showAboveCard) {
         const gap = (me1pct - parseFloat(above.pct)).toFixed(2);
         const gapN= parseFloat(gap);
-        html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
+        html+=`<div class="rk-gap" style="--rk-c:${gapN<0?'var(--red)':'var(--green)'}" onclick="jumpToRankingBoard('${focus}')">
           <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Gap to #${posGap-1}</div>
           <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(above.name))}</div>
           <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${gapN<0?'var(--red)':'var(--green)'}">${gapN>0?'+':''}${gap}%</div>
@@ -22387,7 +22553,7 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
       if (showFirstCard) {
         const gapF= (me1pct - parseFloat(first.pct)).toFixed(2);
         const gapFN=parseFloat(gapF);
-        html+=`<div onclick="jumpToRankingBoard('${focus}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:12px;box-shadow:var(--el-1), var(--el-bevel);transition:transform 0.15s" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform=''">
+        html+=`<div class="rk-gap" style="--rk-c:${gapFN<0?'var(--red)':'var(--green)'}" onclick="jumpToRankingBoard('${focus}')">
           <div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:4px">Gap to #1</div>
           <div style="font-size:var(--text-sm);font-weight:600;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(first.name))}</div>
           <div style="font-family:var(--font-mono);font-size:var(--text-3xl);font-weight:800;color:${gapFN<0?'var(--red)':'var(--green)'}">${gapFN>0?'+':''}${gapF}%</div>
@@ -22463,15 +22629,15 @@ function _renderRankingOverview(pane, {latestDaily,latestMonthly,latestProj,prev
       const pathD = points.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
       const trend7col = vals[vals.length-1] >= vals[0] ? '#22c55e' : '#ef4444';
       html += `
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:14px;margin-bottom:14px;box-shadow:var(--el-2), var(--el-bevel)">
+      <div class="rk-panel" style="--rk-c:${trend7col}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-size:var(--text-sm);font-weight:700">7-Day Daily Trend</span>
+          <span style="font-family:var(--font-mono);font-size:var(--text-xs);font-weight:700;letter-spacing:0.14em;text-transform:uppercase">7-Day Daily Trend</span>
           <span style="font-size:var(--text-xs);color:${trend7col};font-weight:700">${vals[vals.length-1] >= vals[0]?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M6 11l6-6 6 6"/></svg></span> Improving':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M18 13l-6 6-6-6"/></svg></span> Declining'}</span>
         </div>
         <svg viewBox="0 0 100 100" style="width:100%;height:60px;overflow:visible">
           <defs><linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${trend7col}" stop-opacity="0.3"/><stop offset="100%" stop-color="${trend7col}" stop-opacity="0"/></linearGradient></defs>
           <path d="${pathD} L${points[points.length-1].x},100 L0,100 Z" fill="url(#trendGrad)"/>
-          <path d="${pathD}" fill="none" stroke="${trend7col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="${pathD}" fill="none" stroke="${trend7col}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 3px ${trend7col})"/>
           ${points.map((p,i)=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${trend7col}"/>
             <text x="${p.x.toFixed(1)}" y="${(p.y-6).toFixed(1)}" text-anchor="middle" font-size="8" fill="${trend7col}" font-family="monospace">${vals[i].toFixed(1)}</text>`).join('')}
         </svg>
@@ -22503,26 +22669,23 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     if (!scan || scan.agents.length < 2) return '';
     const top = scan.agents.slice(0, 3);
     const initials = (n) => (_rkFirst(n).charAt(0) || '?').toUpperCase();
-    const avatarColors = [['#f0a030','#fcc044'],['#22c55e','#16a34a'],['#60a5fa','#3b82f6'],['#a78bfa','#7c3aed'],['#f97316','#ea580c'],['#14b8a6','#0d9488']];
-    const heights = {0:88,1:66,2:52};
-    const medalColor = {0:'#d4af37',1:'#b0b8c1',2:'#b5652f'};
+    const heights = {0:92,1:68,2:52};
+    const tone = {0:'#f5c542',1:'#9fd8ff',2:'#ff9a5c'};
     const order = top.length === 2 ? [1,0] : [1,0,2];
+    const crown = '<svg viewBox="0 0 24 24"><path d="M4 8l3 2 5-6 5 6 3-2-2 10H6z"/><line x1="6" y1="21" x2="18" y2="21"/></svg>';
 
-    return `<div style="display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:18px 10px 14px;border-bottom:1px solid var(--border)">
+    return `<div class="rk-podium">
       ${order.map(i => {
         const a = top[i];
         if (!a) return '<div style="flex:1"></div>';
         const isMe = myName && a.name.toLowerCase().includes(myName);
-        const [ac1,ac2] = avatarColors[a.name.charCodeAt(0) % 6];
         const isFirst = i === 0;
-        return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;flex:${isFirst?'1.15':'1'};min-width:0">
-          <div style="font-size:20px;line-height:1;margin-bottom:3px;visibility:${isFirst?'visible':'hidden'}">👑</div>
-          <div style="width:${isFirst?54:42}px;height:${isFirst?54:42}px;border-radius:50%;background:linear-gradient(135deg,${ac1},${ac2});display:flex;align-items:center;justify-content:center;font-size:${isFirst?'17px':'13px'};font-weight:700;color:#fff;box-shadow:0 0 0 3px ${medalColor[i]}${isFirst?', 0 4px 18px rgba(212,175,55,0.45)':''};flex-shrink:0">${initials(a.name)}</div>
-          <div style="font-size:var(--text-xs);font-weight:${isMe?800:600};color:${isMe?'var(--gold)':'var(--text2)'};text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px">${escapeHtml(_rkFirst(a.name))}${isMe?' (You)':''}</div>
-          <div style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:800;color:${medalColor[i]}">${a.pct}%</div>
-          <div style="width:100%;height:${heights[i]}px;background:linear-gradient(180deg,${medalColor[i]}2e,${medalColor[i]}10);border:1px solid ${medalColor[i]}55;border-bottom:none;border-radius:8px 8px 0 0;margin-top:8px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px">
-            <span style="font-family:var(--font-mono);font-weight:800;font-size:var(--text-lg);color:${medalColor[i]}">#${i+1}</span>
-          </div>
+        return `<div class="rk-pod${isFirst?' first':''}" style="--rk-c:${tone[i]}" onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')">
+          <div class="rk-crown">${isFirst?crown:''}</div>
+          <div class="rk-avatar${isFirst?' spin':''}">${initials(a.name)}</div>
+          <div class="rk-pod-name${isMe?' me':''}">${escapeHtml(_rkFirst(a.name))}${isMe?' · YOU':''}</div>
+          <div class="rk-pod-pct">${a.pct}%</div>
+          <div class="rk-plinth" style="height:${heights[i]}px"><span>${String(i+1).padStart(2,'0')}</span></div>
         </div>`;
       }).join('')}
     </div>`;
@@ -22545,34 +22708,34 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     }
     const podiumHtml = !q ? buildPodium(scan) : '';
 
-    return podiumHtml + `<div style="font-size:var(--text-xs);color:var(--text3);padding:8px 14px;border-bottom:1px solid var(--border)">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents</div>` +
+    return podiumHtml + `<div class="rk-meta">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents</div>` +
       visibleAgents.map((a) => {
         const i = scan.agents.indexOf(a);
         const isMe     = myName && a.name.toLowerCase().includes(myName);
         const prevAgent= prevScan?.agents.find(p=>p.name===a.name);
         const prevPos  = prevAgent ? prevScan.agents.indexOf(prevAgent)+1 : null;
         const moved    = prevPos ? prevPos - (i+1) : 0;  // positive = moved up
-        const trendIco = moved > 0 ? `<span style="color:var(--green);font-weight:700;font-size:var(--text-xs)">▲${moved}</span>`
-                       : moved < 0 ? `<span style="color:var(--red);font-weight:700;font-size:var(--text-xs)">▼${Math.abs(moved)}</span>`
-                       : prevPos   ? `<span style="color:var(--text3);font-size:var(--text-xs)">—</span>` : '';
+        const trendIco = moved > 0 ? `<span class="rk-mv up">▲${moved}</span>`
+                       : moved < 0 ? `<span class="rk-mv dn">▼${Math.abs(moved)}</span>`
+                       : prevPos   ? `<span class="rk-mv">—</span>` : '';
         const pctVal   = parseFloat(a.pct||0);
         const maxPct   = parseFloat(scan.agents[0]?.pct||100);
-        const barW     = Math.round(pctVal/maxPct*100);
-        const medal    = i===0?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#d4af37" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':i===1?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b0b8c1" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':i===2?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5" fill="#b5652f" stroke="none"/><path d="M9 10L6 3M15 10l3-7"/></svg></span>':'';
+        const barW     = maxPct > 0 ? Math.max(2, Math.round(pctVal/maxPct*100)) : 2;
         const rivalName = (localStorage.getItem('ranking_rival_name')||'').toLowerCase();
         const isRival = !isMe && rivalName && a.name.toLowerCase() === rivalName;
+        const tone = i===0?'#f5c542':i===1?'#9fd8ff':i===2?'#ff9a5c':'';
+        const accent = isMe ? 'var(--gold)' : isRival ? 'var(--purple)' : (tone || 'var(--blue)');
+        const cls = 'rk-row' + (isMe?' me':isRival?' rival':'') + (i<3?' top':'');
         const pinBtn = !isMe ? `<button class="rank-rival-pin${isRival?' pinned':''}" onclick="event.stopPropagation();toggleRankingRival('${escapeHtml(a.name).replace(/'/g,"\\'")}')" title="${isRival?'Stop tracking as rival':'Track as rival'}"><svg viewBox="0 0 24 24" fill="${isRival?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></button>` : '';
-        return `<div onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer;padding:10px 14px;border-bottom:1px solid var(--border);${isMe?'background:rgba(232,160,32,0.07);border-left:3px solid var(--gold)':isRival?'background:rgba(167,139,250,0.06);border-left:3px solid var(--purple)':''}">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-            <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:${isMe?'var(--gold)':'var(--text3)'};min-width:24px;font-weight:${isMe?700:400}">${medal||'#'+(i+1)}</div>
-            <div style="flex:1;font-size:var(--text-md);font-weight:${isMe?700:500};color:${isMe?'var(--gold)':isRival?'var(--purple)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_rkFirst(a.name))}${isMe?' <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M3 12l4-4M3 12l4 4"/></svg></span>':''}</div>
-            <div style="font-family:var(--font-mono);font-size:var(--text-base);font-weight:700;color:${isMe?'var(--gold)':'var(--text2)'}">${a.pct}%</div>
-            <div style="min-width:28px;text-align:right">${trendIco}</div>
+        return `<div class="${cls}" style="--rk-c:${accent}" onclick="openRankingAgentDetail('${escapeHtml(a.name).replace(/'/g,"\\'")}')">
+          <div class="rk-row-top">
+            <div class="rk-pos">${String(i+1).padStart(2,'0')}</div>
+            <div class="rk-name">${escapeHtml(_rkFirst(a.name))}${isMe?'<em class="rk-you">YOU</em>':''}</div>
+            <div class="rk-pct">${a.pct}%</div>
+            <div class="rk-mvwrap">${trendIco}</div>
             ${pinBtn}
           </div>
-          <div style="height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-left:32px">
-            <div class="rank-bar-fill" style="height:100%;width:${barW}%;background:${isMe?'var(--gold)':i===0?'#22c55e':i===1?'#a78bfa':i===2?'#60a5fa':'var(--border)'};border-radius:2px"></div>
-          </div>
+          <div class="rk-track"><i class="rank-bar-fill" style="width:${barW}%"></i></div>
         </div>`;
       }).join('');
   }
@@ -22585,7 +22748,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     const me    = scan.agents.find(a => a.name.toLowerCase().includes(myName));
     const rival = scan.agents.find(a => a.name.toLowerCase() === rivalName.toLowerCase());
     if (!me || !rival) return `<div class="rank-rival-card" style="display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:var(--text-sm);color:var(--text3)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> Tracking <strong style="color:var(--purple)">${escapeHtml(rivalName)}</strong> — not in this list</span>
+      <span style="font-size:var(--text-sm);color:var(--text3)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:13px;height:13px;vertical-align:-2px"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg></span> Tracking <strong style="color:var(--purple)">${escapeHtml(_rkFirst(rivalName))}</strong> — not in this list</span>
       <button class="rank-rival-close" onclick="toggleRankingRival('${escapeHtml(rivalName).replace(/'/g,"\\'")}')">✕</button>
     </div>`;
     const mePos = scan.agents.indexOf(me)+1, rivalPos = scan.agents.indexOf(rival)+1;
@@ -22622,9 +22785,9 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
       </svg>
       <input id="rboard-search" placeholder="Find an agent…" oninput="_switchBoard(undefined,this.value)" class="bl-search" style="width:100%;padding-left:32px;box-sizing:border-box">
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:var(--el-2), var(--el-bevel)">
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
-        ${['daily','monthly','proj'].map(t => scans[t] ? `<button id="bboard-${t}" onclick="_switchBoard('${t}')" style="flex:1;padding:10px 4px;border:none;background:${t===tab?'rgba(240,160,48,0.1)':'transparent'};color:${t===tab?'var(--gold)':'var(--text3)'};font-size:var(--text-sm);font-weight:${t===tab?700:500};cursor:pointer;font-family:var(--font-body);border-bottom:2px solid ${t===tab?'var(--gold)':'transparent'};transition:all 0.15s">${t==='proj'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected':t==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}</button>` : '').join('')}
+    <div class="rk-shell">
+      <div class="rk-tabs">
+        ${['daily','monthly','proj'].map(t => scans[t] ? `<button id="bboard-${t}" class="rk-tab${t===tab?' on':''}" onclick="_switchBoard('${t}')">${t==='proj'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected':t==='monthly'?'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly':'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}</button>` : '').join('')}
       </div>
       <div id="board-content">${buildBoard(tab, '')}</div>
     </div>`;
@@ -22635,10 +22798,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     ['proj','monthly','daily'].forEach(t2 => {
       const b = document.getElementById('bboard-'+t2);
       if (!b) return;
-      b.style.background = t2===tab?'rgba(240,160,48,0.1)':'transparent';
-      b.style.color = t2===tab?'var(--gold)':'var(--text3)';
-      b.style.fontWeight = t2===tab?'700':'500';
-      b.style.borderBottom = t2===tab?'2px solid var(--gold)':'2px solid transparent';
+      b.classList.toggle('on', t2===tab);
     });
     const bc = document.getElementById('board-content');
     if (bc) bc.innerHTML = buildBoard(tab, currentQuery);
