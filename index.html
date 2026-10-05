@@ -5753,6 +5753,7 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="page-sub" id="ranking-sub">Track your position in the team</div>
       </div>
       <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" id="ranking-refresh-btn" onclick="_srPullThrottled(true)" title="Get the latest shared scans" style="font-size:var(--text-sm)">⟳ Sync</button>
         <button class="btn btn-ghost btn-sm" onclick="openRankingLogPanel()" style="font-size:var(--text-sm)">＋ Log</button>
       </div>
     </div>
@@ -8489,6 +8490,8 @@ function migrateState(s) {
   if (!s.hitList) s.hitList = [];
   if (!s.callLog) s.callLog = {};
   if (!s.rankingHistory) s.rankingHistory = [];
+  if (!Array.isArray(s.rankingOutbox)) s.rankingOutbox = [];
+  if (!Array.isArray(s.rankingHidden)) s.rankingHidden = [];
   if (!s.agentProfile) s.agentProfile = {};
   if (!s.m2TargetLocks) s.m2TargetLocks = {};
   else {
@@ -11726,6 +11729,9 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-05e', date: '5 Oct 2026', title: 'Ranking: shared by stage', items: [
+    ['One scan for the whole stage', 'When you scan or paste a ranking, it is shared with every agent in your stage, so an M2 scan shows up for all M2 agents. It updates when they open Ranking, or tap Sync.'],
+    ['Offline safe', 'If you have no signal the scan is saved on your phone and uploaded when you reconnect. A scan you delete stays deleted on your phone.'] ] },
   { id: '2026-10-05d', date: '5 Oct 2026', title: 'Settings: new order', items: [
     ['Grouped by use', 'Settings now run from daily work to housekeeping: Collection Rules, Archives & History, Appearance, Security & Access, Data & Backup, then About. Only Collection Rules opens by default.'],
     ['Related items together', 'Alerts moved into Collection Rules and Effects into Appearance. Lock App and Log Out now sit at the bottom of Security & Access, and Clear PTP History sits under Maintenance in Data & Backup.'] ] },
@@ -22165,6 +22171,7 @@ function scanRanking() {
   const _historyBeforeSave = JSON.parse(JSON.stringify(state.rankingHistory));
 
   const entry = { date: today, time, type: _rankType, isEOD: _rankType === 'daily' ? isEOD : false, agents };
+  _srTag(entry, now);
 
   if (_rankType === 'monthly') {
     state.rankingHistory = state.rankingHistory.filter(s => !(s.date === today && s.type === 'monthly'));
@@ -22185,10 +22192,15 @@ function scanRanking() {
     }).sort((a,b) => parseFloat(b.pct) - parseFloat(a.pct));
 
     state.rankingHistory = state.rankingHistory.filter(s => !(s.date === today && s.type === 'projected'));
-    state.rankingHistory.push({ date: today, time, type: 'projected', agents: projectedAgents });
+    const projEntry = { date: today, time, type: 'projected', agents: projectedAgents };
+    _srTag(projEntry, now);
+    state.rankingHistory.push(projEntry);
   }
 
+  _srQueueScan(entry);
+  if (_rankType === 'daily' && isEOD) _srQueueScan(state.rankingHistory[state.rankingHistory.length - 1]);
   saveState();
+  _srFlush();
   haptic('pay');
   _celebrateRankingProgress(_historyBeforeSave, state.rankingHistory, myName.toLowerCase());
 
@@ -22209,6 +22221,132 @@ function scanRanking() {
     toast('Ranking saved', 'success');
   }, 900);
 }
+
+// ── SHARED STAGE RANKINGS ─────────────────────────────────────
+// A scan saved by one agent is pushed to the shared_rankings table tagged with
+// their stage (M0-M5). Every agent in that stage pulls the latest rows when they
+// open Ranking and merges them into their own rankingHistory, so position,
+// trends, streaks and rival tracking all work unchanged. Rows are append-only;
+// run supabase/shared-rankings.sql once in the Supabase SQL editor to create it.
+const SR_TABLE = 'shared_rankings';
+const SR_WINDOW_DAYS = 62;
+let _srPulling = false, _srFlushing = false, _srLastPull = 0, _srLastErr = '';
+function _srStage() { return (_activeAgent && _activeAgent.stage) || (state && state.agentProfile && state.agentProfile.stage) || null; }
+function _srWho() {
+  try { const d = _getProfileData(); return (d.displayName || (_activeAgent && (_activeAgent.lbCode || _activeAgent.name)) || '').trim(); } catch (e) { return ''; }
+}
+function _srClient() { return _db || (typeof initSupabase === 'function' ? initSupabase() : null); }
+function _srTag(entry, now) {
+  const st = _srStage();
+  entry.at = now.toISOString();
+  entry.by = _srWho();
+  if (st) entry.sk = [st, entry.type, entry.date, entry.time || '', (_activeAgent && _activeAgent.id) || ''].join('|');
+  entry.stage = st || undefined;
+}
+function _srQueueScan(e) {
+  if (!e || !e.sk || !e.stage) return;
+  state.rankingOutbox = state.rankingOutbox || [];
+  if (state.rankingOutbox.some(r => r.id === e.sk)) return;
+  state.rankingOutbox.push({ id: e.sk, stage: e.stage, scan_type: e.type, scan_date: e.date, scan_time: e.time || '',
+    is_eod: !!e.isEOD, agents: e.agents, uploaded_by: e.by || '', uploaded_at: e.at });
+  state.rankingOutbox = state.rankingOutbox.slice(-20);
+}
+async function _srFlush() {
+  if (_srFlushing || !state || !(state.rankingOutbox || []).length || navigator.onLine === false) return;
+  const db = _srClient(); if (!db) return;
+  _srFlushing = true;
+  try {
+    const batch = state.rankingOutbox.slice();
+    const res = await withTimeout(db.from(SR_TABLE).upsert(batch, { onConflict: 'id', ignoreDuplicates: true }), 10000, 'srFlush');
+    if (res && res.error) throw res.error;
+    const sent = new Set(batch.map(r => r.id));
+    state.rankingOutbox = state.rankingOutbox.filter(r => !sent.has(r.id));
+    _srLastErr = '';
+    saveState();
+  } catch (e) {
+    _srLastErr = e.message || 'upload failed';
+    if (typeof _diagLog === 'function') _diagLog('ranking', 'shared push failed: ' + _srLastErr);
+  }
+  _srFlushing = false;
+}
+function _srEntryAt(e) { return e.at || new Date((e.date || '1970-01-01') + 'T' + (e.time || '00:00') + ':00').toISOString(); }
+function _srMerge(rows) {
+  state.rankingHistory = state.rankingHistory || [];
+  const hidden = new Set(state.rankingHidden || []);
+  const have = new Set(state.rankingHistory.map(e => e.sk).filter(Boolean));
+  const toEntry = r => ({ date: r.scan_date, time: r.scan_time || '', type: r.scan_type, isEOD: !!r.is_eod, agents: r.agents,
+    sk: r.id, by: r.uploaded_by || '', at: r.uploaded_at, stage: r.stage, shared: true });
+  let changed = 0;
+  const best = {};
+  rows.forEach(r => {
+    if (!r || !Array.isArray(r.agents) || !r.agents.length || hidden.has(r.id) || have.has(r.id)) return;
+    if (r.scan_type === 'daily') { state.rankingHistory.push(toEntry(r)); have.add(r.id); changed++; return; }
+    const k = r.scan_type + '|' + r.scan_date, cur = best[k];
+    if (!cur || r.agents.length > cur.agents.length || (r.agents.length === cur.agents.length && Date.parse(r.uploaded_at) > Date.parse(cur.uploaded_at))) best[k] = r;
+  });
+  Object.keys(best).forEach(k => {
+    const r = best[k];
+    const idx = state.rankingHistory.findIndex(e => e.type === r.scan_type && e.date === r.scan_date);
+    if (idx < 0) { state.rankingHistory.push(toEntry(r)); changed++; return; }
+    const loc = state.rankingHistory[idx];
+    if (loc.sk === r.id) return;
+    // Fuller list wins; on a tie the newer upload wins (same rule used when publishing).
+    const remoteWins = r.agents.length > loc.agents.length || (r.agents.length === loc.agents.length && Date.parse(r.uploaded_at) > Date.parse(_srEntryAt(loc)));
+    if (remoteWins) { state.rankingHistory[idx] = toEntry(r); changed++; }
+  });
+  if (changed) {
+    state.rankingHistory = state.rankingHistory.map((e, i) => ({ e, i }))
+      .sort((a, b) => ((a.e.date || '') + ' ' + (a.e.time || '')).localeCompare((b.e.date || '') + ' ' + (b.e.time || '')) || a.i - b.i)
+      .map(x => x.e);
+  }
+  return changed;
+}
+async function _srPull(manual) {
+  if (_srPulling || !state) return;
+  const stage = _srStage(), db = _srClient();
+  if (!stage || !db) { if (manual) toast('Shared rankings need an agent stage and a connection', 'error'); return; }
+  if (navigator.onLine === false) { if (manual) toast('You are offline', 'error'); return; }
+  _srPulling = true;
+  const btn = document.getElementById('ranking-refresh-btn'); if (btn) btn.disabled = true;
+  try {
+    await _srFlush();
+    const since = new Date(Date.now() - SR_WINDOW_DAYS * 864e5).toISOString().split('T')[0];
+    const res = await withTimeout(db.from(SR_TABLE).select('*').eq('stage', stage).gte('scan_date', since)
+      .order('uploaded_at', { ascending: false }).limit(300), 12000, 'srPull');
+    if (res && res.error) throw res.error;
+    _srLastPull = Date.now(); _srLastErr = '';
+    const changed = _srMerge(res.data || []);
+    if (changed) saveState();
+    if (manual) toast(changed ? changed + ' new ' + stage + ' scan' + (changed > 1 ? 's' : '') + ' added' : stage + ' rankings are up to date', 'success');
+    if (changed && currentPage === 'ranking') { _srPulling = false; renderRanking(); }
+  } catch (e) {
+    _srLastErr = e.message || 'sync failed';
+    if (typeof _diagLog === 'function') _diagLog('ranking', 'shared pull failed: ' + _srLastErr);
+    if (manual) toast(/relation|does not exist|schema cache/i.test(_srLastErr) ? 'Shared rankings table is not set up yet' : 'Could not sync rankings', 'error');
+  }
+  _srPulling = false;
+  if (btn) btn.disabled = false;
+  const sub = document.getElementById('ranking-sub');
+  if (sub && currentPage === 'ranking') {
+    const my = (_rankingSyncMyName() || '');
+    sub.textContent = (my ? 'Tracking ' + _rkFirst(localStorage.getItem('ranking_my_name')) : 'Set your agent name in ＋ Log to start') + _srStatusText();
+  }
+}
+function _srPullThrottled(force) {
+  if (force === true) return _srPull(true);
+  if (Date.now() - _srLastPull < 60000) return;
+  _srLastPull = Date.now() - 30000; // blocks a second trigger while this one runs; _srPull sets the real time
+  return _srPull(false);
+}
+function _srStatusText() {
+  const st = _srStage(); if (!st) return '';
+  if (_srLastErr) return ' · ' + st + ' shared · sync failed';
+  const pend = (state && state.rankingOutbox || []).length;
+  if (pend) return ' · ' + st + ' shared · ' + pend + ' waiting to upload';
+  return ' · ' + st + ' shared';
+}
+window.addEventListener('online', function () { setTimeout(function () { if (state && _activeAgent) _srPull(false); }, 1500); });
+document.addEventListener('visibilitychange', function () { if (!document.hidden && state && _activeAgent) _srPullThrottled(false); });
 
 // ── Ranking analytics: streaks, personal records, achievements ──
 // All derived purely from state.rankingHistory — no new state fields needed
@@ -22365,7 +22503,8 @@ function renderRanking() {
   const myName = (_rankingSyncMyName() || '').toLowerCase();
   checkRankingGapAlert();
   const sub = document.getElementById('ranking-sub');
-  if (sub) sub.textContent = myName ? 'Tracking ' + _rkFirst(localStorage.getItem('ranking_my_name')) : 'Set your agent name in ＋ Log to start';
+  if (sub) sub.textContent = (myName ? 'Tracking ' + _rkFirst(localStorage.getItem('ranking_my_name')) : 'Set your agent name in ＋ Log to start') + _srStatusText();
+  _srPullThrottled(false);
   _renderRankingTab(_rankingTab);
 }
 
@@ -22708,7 +22847,7 @@ function _renderRankingBoard(pane, {latestDaily,latestMonthly,latestProj,myName}
     }
     const podiumHtml = !q ? buildPodium(scan) : '';
 
-    return podiumHtml + `<div class="rk-meta">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents</div>` +
+    return podiumHtml + `<div class="rk-meta">${{proj:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="7"/><circle cx="9.3" cy="8.3" r="1" fill="currentColor" stroke="none"/><path d="M8 20h8"/></svg></span> Projected',monthly:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Monthly',daily:'<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg></span> Daily'}[tabType]} · ${scan.date}${scan.time?' '+scan.time:''}${scan.isEOD?' · EOD':''} · ${q ? visibleAgents.length + ' of ' + scan.agents.length : scan.agents.length} agents${scan.by ? ' · by ' + escapeHtml(_rkFirst(scan.by)) : ''}</div>` +
       visibleAgents.map((a) => {
         const i = scan.agents.indexOf(a);
         const isMe     = myName && a.name.toLowerCase().includes(myName);
@@ -23098,6 +23237,7 @@ function _renderRankingHistory(pane, {history, myName, findMe, myPos}) {
         confirmLabel: 'Delete',
         onConfirm: function() {
           state.rankingHistory = (state.rankingHistory||[]).filter(x => x !== scanRef);
+          if (scanRef && scanRef.sk) { (state.rankingHidden = state.rankingHidden || []).push(scanRef.sk); state.rankingHidden = state.rankingHidden.slice(-300); }
           saveState(); renderRanking(); haptic('destructive');
         }
       });
