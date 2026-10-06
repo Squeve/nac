@@ -11433,6 +11433,9 @@ function openForecastDetail() {
 //  - "rate" (Settings / Dispatch slider) is the share of the late fee the borrower pays when settling today
 //  - for a later date that share climbs from "rate" towards 100% (no discount) at the last day the account is still in this stage
 //  - a first payment today stops the fee growing, so split plans keep the price quoted today if every part lands on time
+// Practical limits. Tune these two to your portfolio.
+var OF_MIN_PART = 30;          // no instalment smaller than this (an offer split into tiny parts is not worth a borrower's effort)
+var OF_BIG_BALANCE = 600;      // from this full amount up, the third recommended rung is a longer plan instead of "last day, no discount"
 function _feeAfter(b, k) {   // estimated OD fee k days from now
   var principal = b.principal || b.loanDue || 0;
   var perDay = Math.round(0.02 * Math.max(0, principal - (b.amountPaid || 0)));
@@ -11448,6 +11451,8 @@ function _offerLadder(b) {
   var W = Math.min(14, Math.max(0, cliffDays - 1));             // last day an offer can still land inside the stage (0 = today only)
   var perDay = Math.round(0.02 * Math.max(0, (b.principal || b.loanDue || 0) - (b.amountPaid || 0)));
   var full = rem + fee, gen = rem + Math.round(fee * rate), disc = fee > 0 && gen < full;
+  // A borrower who has already broken a promise (or been rescheduled twice) gets a shorter, front-loaded ladder: more up front, no late dates.
+  var shaky = (b.brokenPromiseCount || 0) >= 1 || (b.rescheduleHistory || []).length >= 2;
   var B = function (n) { return '*' + fmtC(n) + '*'; };
   var within = function (k) { return k === 1 ? 'by tomorrow' : 'within ' + k + ' days'; };
   var inDays = function (k) { return k === 1 ? 'tomorrow' : 'in ' + k + ' days'; };
@@ -11467,16 +11472,16 @@ function _offerLadder(b) {
 
   // 2. two parts, same discounted price
   if (W >= 1) {
-    var p1 = up10(gen * 0.6), p2 = gen - p1, d2 = Math.min(3, W);
-    if (p2 > 0) add({ key: 'split2', title: 'Two parts', saves: full - gen, parts: [{ amt: p1, day: 0 }, { amt: p2, day: d2 }],
+    var p1 = up10(gen * (shaky ? 0.7 : 0.6)), p2 = gen - p1, d2 = Math.min(3, W);
+    if (p1 >= OF_MIN_PART && p2 >= OF_MIN_PART) add({ key: 'split2', title: 'Two parts', saves: full - gen, parts: [{ amt: p1, day: 0 }, { amt: p2, day: d2 }],
       pitch: 'Pay ' + B(p1) + ' today and ' + B(p2) + ' ' + within(d2) + (disc ? ' to keep the discounted total of ' + B(gen) + '. Miss the second part and the full fee returns.' : '.') });
   }
 
   // 3. three parts, same discounted price
   if (W >= 2) {
     var D = Math.min(5, W), e1 = Math.max(1, Math.round(D / 2)), e2 = D;
-    var q1 = up10(gen * 0.5), q2 = up10((gen - q1) / 2), q3 = gen - q1 - q2;
-    if (e1 < e2 && q2 > 0 && q3 > 0) add({ key: 'split3', title: 'Three parts', saves: full - gen, parts: [{ amt: q1, day: 0 }, { amt: q2, day: e1 }, { amt: q3, day: e2 }],
+    var q1 = up10(gen * (shaky ? 0.6 : 0.5)), q2 = up10((gen - q1) / 2), q3 = gen - q1 - q2;
+    if (e1 < e2 && q1 >= OF_MIN_PART && q2 >= OF_MIN_PART && q3 >= OF_MIN_PART) add({ key: 'split3', title: 'Three parts', saves: full - gen, parts: [{ amt: q1, day: 0 }, { amt: q2, day: e1 }, { amt: q3, day: e2 }],
       pitch: 'Pay ' + B(q1) + ' today, ' + B(q2) + ' ' + within(e1) + ' and ' + B(q3) + ' ' + within(e2) + (disc ? ' to keep the discounted total of ' + B(gen) + '. Miss a part and the full fee returns.' : '.') });
   }
 
@@ -11484,7 +11489,7 @@ function _offerLadder(b) {
   if (disc && W >= 6) {
     var T = rem + Math.round(fee * (rate + (1 - rate) * 0.5));
     var l1 = up10(T * 0.4), l2 = up10(T * 0.3), l3 = T - l1 - l2, f1 = Math.ceil(W / 2), f2 = W;
-    if (l3 > 0 && f1 < f2) add({ key: 'splitLong', title: 'Longer plan, ' + f2 + ' days', saves: full - T, parts: [{ amt: l1, day: 0 }, { amt: l2, day: f1 }, { amt: l3, day: f2 }],
+    if (l1 >= OF_MIN_PART && l2 >= OF_MIN_PART && l3 >= OF_MIN_PART && f1 < f2) add({ key: 'splitLong', title: 'Longer plan, ' + f2 + ' days', saves: full - T, parts: [{ amt: l1, day: 0 }, { amt: l2, day: f1 }, { amt: l3, day: f2 }],
       pitch: 'Pay ' + B(l1) + ' today, ' + B(l2) + ' ' + within(f1) + ' and ' + B(l3) + ' ' + within(f2) + '. The late fee stops growing and part of the discount stays: total ' + B(T) + '. Miss a part and the full fee returns.' });
   }
 
@@ -11507,12 +11512,22 @@ function _offerLadder(b) {
     add({ key: 'last', title: 'Full balance, no discount', saves: 0, parts: [{ amt: tl, day: W }],
       pitch: 'Pay about ' + B(tl) + ' ' + inDays(W) + ', no discount.' + (perDay > 0 ? ' The fee grows by about ' + fmtC(perDay) + ' each day you wait.' : '') });
   }
-  return { od: od, cliffDays: cliffDays, W: W, perDay: perDay, full: full, rate: rate, disc: disc, offers: offers };
+  return { od: od, cliffDays: cliffDays, W: W, perDay: perDay, full: full, rate: rate, disc: disc, shaky: shaky, offers: offers };
 }
+// Recommended set: two or three rungs, never more. Anchor with the best price today, then the step a normal borrower can really
+// manage, then a fallback that shows what waiting costs. A borrower who has broken a promise before gets only the short,
+// front-loaded rungs: no late dates to break again. Big balances get a longer plan as the stretch rung, small ones the plain
+// "last day" rung.
 function _offerRecommended(L) {
-  var keys = L.offers.map(function (o) { return o.key; });
-  var pick = ['today', 'split2', 'last'].filter(function (k) { return keys.indexOf(k) >= 0; });
-  return pick.length ? pick : keys.slice(0, 1);
+  var has = function (k) { return L.offers.some(function (o) { return o.key === k; }); };
+  var pick = [];
+  if (has('today')) pick.push('today');
+  if (has('split2')) pick.push('split2'); else if (has('split3')) pick.push('split3');
+  if (!L.shaky) {
+    if (L.full >= OF_BIG_BALANCE && has('splitLong')) pick.push('splitLong');
+    else if (has('last')) pick.push('last');
+  }
+  return pick.length ? pick : L.offers.slice(0, 1).map(function (o) { return o.key; });
 }
 function _offerPicked(id) {
   var c = _offerCtx; if (!c || c.id !== id) return [];
@@ -11527,35 +11542,38 @@ function _offersMessage(b, list) {
     body = intro + ' Here are your options:\n\n' + list[0].pitch;
     for (var i = 1; i < n; i++) body += '\n\n' + (i === n - 1 && n > 2 ? '*Lastly*' : '*OR*') + '\n\n' + list[i].pitch;
   }
+  body += '\n\nReply with the option that suits you and I will confirm it.';
   return { body: body, guide: payGuide(b) };
 }
 function _ofBold(t) { return escapeHtml(t).replace(/\*([^*\n]+)\*/g, '<b>$1</b>'); }
 
+function _ofTone(k) { return k === 'last' ? 'var(--text3)' : (k === 'today' || k === 'split2' || k === 'split3') ? 'var(--green)' : 'var(--gold)'; }
+function _ofWhen(p) { return p.day === 0 ? 'today' : p.day === 1 ? 'tomorrow' : 'in ' + p.day + ' days'; }
+function _offerCardHtml(id, o, noAccept) {
+  var figs = o.parts.map(function (p) { return '<b>' + fmtC(p.amt) + '</b> ' + _ofWhen(p); }).join(' + ');
+  return '<div class="of-card" data-key="' + o.key + '" role="checkbox" aria-checked="false" tabindex="0"'
+    + ' onclick="toggleOfferPick(\'' + id + '\',\'' + o.key + '\')"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleOfferPick(\'' + id + '\',\'' + o.key + '\')}">'
+    + '<span class="of-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
+    + '<div class="of-main"><div class="of-top"><b style="color:' + _ofTone(o.key) + '">' + escapeHtml(o.title) + '</b>'
+    + (o.saves > 0 ? '<span style="font-size:var(--text-sm);color:var(--green);font-weight:700">saves ' + fmtC(o.saves) + '</span>'
+                   : '<span style="font-size:var(--text-sm);color:var(--text3);font-weight:700">no discount</span>') + '</div>'
+    + '<div style="margin:4px 0;font-size:var(--text-md)">' + figs + '</div>'
+    + '<div class="of-pitch">' + _ofBold(o.pitch) + '</div>'
+    + (noAccept ? '' : '<button class="btn btn-ghost" style="width:100%;margin-top:9px;border-color:rgba(47,224,165,0.5);color:var(--green);white-space:normal"'
+    + ' onclick="event.stopPropagation();acceptOffer(\'' + id + '\',\'' + o.key + '\')">Accepted: set up this plan</button>') + '</div></div>';
+}
 function openOfferLadder(id) {
   var b = (state.borrowers || []).find(function (x) { return x.id === id; });
   if (!b || b.isPaid) return;
+  if (window._ofq) window._ofq.active = false;   // a single ladder opened by hand ends any bulk queue
   var L = _offerLadder(b), first = getFirstName(b);
   _offerCtx = { id: id, L: L };
   if (!_offerSel[id]) _offerSel[id] = _offerRecommended(L);
   _offerSel[id] = _offerSel[id].filter(function (k) { return L.offers.some(function (o) { return o.key === k; }); });
   if (!_offerSel[id].length) _offerSel[id] = _offerRecommended(L);
   var cliffTxt = L.cliffDays > 1 ? L.cliffDays + ' days until the account moves stage' : L.cliffDays === 1 ? 'today is the last day before the account moves stage' : 'already past the stage limit, so only today is offered';
-  var tone = function (k) { return k === 'last' ? 'var(--text3)' : (k === 'today' || k === 'split2' || k === 'split3') ? 'var(--green)' : 'var(--gold)'; };
-  var when = function (p) { return p.day === 0 ? 'today' : p.day === 1 ? 'tomorrow' : 'in ' + p.day + ' days'; };
-  var card = function (o) {
-    var figs = o.parts.map(function (p) { return '<b>' + fmtC(p.amt) + '</b> ' + when(p); }).join(' + ');
-    return '<div class="of-card" data-key="' + o.key + '" role="checkbox" aria-checked="false" tabindex="0"'
-      + ' onclick="toggleOfferPick(\'' + id + '\',\'' + o.key + '\')"'
-      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleOfferPick(\'' + id + '\',\'' + o.key + '\')}">'
-      + '<span class="of-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
-      + '<div class="of-main"><div class="of-top"><b style="color:' + tone(o.key) + '">' + escapeHtml(o.title) + '</b>'
-      + (o.saves > 0 ? '<span style="font-size:var(--text-sm);color:var(--green);font-weight:700">saves ' + fmtC(o.saves) + '</span>'
-                     : '<span style="font-size:var(--text-sm);color:var(--text3);font-weight:700">no discount</span>') + '</div>'
-      + '<div style="margin:4px 0;font-size:var(--text-md)">' + figs + '</div>'
-      + '<div class="of-pitch">' + _ofBold(o.pitch) + '</div>'
-      + '<button class="btn btn-ghost" style="width:100%;margin-top:9px;border-color:rgba(47,224,165,0.5);color:var(--green);white-space:normal"'
-      + ' onclick="event.stopPropagation();acceptOffer(\'' + id + '\',\'' + o.key + '\')">Accepted: set up this plan</button></div></div>';
-  };
+  var card = function (o) { return _offerCardHtml(id, o, false); };
   _pushModalIfOpen(function () { openBorrowerDetail(id); });
   document.getElementById('modal-title').textContent = 'Offer ladder: ' + first;
   document.getElementById('modal-body').innerHTML =
@@ -11591,7 +11609,8 @@ function _offerRefresh() {
     else { var m = _offersMessage(b, list); prev.innerHTML = _ofBold(m.body) + escapeHtml(m.guide); }
   }
   [send, copy].forEach(function (el) { if (el) { el.disabled = !list.length; el.style.opacity = list.length ? '' : '0.5'; } });
-  if (send) send.textContent = list.length ? 'WhatsApp (' + list.length + ')' : 'WhatsApp';
+  var lbl = (window._ofq && window._ofq.active) ? 'Send & Next' : 'WhatsApp';
+  if (send) send.textContent = list.length ? lbl + ' (' + list.length + ')' : lbl;
 }
 function toggleOfferPick(id, key) {
   var sel = _offerSel[id] || (_offerSel[id] = []), i = sel.indexOf(key);
@@ -11617,6 +11636,170 @@ function sendOffers(id) {
   var b = state.borrowers.find(function (x) { return x.id === id; }), t = _offerMessageText(id);
   if (!b || !t) { toast('Tick at least one offer first', 'error'); return; }
   window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(t), '_blank');
+  _offerStamp(b, _offerPicked(id)); try { markDispatchContacted(id); } catch (e) {}
+}
+
+// ── Offer Ladder in WhatsApp Dispatch: bulk queue ────────────────────────────────────────────────
+// Same flow as the Dunning Ladder: one tap on the toolbar, then step through the accounts. Each account shows its own offers
+// already ticked (smart picks, or the set you ticked for everyone); change the ticks if you like, then Send & Next.
+var OF_TYPES = [
+  { k: 'today', label: 'Pay today, best price' }, { k: 'split2', label: 'Two parts' }, { k: 'split3', label: 'Three parts' },
+  { k: 'splitLong', label: 'Longer plan' }, { k: 'day', label: 'Pay later, smaller discount' }, { k: 'last', label: 'Full balance, no discount' }
+];
+window._ofq = window._ofq || { active: false };
+function _offerStamp(b, list) {
+  b.offerSentAt = new Date().toISOString();
+  b.offerSentKeys = (list || []).map(function (o) { return o.key; });
+  saveState();
+}
+function _offerSentToday(b) { return !!b.offerSentAt && String(b.offerSentAt).slice(0, 10) === new Date().toISOString().slice(0, 10); }
+function _offerSkipReason(b) {
+  if (!b || b.isPaid || getStatus(b) === 'Paid' || getRemaining(b) <= 0) return 'paid';
+  if (!b.phone) return 'nophone';
+  if (b.settlementPlan && b.settlementPlan.status === 'active') return 'plan';   // already agreed a plan: more offers would only confuse
+  if (_offerSentToday(b)) return 'sent';
+  return '';
+}
+function _offerEligible(b) { return !_offerSkipReason(b); }
+function launchOfferQueue() {
+  var all = (_currentDispatchIds || []).map(function (id) { return state.borrowers.find(function (x) { return x.id === id; }); }).filter(Boolean);
+  var left = { plan: 0, sent: 0, nophone: 0 }, pool = [];
+  all.forEach(function (b) { var r = _offerSkipReason(b); if (!r) pool.push(b); else if (left[r] !== undefined) left[r]++; });
+  if (!pool.length) { toast('No accounts to send offers to (paid, on a plan, or already sent today)', 'error'); return; }
+  // Accounts closest to leaving the stage go first: their window is the shortest.
+  pool.sort(function (a, c) { return (getOdAge(c.startDate, c) - getOdAge(a.startDate, a)) || (getRemaining(c) - getRemaining(a)); });
+  var q = window._ofq;
+  q.active = false; q.ids = pool.map(function (b) { return b.id; }); q.idx = 0; q.st = {}; q.picked = {};
+  q.mode = 'smart'; q.types = ['today', 'split2', 'last']; q.left = left;
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light'); _ofqSetup();
+}
+function _ofqMode(m) { window._ofq.mode = m; haptic('light'); _ofqSetup(); }
+function _ofqTypeToggle(k) {
+  var t = window._ofq.types, i = t.indexOf(k);
+  if (i >= 0) t.splice(i, 1); else t.push(k);
+  haptic('light'); _ofqSetup();
+}
+function _ofqSetup() {
+  var q = window._ofq, n = q.ids.length, left = [];
+  if (q.left.sent) left.push(q.left.sent + ' already sent an offer today');
+  if (q.left.plan) left.push(q.left.plan + ' already on a plan');
+  if (q.left.nophone) left.push(q.left.nophone + ' with no phone number');
+  var seg = function (m, label) {
+    var on = q.mode === m;
+    return '<button class="btn btn-sm" onclick="_ofqMode(\'' + m + '\')" style="flex:1;border:1.5px solid ' + (on ? 'var(--gold)' : 'var(--border2)') + ';background:' + (on ? 'rgba(255,166,43,.12)' : 'transparent') + ';color:' + (on ? 'var(--gold)' : 'var(--text3)') + ';font-weight:700">' + label + '</button>';
+  };
+  var types = q.mode !== 'same' ? '' : '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);margin:12px 0 6px;letter-spacing:.04em">OFFERS TO SEND TO EVERYONE</div>'
+    + OF_TYPES.map(function (t) {
+      var on = q.types.indexOf(t.k) >= 0;
+      return '<div class="of-card' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + on + '" tabindex="0" onclick="_ofqTypeToggle(\'' + t.k + '\')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_ofqTypeToggle(\'' + t.k + '\')}" style="padding:10px 12px;margin-bottom:8px">'
+        + '<span class="of-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
+        + '<div class="of-main"><div class="of-top"><b style="color:' + _ofTone(t.k) + '">' + t.label + '</b></div></div></div>';
+    }).join('');
+  document.getElementById('modal-title').textContent = 'Offer Ladder: ' + n + ' account' + (n > 1 ? 's' : '');
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Step through the accounts in your list. Each one shows its own offers, already ticked. Change the ticks if you want, then Send &amp; Next. Accounts closest to the stage limit come first.</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:8px">' + seg('smart', 'Smart picks') + seg('same', 'Same for everyone') + '</div>'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);line-height:1.5">'
+    + (q.mode === 'smart' ? 'Two or three offers per account, chosen from its days left, the size of the balance and its promise record. Accounts that broke a promise only get short offers with more paid up front.'
+                          : 'Offers an account has no room for (for example on its last day in the stage) are left out for that account.') + '</div>'
+    + types
+    + (left.length ? '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:12px">Left out: ' + left.join(', ') + '.</div>' : '');
+  var none = q.mode === 'same' && !q.types.length;
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
+    + '<button class="btn btn-offer"' + (none ? ' disabled' : '') + ' onclick="_ofqStart()">Start (' + n + ')</button>';
+}
+function _ofqStart() {
+  var q = window._ofq;
+  if (q.mode === 'same' && !q.types.length) { toast('Tick at least one offer', 'error'); return; }
+  q.active = true; q.idx = 0; q.st = {}; q.picked = {};
+  haptic('light'); _ofqRender();
+}
+function _ofqInitSel(L) {
+  var q = window._ofq, keys = null;
+  if (q.mode === 'same') {
+    keys = L.offers.filter(function (o) { return q.types.indexOf(o.key.indexOf('day') === 0 ? 'day' : o.key) >= 0; }).map(function (o) { return o.key; });
+  }
+  return keys && keys.length ? keys : _offerRecommended(L);
+}
+function _ofqRender() {
+  var q = window._ofq; if (!q || !q.active) return;
+  var tot = q.ids.length;
+  if (q.idx >= tot) { _ofqFinish(); return; }
+  var b = (state.borrowers || []).find(function (x) { return x.id === q.ids[q.idx]; });
+  if (!b || b.isPaid) { q.st[q.ids[q.idx]] = 'skipped'; q.idx++; _ofqRender(); return; }
+  var id = b.id, L = _offerLadder(b), pct = Math.round(q.idx / tot * 100), chips = [];
+  _offerCtx = { id: id, L: L };
+  _offerSel[id] = (q.picked[id] || _ofqInitSel(L)).filter(function (k) { return L.offers.some(function (o) { return o.key === k; }); });
+  if (!_offerSel[id].length) _offerSel[id] = _ofqInitSel(L);
+  if (b.promisedToPay && b.promiseDate) { var d = String(b.promiseDate).slice(0, 10).split('-'); chips.push('Promised ' + d[2] + '/' + d[1]); }
+  if ((b.amountPaid || 0) > 0) chips.push('Paid ' + fmtC(b.amountPaid) + ' so far');
+  if ((b.brokenPromiseCount || 0) > 0) chips.push('Broke ' + b.brokenPromiseCount + ' promise' + (b.brokenPromiseCount > 1 ? 's' : ''));
+  chips.push(L.cliffDays > 1 ? 'Moves stage in ' + L.cliffDays + ' days' : L.cliffDays === 1 ? 'Last day in this stage' : 'Past the stage limit');
+  var chipHtml = chips.map(function (c) { return '<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2)">' + escapeHtml(c) + '</span>'; }).join('');
+  document.getElementById('modal-title').textContent = 'Offer Ladder (' + (q.idx + 1) + '/' + tot + ')';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="height:4px;background:var(--border);border-radius:4px;margin-bottom:14px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:var(--green);transition:width .3s"></div></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:4px"><strong style="font-size:var(--text-lg)">' + escapeHtml(b.name) + '</strong>'
+    + '<span style="font-family:var(--font-mono);font-weight:800;color:var(--gold)">' + fmtC(L.full) + '</span></div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:8px">' + escapeHtml(b.phone) + ' \u00b7 Day ' + L.od + ' overdue \u00b7 ' + L.offers.length + ' offer' + (L.offers.length > 1 ? 's' : '') + ' fit</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + chipHtml + '</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'rec\')">Recommended</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'all\')">All</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="offerPickPreset(\'' + id + '\',\'none\')">None</button>'
+    + '<span id="of-count" style="align-self:center;font-size:var(--text-sm);color:var(--text3)"></span></div>'
+    + L.offers.map(function (o) { return _offerCardHtml(id, o, true); }).join('')
+    + '<div style="font-size:var(--text-sm);font-weight:700;color:var(--text3);margin:12px 0 6px;letter-spacing:.04em">MESSAGE PREVIEW</div>'
+    + '<div id="of-preview" class="of-prev"></div>'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:8px;text-align:center">' + (q.st[id] === 'sent' ? '<b style="color:var(--green)">Offer already sent to this account</b> \u00b7 ' : '') + _ofqCount('sent') + ' sent \u00b7 ' + (tot - q.idx - 1) + ' left</div>';
+  var canBack = _ofqPrevIdx() >= 0, sm = 'flex:1;padding:8px 6px;justify-content:center;text-align:center';
+  document.getElementById('modal-footer').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;width:100%">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn btn-ghost btn-sm" style="' + sm + '" onclick="_ofqStop()">Stop</button>'
+    + '<button class="btn btn-ghost btn-sm" style="' + sm + (canBack ? '' : ';opacity:.4') + '"' + (canBack ? '' : ' disabled') + ' onclick="_ofqPrev()">\u25c0 Back</button>'
+    + '<button class="btn btn-ghost btn-sm" style="' + sm + '" onclick="_ofqSkip()">Skip \u25b6</button>'
+    + '<button class="btn btn-ghost btn-sm" style="' + sm + '" id="of-copy" onclick="copyOffers(\'' + id + '\')">Copy</button></div>'
+    + '<button class="btn btn-offer" style="width:100%;justify-content:center;text-align:center" id="of-send" onclick="ofqSend()">Send &amp; Next</button></div>';
+  _offerRefresh();
+}
+function ofqSend() {
+  var q = window._ofq; if (!q || !q.active) return;
+  var id = q.ids[q.idx], b = (state.borrowers || []).find(function (x) { return x.id === id; });
+  var t = _offerMessageText(id), list = _offerPicked(id);
+  if (!b || !t) { toast('Tick at least one offer first', 'error'); return; }
+  window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(t), '_blank');
+  _offerStamp(b, list);
+  try { markDispatchContacted(id); } catch (e) {}
+  q.st[id] = 'sent'; q.picked[id] = (_offerSel[id] || []).slice(); q.idx++; haptic('pay');
+  setTimeout(_ofqRender, 400);
+}
+function _ofqCount(kind) { var q = window._ofq, n = 0; Object.keys(q.st || {}).forEach(function (k) { if (q.st[k] === kind) n++; }); return n; }
+function _ofqSavePick() { var q = window._ofq, id = q.ids[q.idx]; if (id && _offerSel[id]) q.picked[id] = _offerSel[id].slice(); }
+function _ofqPrevIdx() {
+  var q = window._ofq, i = q.idx - 1;
+  while (i >= 0) { var b = (state.borrowers || []).find(function (x) { return x.id === q.ids[i]; }); if (b && !b.isPaid) return i; i--; }
+  return -1;
+}
+function _ofqPrev() {
+  var q = window._ofq; if (!q || !q.active) return;
+  var i = _ofqPrevIdx(); if (i < 0) return;
+  _ofqSavePick(); q.idx = i; haptic('light'); _ofqRender();
+}
+function _ofqSkip() {
+  var q = window._ofq; if (!q || !q.active) return;
+  var id = q.ids[q.idx]; _ofqSavePick(); if (q.st[id] !== 'sent') q.st[id] = 'skipped';
+  q.idx++; haptic('light'); _ofqRender();
+}
+function _ofqStop() {
+  var q = window._ofq; q.active = false; closeModal();
+  if (_ofqCount('sent')) toast('Offer Ladder stopped: ' + _ofqCount('sent') + ' sent', 'info');
+}
+function _ofqFinish() {
+  var q = window._ofq; q.active = false; closeModal();
+  toast('Offer Ladder complete: ' + _ofqCount('sent') + ' sent' + (_ofqCount('skipped') ? ', ' + _ofqCount('skipped') + ' skipped' : ''), 'success');
+  haptic('pay');
 }
 
 
@@ -11729,6 +11912,10 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-05f', date: '5 Oct 2026', title: 'Offer Ladder in WhatsApp Dispatch', items: [
+    ['Back button, brighter buttons', 'The Offer Ladder queue now has a Back button to return to the previous account, and your ticks are kept. The Offer Ladder button and the row button are now bright teal-blue.'],
+    ['Send offers in bulk', 'New Offer Ladder button in Dispatch. It steps through your list like the Dunning Ladder: each account shows its own offers, already ticked, and Send & Next opens WhatsApp. Choose Smart picks or the same offers for everyone.'],
+    ['More practical offers', 'Splits never go below a minimum part size. Accounts that broke a promise get short offers with more paid up front and no late dates. Big balances get a longer plan. Accounts already on a plan, or sent an offer today, are left out. Each message now ends by asking the borrower to reply with the option they choose.'] ] },
   { id: '2026-10-05e', date: '5 Oct 2026', title: 'Ranking: shared by stage', items: [
     ['One scan for the whole stage', 'When you scan or paste a ranking, it is shared with every agent in your stage, so an M2 scan shows up for all M2 agents. It updates when they open Ranking, or tap Sync.'],
     ['Offline safe', 'If you have no signal the scan is saved on your phone and uploaded when you reconnect. A scan you delete stays deleted on your phone.'] ] },
@@ -12841,6 +13028,9 @@ function renderDispatch() {
     + (list.some(b => _recommendDunningTier(b))
         ? '<button class="wa-chip wa-chip-orange" onclick="launchDunningQueue()" title="Auto-picks each borrower\'s tier by their OD day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg> Dunning Ladder (' + list.filter(b => _recommendDunningTier(b)).length + ')</button>'
         : '')
+    + (list.some(b => _offerEligible(b))
+        ? '<button class="wa-chip wa-chip-offer" onclick="launchOfferQueue()" title="Send each account the settlement offers that fit it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg> Offer Ladder (' + list.filter(b => _offerEligible(b)).length + ')</button>'
+        : '')
     + '<button class="wa-chip wa-chip-neutral" data-action="dispatch-more" aria-label="More actions" title="More actions" style="padding:7px 10px"><svg viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>'
     + '</div>'
 
@@ -12912,6 +13102,7 @@ function renderDispatch() {
         + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</a>'
         + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> SMS</a>'
         + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder: Day ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
+        + (!b.isPaid && getRemaining(b) > 0 ? '<button class="btn btn-offer btn-sm" onclick="openOfferLadder(\'' + b.id + '\')" title="Offer ladder"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg></span></button>' : '')
         + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')" title="Mark as contacted"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></button>'
         + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')" title="Copy message"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></button>'
         + '</div></div>';
@@ -33455,6 +33646,12 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 </div>
 
 <style id="offer-ladder-css">
+.wa-chip-offer{border:none;color:#fff;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.25);background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 12px rgba(20,176,200,.32)}
+.wa-chip-offer:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 5px 18px rgba(20,176,200,.5);filter:brightness(1.07)}
+html[data-theme="aurora"] .wa-chip-offer{border:none;color:#fff;background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(20,176,200,.4)}
+.btn-offer{border:none;color:#fff;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.25);background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 12px rgba(20,176,200,.3)}
+.btn-offer:disabled{opacity:.5;box-shadow:none}
+.btn-offer .ico svg{stroke:#fff}
 .of-card{display:flex;gap:11px;padding:12px;border-radius:14px;background:var(--surface2);border:1.5px solid var(--border2);margin-bottom:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s ease,background-color .15s ease}
 .of-card.on{border-color:var(--gold);background:rgba(255,166,43,.10)}
 .of-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
