@@ -11452,7 +11452,8 @@ function _offerLadder(b) {
   var perDay = Math.round(0.02 * Math.max(0, (b.principal || b.loanDue || 0) - (b.amountPaid || 0)));
   var full = rem + fee, gen = rem + Math.round(fee * rate), disc = fee > 0 && gen < full;
   // A borrower who has already broken a promise (or been rescheduled twice) gets a shorter, front-loaded ladder: more up front, no late dates.
-  var shaky = (b.brokenPromiseCount || 0) >= 1 || (b.rescheduleHistory || []).length >= 2;
+  var shaky = (b.brokenPromiseCount || 0) >= 1 || (b.rescheduleHistory || []).length >= 2 || !!b.ptpBreached
+    || !!(b.promisedToPay && b.promiseDate && String(b.promiseDate).slice(0, 10) < new Date().toISOString().slice(0, 10));
   var B = function (n) { return '*' + fmtC(n) + '*'; };
   var within = function (k) { return k === 1 ? 'by tomorrow' : 'within ' + k + ' days'; };
   var inDays = function (k) { return k === 1 ? 'tomorrow' : 'in ' + k + ' days'; };
@@ -11637,6 +11638,323 @@ function sendOffers(id) {
   if (!b || !t) { toast('Tick at least one offer first', 'error'); return; }
   window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(t), '_blank');
   _offerStamp(b, _offerPicked(id)); try { markDispatchContacted(id); } catch (e) {}
+}
+
+// ── WORKING STRATEGIES ───────────────────────────────────────────────────────────────────────────
+// A plan for each account, worked out from what the app records: where the account sits in your stage, whether and how
+// it has been contacted, promise and plan state, payments, balance size and the time of day. One strategy is picked by
+// the first rule that fits (the order below is the priority). Steps tick themselves when the app can see they were done
+// today, the "Next" line always points at the first step still open, and the card tracks how often accounts worked
+// with each plan paid within 3 days. It can only judge what is logged: it says so when nothing is.
+var ST_UNREACHED = ['No Answer', 'Phone Off', 'Busy', 'Wrong Number'];
+var ST_CALL_OUTCOMES = ST_UNREACHED.concat(['Answered', 'Promised', 'Refused', 'Redirected', 'Requested Callback', 'No Commitment', 'Fraud']);
+function _stToday() { return new Date().toISOString().slice(0, 10); }
+function _stDate(iso) { var d = String(iso || '').slice(0, 10).split('-'); return d.length === 3 ? d[2] + '/' + d[1] : ''; }
+function _stDayDiff(iso) { return Math.round((Date.parse(String(iso).slice(0, 10)) - Date.parse(_stToday())) / 86400000); }
+function _stParseTs(ts) { var m = /(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})/.exec(String(ts || '')); return m ? new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]) : null; }
+function _stBand(h) { return h < 11 ? 'morning' : h < 15 ? 'midday' : 'evening'; }
+function _stOffers(b) {
+  var L = _offerLadder(b), rec = _offerRecommended(L);
+  return L.offers.filter(function (o) { return rec.indexOf(o.key) >= 0; })
+    .map(function (o) { return o.parts.map(function (p) { return fmtC(p.amt) + ' ' + _ofWhen(p); }).join(' + '); }).join(', or ');
+}
+// Share of your unpaid accounts that owe less than this one (1 = the biggest balance on your list).
+var _stRankCache = { t: 0, arr: [] };
+function _stBalanceRank(b) {
+  if (Date.now() - _stRankCache.t > 10000) {
+    _stRankCache = { t: Date.now(), arr: (state.borrowers || []).filter(function (x) { return !x.isPaid && getStatus(x) !== 'Paid'; }).map(getRemaining).sort(function (m, n) { return m - n; }) };
+  }
+  var arr = _stRankCache.arr; if (arr.length < 5) return 0.5;
+  var below = 0; while (below < arr.length && arr[below] < getRemaining(b)) below++;
+  return below / arr.length;
+}
+function _stSignals(b) {
+  var range = getAgentDayRange(), min = range[0], max = range[1], od = getOdAge(b.startDate, b);
+  var entries = b.callLog || [], now = new Date(), gb = String(now.toLocaleString('en-GB')).slice(0, 10);
+  var calls = entries.filter(function (c) { return ST_CALL_OUTCOMES.indexOf(c.outcome) >= 0; });
+  var msgs = entries.filter(function (c) { return c.outcome === 'WA/SMS'; });
+  var times = entries.map(function (c) { return _stParseTs(c.timestamp); }).filter(Boolean).sort(function (x, y) { return x - y; });
+  var lastAt = times.length ? times[times.length - 1] : null;
+  var tail = 0; for (var i = calls.length - 1; i >= 0 && ST_UNREACHED.indexOf(calls[i].outcome) >= 0; i--) tail++;
+  var tried = {}, answered = {};
+  calls.forEach(function (c) { var t = _stParseTs(c.timestamp); if (!t) return; var bd = _stBand(t.getHours()); tried[bd] = (tried[bd] || 0) + 1; if (c.outcome === 'Answered' || c.outcome === 'Promised') answered[bd] = (answered[bd] || 0) + 1; });
+  var P = b.settlementPlan, plan = P && P.status === 'active' ? P : null;
+  var promiseDiff = b.promisedToPay && b.promiseDate ? _stDayDiff(b.promiseDate) : null;
+  var pred = (typeof getPredictedPayDate === 'function') ? getPredictedPayDate(b) : null;
+  var dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  var left = Math.max(0, max - od), rem = getRemaining(b), h = now.getHours();
+  return {
+    od: od, min: min, max: max, left: left, rem: rem, phase: left <= 1 ? 'final' : (od - min) <= 2 ? 'early' : (od - min) <= 5 ? 'mid' : 'late',
+    entries: entries.length, noContact: entries.length === 0, callCount: calls.length, msgCount: msgs.length, onlyMessages: msgs.length > 0 && calls.length === 0,
+    sinceContact: lastAt ? Math.floor((now - lastAt) / 86400000) : null,
+    callToday: calls.some(function (c) { return String(c.timestamp || '').indexOf(gb) === 0; }),
+    callsToday: calls.filter(function (c) { return String(c.timestamp || '').indexOf(gb) === 0; }).length,
+    waToday: msgs.some(function (c) { return String(c.timestamp || '').indexOf(gb) === 0; }),
+    last: calls[calls.length - 1] ? calls[calls.length - 1].outcome : '', unreached: tail, tried: tried, answered: answered,
+    fraud: calls.some(function (c) { return c.outcome === 'Fraud'; }),
+    broken: (b.brokenPromiseCount || 0) > 0 || !!b.ptpBreached || (promiseDiff !== null && promiseDiff < 0),
+    partPaid: (b.amountPaid || 0) > 0, payCount: (b.payLog || []).length,
+    plan: plan, nextPart: plan ? plan.parts.filter(function (x) { return !x.paid; })[0] : null, planBroken: !!(P && P.status === 'broken'),
+    promiseDiff: promiseDiff, predDiff: pred ? _stDayDiff(pred) : null, pred: pred,
+    hasAlt: !!b.phone2, hasGuarantor: !!b.guarantorName, isPro: /pro/i.test(b.loanType || ''), balTop: 1 - _stBalanceRank(b),
+    offerToday: typeof _offerSentToday === 'function' && _offerSentToday(b),
+    hour: h, dow: now.getDay(), late: h >= 19 || h < 7, toEOM: dim - now.getDate()
+  };
+}
+function _stWindow(g) {
+  var best = Object.keys(g.answered).sort(function (a, c) { return g.answered[c] - g.answered[a]; })[0];
+  if (best) return 'Call in the ' + best + ', which is when they picked up before.';
+  var triedBands = Object.keys(g.tried), free = ['morning', 'midday', 'evening'].filter(function (x) { return !g.tried[x]; });
+  if (triedBands.length && free.length) return 'Try the ' + free[free.length - 1] + ': your earlier calls were all in the ' + triedBands.join(' and ') + '.';
+  return 'Try after 5pm, when most people are off work.';
+}
+function _stTips(b, g, id) {
+  var t = [];
+  if (g.noContact && ['fraud', 'nocontact', 'first', 'msgonly'].indexOf(id) < 0) t.push('Nothing is logged on this account. If you have been in touch outside the app, log it so this plan adapts.');
+  if (g.balTop <= 0.15 && g.rem >= 500) t.push((g.balTop < 0.03 ? 'This is the biggest balance on your list.' : 'This is one of your biggest balances (top ' + Math.round(g.balTop * 100) + '%).') + ' Work it before the smaller accounts today.');
+  if (g.isPro) t.push('LoanBase Pro balances are larger. If the full amount is out of reach, press for a part-payment today.');
+  if (g.payCount >= 2 && g.predDiff !== null && g.predDiff >= 0 && g.predDiff <= 4) t.push('Their payment pattern points to ' + _stDate(g.pred) + (g.predDiff === 0 ? ' (today)' : '') + '. Call the day before.');
+  if (g.toEOM >= 0 && g.toEOM <= 5 && g.left >= g.toEOM && ['fraud', 'plan', 'promise'].indexOf(id) < 0) t.push('Month-end is ' + (g.toEOM === 0 ? 'today' : g.toEOM + ' day' + (g.toEOM === 1 ? '' : 's') + ' away') + ', inside this stage window. Ask whether they are paid then and set the promise for that day.');
+  var best = Object.keys(g.answered).sort(function (a, c) { return g.answered[c] - g.answered[a]; })[0];
+  if (best && id !== 'unreached') t.push('They have picked up in the ' + best + ' before. Call then.');
+  if (g.dow === 5 && g.late === false && ['fraud', 'plan', 'rest'].indexOf(id) < 0) t.push('It is Friday. Ask for payment before the weekend.');
+  return t.slice(0, 3);
+}
+function _strategyFor(b) {
+  var g = _stSignals(b), first = getFirstName(b), offers = _stOffers(b), L = _offerLadder(b);
+  var today = L.offers.filter(function (o) { return o.key === 'today'; })[0];
+  var S = function (id, title, tone, urgency, why, steps, avoid) { return { id: id, title: title, tone: tone, urgency: urgency, why: why, steps: steps, avoid: avoid }; };
+  var call = { k: 'call', label: 'Call' }, wa = { k: 'wa', label: 'WhatsApp' }, off = { k: 'offers', label: 'Offers' },
+      notice = { k: 'notice', label: 'Notice' }, log = { k: 'log', label: 'Log call' }, prom = { k: 'promise', label: 'Set promise' },
+      esc = { k: 'escalate', label: 'Escalate' }, note = { k: 'note', label: 'Add note' }, pay = { k: 'pay', label: 'Record pay' },
+      alt = g.hasAlt ? { k: 'call2', label: 'Alt number' } : null;
+  // A call step that turns into "message now, call first thing" once it is too late in the day to ring someone
+  var CALL = function (now, late) { return g.late ? { t: late || 'It is late. Send a short WhatsApp now and call first thing tomorrow morning.', a: wa } : { t: now, a: call }; };
+  var d = g.left + ' day' + (g.left === 1 ? '' : 's');
+  var S1, id;
+
+  if (g.fraud) S1 = S('fraud', 'Possible fraud: stop the normal chase', '#ef4444', 'high',
+    'A call on this account was logged as fraud, so normal reminders and discounts are on hold.',
+    [{ t: 'Write down exactly what you were told and when.', a: note },
+     { t: 'Tell your supervisor today, before any more contact with this borrower.', a: esc },
+     { t: 'Only resume the normal steps if your supervisor clears the account.' }],
+    'Do not send payment guides or discount offers until it is cleared.');
+
+  else if (g.plan && g.nextPart) {
+    var due = _stDate(g.nextPart.due), dd = _stDayDiff(g.nextPart.due);
+    S1 = S('plan', 'Keep the settlement plan on track', '#2fe0a5', dd < 0 ? 'critical' : dd === 0 ? 'high' : 'low',
+      first + ' agreed a plan. Next part: ' + fmtC(g.nextPart.amt) + (dd < 0 ? ', which was due ' + due + ' and is now late.' : dd === 0 ? ', due today.' : ', due ' + due + '.'),
+      dd <= 0 ? [CALL('Call now and ask for the ' + fmtC(g.nextPart.amt) + ' today. Late parts lose the discount.', 'It is late. Send a reminder now for the ' + fmtC(g.nextPart.amt) + ' and call first thing tomorrow.'),
+                 { t: 'If it has been paid, record it so the plan moves on.', a: pay },
+                 { t: 'Not paid by tonight: log the call and send the full-amount notice tomorrow.', a: log }]
+              : [{ t: 'Send a friendly reminder the day before and again on the morning of ' + due + '.', a: wa },
+                 { t: 'Ask which number they will pay from, so you can match the payment fast.' },
+                 { t: 'When it arrives, record it right away.', a: pay }],
+      'Do not send new offers. They already said yes to one, and more choices confuse them.');
+  }
+
+  else if (g.callsToday >= 3 && g.left > 1) S1 = S('rest', 'Enough calls for today', '#94a3b8', 'low',
+    g.callsToday + ' calls are already logged today. Another one now will annoy more than it persuades.',
+    [{ t: 'Stop calling today.' },
+     { t: 'Send the offers in writing so they can answer in their own time: ' + offers + '.', a: off },
+     { t: 'Call tomorrow at a different time. ' + _stWindow(g), a: call }],
+    'Do not call again today. It also puts your own standing at risk.');
+
+  else if (g.left <= 1) {
+    var lastDay = g.left === 0;
+    S1 = S('final', lastDay ? 'Final push: last day in this stage' : 'Final push: 2 days left in this stage', '#dc2626', 'critical',
+      (lastDay ? 'Today is their last day in your stage. ' : 'Tomorrow is their last day in your stage. ') + (g.broken ? first + ' has broken a promise before. ' : '') + (g.noContact ? 'Nothing is logged on this account. ' : '') + 'Offer: ' + offers + '.',
+      [CALL('Call now. Say the price and the deadline plainly: ' + (today ? fmtC(today.total) + ' clears it today.' : 'the balance is due today.'), 'It is late. Send the final price now (' + (today ? fmtC(today.total) : 'the balance') + ') and call at 8am sharp.'),
+       { t: 'Send the notice and the offers in writing so they can pay straight away.', a: notice },
+       { t: 'No answer in 2 hours: ring the alternative number, the guarantor or emergency contact, or visit if you are close.', a: alt },
+       { t: 'Log every attempt so the hand-over is clean.', a: log }],
+      'Do not spend the last day on long plans. Short, front-loaded options are the only ones that fit.');
+  }
+
+  else if (g.broken) S1 = S('broken', g.planBroken ? 'Plan broken: quote the full amount' : 'Broke a promise: short and front-loaded', '#f97316', g.left <= 4 ? 'critical' : 'high',
+    first + ' promised and did not pay' + (g.planBroken ? ', and the plan discount is now lost' : '') + '. ' + d + ' left in this stage.',
+    [CALL('Call within 2 hours. Start with: "' + (b.promiseDate ? 'You told us ' + _stDate(b.promiseDate) : 'You agreed a date with us') + ' and we did not receive it. What happened?" Get the real reason first.'),
+     { t: g.planBroken ? 'Quote the full amount of ' + fmtC(L.full) + '. The plan discount is lost.' : 'Offer only the short options: ' + offers + '. No later dates.', a: off },
+     { t: 'If they promise again, get a time and the number they will pay from, then record it.', a: prom },
+     { t: 'No money by that time: send the notice at that hour. Still nothing the next day: escalate.', a: notice }],
+    'Do not offer another far-off date. They have already shown they will not keep one.');
+
+  else if (g.unreached >= 2) S1 = S('unreached', 'Cannot reach: change the method', '#a78bfa', g.unreached >= 3 ? 'high' : 'normal',
+    g.unreached + ' attempts in a row went unanswered' + (g.last === 'Wrong Number' ? ' and the last one was a wrong number' : '') + '. More calls at the same time will give the same result.',
+    [{ t: _stWindow(g), a: call },
+     alt ? { t: 'Ring the alternative number.', a: alt } : { t: 'Check the phone number on file, and ask the guarantor or emergency contact for a working one.', a: note },
+     { t: 'Send the notice on WhatsApp. It reaches them even when calls do not.', a: wa },
+     { t: 'If you are near their area, visit. Note what you found.', a: log }],
+    'Do not keep calling the same number at the same hour.');
+
+  else if (g.promiseDiff !== null && g.promiseDiff >= 0) {
+    var dueToday = g.promiseDiff === 0;
+    S1 = S('promise', dueToday ? 'Promise due today' : 'Promise pending until ' + _stDate(b.promiseDate), '#a78bfa', dueToday ? 'high' : 'low',
+      first + ' promised ' + (dueToday ? 'for today' : 'for ' + _stDate(b.promiseDate)) + '. The job now is to make it easy to keep.',
+      [{ t: dueToday ? 'Send a short reminder this morning with how to pay.' : 'Send a reminder the day before and on the morning of the date.', a: wa },
+       { t: 'Confirm the amount and the number they will pay from.' },
+       { t: dueToday ? 'Check at the promised time. Not paid: call straight away and log it.' : 'On the day, check after the promised time. Not paid: call straight away.', a: log }],
+      'Do not send offers or notices now. They undermine a promise that is still open.');
+  }
+
+  else if (g.last === 'Requested Callback') S1 = S('callback', 'They asked for a call back', '#60a5fa', 'high',
+    first + ' asked you to call back. Doing it on time shows you are serious.',
+    [CALL('Call back at the time they asked, or as early as you can today.', 'It is late. Message now to say you will call at 9am, then do it.'),
+     { t: 'Have the number ready: ' + offers + '.', a: off },
+     { t: 'Log the result and set a promise if they commit.', a: prom }],
+    'Do not let a callback request sit until tomorrow.');
+
+  else if (g.last === 'Refused' || g.last === 'No Commitment') S1 = S('resistant', 'Resistant: find the reason first', '#f59e0b', g.phase === 'late' ? 'high' : 'normal',
+    first + ' ' + (g.last === 'Refused' ? 'refused' : 'would not commit') + ' on the last call. Pressure alone will not move them.',
+    [CALL('Ask what is stopping them: no cash right now, a dispute, a lost job, or just forgot. Listen first.'),
+     { t: 'Show what waiting costs: the fee grows about ' + fmtC(L.perDay) + ' a day and the discount shrinks. Send the offers so they can think.', a: off },
+     { t: 'Send the formal notice as a record. Keep the tone calm.', a: notice }],
+    'Do not argue or threaten. It hardens refusals.');
+
+  else if (g.last === 'Redirected') S1 = S('redirected', 'Someone else answered', '#60a5fa', 'normal',
+    'The last call was redirected, so the right person has not heard the message yet.',
+    [{ t: 'Ask who you spoke to and get the borrower\'s own number or best time.', a: note },
+     { t: 'Message the borrower directly on WhatsApp.', a: wa },
+     { t: 'Call again at the time you were given.', a: call }],
+    'Do not give balance details to anyone but the borrower.');
+
+  else if (g.partPaid) S1 = S('partpay', 'Part-payer: help them finish', '#2fe0a5', 'normal',
+    first + ' has paid ' + fmtC(b.amountPaid || 0) + ' so far. People who have started usually finish if you make the rest small and dated.',
+    [CALL('Thank them for what they have paid, then ask for the rest by a date.'),
+     { t: 'Offer the rest in parts if needed: ' + offers + '.', a: off },
+     { t: 'Record the next payment as soon as it comes in.', a: pay }],
+    'Do not treat them like someone who has never paid.');
+
+  else if (g.offerToday) S1 = S('offerwait', 'Offer sent today: follow up', '#2fe0a5', 'normal',
+    'You sent ' + first + ' the offers today. The reply, not a second message, is what moves this forward.',
+    [{ t: 'Wait about 2 hours, then call: "Did you see the options? Which one works for you?"', a: call },
+     { t: 'If they pick one, accept it in the ladder so the reminders are set.', a: off },
+     { t: 'No reply by tomorrow morning: call first thing, then send the notice.', a: notice }],
+    'Do not resend the same offers today.');
+
+  else if (g.last === 'Answered' || g.last === 'Promised') S1 = S('followup', 'Spoke already: turn it into a dated promise', '#60a5fa', g.phase === 'late' ? 'high' : 'normal',
+    'You have spoken to ' + first + ', but no promise date is recorded. A conversation without a date rarely turns into a payment.',
+    [{ t: 'Send the offers in writing so they have the exact figures: ' + offers + '.', a: off },
+     { t: 'Record the promise with a date and a time.', a: prom },
+     { t: 'Send a reminder the day before it falls due.', a: wa }],
+    'Do not leave it at "I will pay soon". Get a date.');
+
+  else if (g.onlyMessages) S1 = S('msgonly', 'Messaged but never called', '#f59e0b', g.phase === 'late' ? 'high' : 'normal',
+    g.msgCount + ' message' + (g.msgCount === 1 ? '' : 's') + ' sent' + (g.sinceContact !== null ? ', the last ' + (g.sinceContact === 0 ? 'today' : g.sinceContact + ' day' + (g.sinceContact === 1 ? '' : 's') + ' ago') : '') + ', and no call is logged. Messages are easy to ignore.',
+    [CALL('Call now. Say the amount and the deadline (' + d + ' left) and ask for payment today.'),
+     { t: 'Once you have spoken, send the offers: ' + offers + '.', a: off },
+     { t: 'Log the call and set a promise with a time.', a: prom }],
+    'Do not send a third message in place of a conversation.');
+
+  else if (g.noContact && g.phase !== 'early') S1 = S('nocontact', 'No contact logged yet: act today', '#f43f5e', g.phase === 'late' ? 'critical' : 'high',
+    first + ' is on Day ' + g.od + ' with ' + d + ' left in this stage, and nothing is logged on this account. If you have already spoken to them, log it so this plan adapts.',
+    [CALL('Call now. Say the amount and the deadline (' + d + ' left) and ask for payment today.'),
+     { t: 'Send the formal notice so there is a written record the same day.', a: notice },
+     { t: g.phase === 'late' ? 'No answer by this evening: ring the alternative number, the guarantor or emergency contact, or visit.' : 'No answer today: try again tomorrow at a different time, and message the guarantor if there is one.', a: alt || call },
+     { t: 'Once you have spoken, send the offers: ' + offers + '.', a: off },
+     { t: 'Already in touch outside the app? Log it now.', a: log }],
+    'Do not wait for the deadline. Every quiet day adds about ' + fmtC(L.perDay) + ' in fees and narrows the options.');
+
+  else S1 = S('first', 'Fresh account: make the first contact count', '#60a5fa', 'normal',
+    first + ' has just entered your stage (Day ' + g.od + ', ' + d + ' left) and nothing is logged yet.',
+    [CALL('Call today. Most people pay once they hear the amount and the deadline.'),
+     { t: 'No answer: send the notice on WhatsApp.', a: notice },
+     { t: 'Once you have spoken, send the offers in writing: ' + offers + '.', a: off },
+     { t: 'Log the call and set a promise with a time.', a: prom }],
+    'Do not wait for them to call you.');
+
+  S1.g = g;
+  S1.chips = ['Day ' + g.od + ' of ' + g.max, d + ' left',
+    g.noContact ? 'No contact logged' : g.sinceContact === 0 ? 'Contacted today' : 'Last contact ' + g.sinceContact + 'd ago',
+    fmtC(g.rem) + ' balance'].concat(g.isPro ? ['Pro loan'] : [], g.partPaid ? ['Paid ' + fmtC(b.amountPaid)] : [], g.broken ? ['Promise broken'] : [], g.plan ? ['Plan running'] : []);
+  S1.tips = _stTips(b, g, S1.id);
+  return S1;
+}
+
+var ST_NEXT = { call: 'Call now', call2: 'Ring the alternative number', wa: 'Send a WhatsApp', offers: 'Send the offers', notice: 'Send the notice', log: 'Log the call', promise: 'Set the promise', escalate: 'Escalate', note: 'Add a note', pay: 'Record the payment' };
+var ST_URG = { critical: 'Critical', high: 'High', normal: 'Normal', low: 'Steady' };
+// A step counts as done when it is ticked, or when today's log shows it happened (a call, a message, an offer sent).
+function _stAutoDone(x, g) {
+  if (!x.a || /^(No |Not paid|If |On the day|Check at|Wait about|Call again|Call tomorrow)/.test(x.t)) return false;   // conditional steps are never auto-ticked
+  var k = x.a.k;
+  return (k === 'call' && g.callToday) || (k === 'log' && g.callToday) || ((k === 'wa' || k === 'notice') && g.waToday) || (k === 'offers' && g.offerToday);
+}
+
+function strategyAct(id, kind) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return;
+  haptic('light');
+  var back = function () { _pushModal(function () { openBorrowerDetail(id); }); };
+  if (kind === 'call') { if (!b.phone) { toast('No phone number on file', 'error'); return; } window.location.href = 'tel:' + b.phone; }
+  else if (kind === 'call2') { if (!b.phone2) { toast('No alternative number on file', 'error'); return; } window.location.href = 'tel:' + b.phone2; }
+  else if (kind === 'wa') window.open(getWaLink(b, false), '_blank');
+  else if (kind === 'offers') openOfferLadder(id);
+  else if (kind === 'notice') { back(); openDunningPanel(id); }
+  else if (kind === 'log') { back(); openCallLogModal(id); }
+  else if (kind === 'promise') { back(); openPromiseModal(id); }
+  else if (kind === 'escalate') { back(); openEscalFromBorrower(id); }
+  else if (kind === 'note') { back(); openQuickNote(id); }
+  else if (kind === 'pay') { back(); openPayModal(id); }
+}
+function stratTick(id, sid, idx, el) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return;
+  var T = _stToday(), d = b.stratDone;
+  if (!d || d.date !== T || d.sid !== sid) d = b.stratDone = { date: T, sid: sid, done: [] };
+  var at = d.done.indexOf(idx); if (at >= 0) d.done.splice(at, 1); else d.done.push(idx);
+  el.classList.toggle('done', d.done.indexOf(idx) >= 0);
+  el.setAttribute('aria-checked', d.done.indexOf(idx) >= 0 ? 'true' : 'false');
+  haptic('light'); saveState();
+}
+function stratToggle() { var c = document.getElementById('st-card'); if (c) c.classList.toggle('st-collapsed'); }
+// From the accounts that were worked with this strategy at least 3 days ago (first time per account), how many paid within 3 days?
+function _stResults(sid) {
+  var n = 0, paid = 0, cutoff = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+  (state.borrowers || []).forEach(function (x) {
+    var log = x.stratLog; if (!log) return;
+    var d = Object.keys(log).sort().filter(function (k) { return log[k] === sid; })[0];
+    if (!d || d > cutoff) return;
+    var end = new Date(Date.parse(d) + 3 * 86400000).toISOString().slice(0, 10);
+    n++; if ((x.payLog || []).some(function (p) { return p.date >= d && p.date <= end && (p.delta || 0) > 0; })) paid++;
+  });
+  return { n: n, paid: paid };
+}
+function _stRecord(b, sid) {
+  var T = _stToday(); b.stratLog = b.stratLog || {};
+  if (b.stratLog[T] === sid) return;
+  b.stratLog[T] = sid;
+  var keys = Object.keys(b.stratLog).sort(); while (keys.length > 40) delete b.stratLog[keys.shift()];
+  saveState();
+}
+function _strategyCardHtml(b) {
+  if (getStatus(b) === 'Paid') return '';
+  var S; try { S = _strategyFor(b); } catch (e) { return ''; }
+  _stRecord(b, S.id);
+  var g = S.g, manual = b.stratDone && b.stratDone.date === _stToday() && b.stratDone.sid === S.id ? b.stratDone.done : [];
+  var auto = S.steps.map(function (x) { return _stAutoDone(x, g); });
+  var isDone = function (i) { return auto[i] || manual.indexOf(i) >= 0; };
+  var doneN = S.steps.filter(function (x, i) { return isDone(i); }).length;
+  var nextI = -1; S.steps.forEach(function (x, i) { if (nextI < 0 && x.a && !isDone(i)) nextI = i; });
+  var next = nextI >= 0 ? S.steps[nextI] : null;
+  var steps = S.steps.map(function (x, i) {
+    var on = isDone(i), au = auto[i];
+    return '<div class="st-step' + (on ? ' done' : '') + (au ? ' auto' : '') + '" role="checkbox" aria-checked="' + on + '" tabindex="0"'
+      + (au ? '' : ' onclick="stratTick(\'' + b.id + '\',\'' + S.id + '\',' + i + ',this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();stratTick(\'' + b.id + '\',\'' + S.id + '\',' + i + ',this)}"') + '>'
+      + '<span class="st-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
+      + '<span class="st-text">' + escapeHtml(x.t) + (au ? ' <em class="st-auto">logged today</em>' : '') + '</span>'
+      + (x.a && !on ? '<button type="button" class="st-go" onclick="event.stopPropagation();strategyAct(\'' + b.id + '\',\'' + x.a.k + '\')">' + x.a.label + '</button>' : '') + '</div>';
+  }).join('');
+  var R = _stResults(S.id);
+  var foot = R.n >= 5 ? 'On your accounts: ' + R.paid + ' of ' + R.n + ' paid within 3 days of this plan.' : 'Results show here after 5 accounts have been worked with this plan (' + R.n + ' so far).';
+  return '<div class="st-card st-collapsed" id="st-card" style="--stc:' + S.tone + '">'
+    + '<div class="st-head" onclick="stratToggle()"><div class="st-hmain">'
+    + '<div class="st-kicker">Working strategy<span class="st-urg st-urg-' + S.urgency + '">' + ST_URG[S.urgency] + '</span></div>'
+    + '<div class="st-title">' + escapeHtml(S.title) + '</div>'
+    + '<div class="st-next">' + (next ? 'Next: <b>' + ST_NEXT[next.a.k] + '</b>' : 'All steps done for today') + ' \u00b7 ' + doneN + '/' + S.steps.length + ' done</div></div>'
+    + (next ? '<button type="button" class="st-go st-go-main" onclick="event.stopPropagation();strategyAct(\'' + b.id + '\',\'' + next.a.k + '\')">' + next.a.label + '</button>' : '')
+    + '<span class="st-chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>'
+    + '<div class="st-body"><div class="st-chips">' + S.chips.map(function (c) { return '<span>' + escapeHtml(c) + '</span>'; }).join('') + '</div>'
+    + '<div class="st-why">' + escapeHtml(S.why) + '</div>' + steps
+    + (S.tips.length ? '<div class="st-tips"><div class="st-tips-h">Also worth knowing</div>' + S.tips.map(function (t) { return '<div>' + escapeHtml(t) + '</div>'; }).join('') + '</div>' : '')
+    + '<div class="st-avoid"><b>Avoid:</b> ' + escapeHtml(S.avoid) + '</div><div class="st-foot">' + escapeHtml(foot) + '</div></div></div>';
 }
 
 // ── Offer Ladder in WhatsApp Dispatch: bulk queue ────────────────────────────────────────────────
@@ -11912,6 +12230,12 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-08a', date: '8 Oct 2026', title: 'Smarter, collapsed strategy card', items: [
+    ['Collapsed by default', 'The card now shows just the plan, how urgent it is and the next step with a button. Tap it to open the full plan.'],
+    ['Smarter picks', 'It now looks at where the account sits in your stage, whether it has ever been contacted, the time of day, balance size and payment pattern. An account on Day 11 with no logged contact is no longer called fresh. Steps tick themselves when a call, message or offer is logged today.'] ] },
+  { id: '2026-10-07a', date: '7 Oct 2026', title: 'Working strategies', items: [
+    ['A plan for every account', 'Open any borrower and the new Working strategy card tells you how to work that account today. It reads the days left in your stage, promise history, part-payments, call outcomes and any settlement plan. Each step has a button that opens the right screen, and you can tick steps off.'],
+    ['Learns from your accounts', 'The card tracks how many accounts paid within 3 days of being worked with that plan, and shows it once 5 accounts have been worked.'] ] },
   { id: '2026-10-05f', date: '5 Oct 2026', title: 'Offer Ladder in WhatsApp Dispatch', items: [
     ['Back button, brighter buttons', 'The Offer Ladder queue now has a Back button to return to the previous account, and your ticks are kept. The Offer Ladder button and the row button are now bright teal-blue.'],
     ['Send offers in bulk', 'New Offer Ladder button in Dispatch. It steps through your list like the Dunning Ladder: each account shows its own offers, already ticked, and Send & Next opens WhatsApp. Choose Smart picks or the same offers for everyone.'],
@@ -15732,6 +16056,7 @@ function _openBorrowerDetailFill(id) {
       </div>
     </div>`
     + liveActivityHtml
+    + _strategyCardHtml(b)
     + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">'
     + (b.promisedToPay ? '<div style="font-size:var(--text-sm);color:var(--purple);margin-bottom:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> Promise: ' + (b.promiseDate||'today') + (b.promiseNote?' — '+b.promiseNote:'') + '</div>' : '')
     + ((b.brokenPromiseCount||0) > 0 ? '<div style="font-size:var(--text-sm);color:#ef4444;margin-bottom:4px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" fill="#ef4444" stroke="none"/></svg></span> ' + b.brokenPromiseCount + ' broken promise' + (b.brokenPromiseCount > 1 ? 's' : '') + ' on record</div>' : '')
@@ -33646,6 +33971,41 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 </div>
 
 <style id="offer-ladder-css">
+.st-card{--stc:var(--gold);margin:0 0 12px;border-radius:16px;overflow:hidden;border:1px solid color-mix(in srgb,var(--stc) 45%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--stc) 11%,var(--surface)),var(--surface) 70%)}
+.st-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.st-kicker{font-family:var(--font-mono);font-size:var(--text-2xs);letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--stc)}
+.st-title{margin-top:2px;font-size:var(--text-lg);font-weight:800;line-height:1.25}
+.st-chev{flex:none;color:var(--text3);transition:transform .2s}
+.st-collapsed .st-chev{transform:rotate(-90deg)}
+.st-collapsed .st-body{display:none}
+.st-why{padding:0 14px 10px;font-size:var(--text-sm);line-height:1.5;color:var(--text2)}
+.st-step{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-top:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.st-box{flex:none;width:22px;height:22px;margin-top:1px;border-radius:7px;border:2px solid color-mix(in srgb,var(--stc) 60%,var(--border2));display:grid;place-items:center;transition:background .15s,border-color .15s}
+.st-box svg{width:14px;height:14px;fill:none;stroke:#1a0d00;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.st-step.done .st-box{background:var(--stc);border-color:var(--stc)}
+.st-step.done .st-box svg{opacity:1}
+.st-text{flex:1;min-width:0;font-size:var(--text-base);line-height:1.5}
+.st-step.done .st-text{opacity:.5;text-decoration:line-through}
+.st-go{flex:none;align-self:center;padding:7px 11px;border-radius:999px;cursor:pointer;font:700 var(--text-sm) var(--font-body);color:var(--stc);background:color-mix(in srgb,var(--stc) 13%,transparent);border:1px solid color-mix(in srgb,var(--stc) 45%,transparent)}
+.st-avoid{padding:10px 14px;border-top:1px solid var(--border);font-size:var(--text-sm);line-height:1.45;color:var(--text2);background:rgba(239,68,68,.07)}
+.st-avoid b{color:#f87171}
+.st-foot{padding:8px 14px;border-top:1px solid var(--border);font-size:var(--text-xs);color:var(--text3)}
+.st-hmain{flex:1;min-width:0}
+.st-urg{margin-left:8px;padding:1px 7px;border-radius:999px;font-size:var(--text-2xs);letter-spacing:.06em;font-weight:800;vertical-align:1px}
+.st-urg-critical{color:#fff;background:#dc2626}
+.st-urg-high{color:#1a0d00;background:#f59e0b}
+.st-urg-normal{color:#cfe3ff;background:rgba(96,165,250,.28)}
+.st-urg-low{color:var(--text2);background:var(--surface2);border:1px solid var(--border2)}
+.st-next{margin-top:4px;font-size:var(--text-sm);color:var(--text2)}
+.st-next b{color:var(--stc)}
+.st-go-main{align-self:center;color:#1a0d00;background:var(--stc);border-color:transparent}
+.st-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
+.st-chips span{padding:2px 8px;border-radius:999px;font-size:var(--text-xs);color:var(--text2);background:var(--surface2);border:1px solid var(--border2)}
+.st-auto{display:inline-block;text-decoration:none;font-style:normal;margin-left:6px;font-size:var(--text-xs);color:var(--green)}
+.st-step.auto{cursor:default}
+.st-tips{padding:10px 14px;border-top:1px solid var(--border);font-size:var(--text-sm);line-height:1.5;color:var(--text2);background:rgba(96,165,250,.06)}
+.st-tips>div+div{margin-top:6px}
+.st-tips-h{font-family:var(--font-mono);font-size:var(--text-2xs);letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--blue)}
 .wa-chip-offer{border:none;color:#fff;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.25);background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 12px rgba(20,176,200,.32)}
 .wa-chip-offer:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 5px 18px rgba(20,176,200,.5);filter:brightness(1.07)}
 html[data-theme="aurora"] .wa-chip-offer{border:none;color:#fff;background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(20,176,200,.4)}
