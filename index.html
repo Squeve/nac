@@ -5425,6 +5425,8 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
       <div class="bl-chips" id="dispatch-filter-chips" style="display:none">
         <select class="bl-chip-sel" id="dispatch-filter" onchange="renderDispatch()">
           <option value="">All Active</option>
+          <option value="dueTomorrow">Due tomorrow (M0, -1)</option>
+          <option value="dueToday">Due today (M0)</option>
           <option value="Unpaid">Unpaid</option>
           <option value="Partial">Partial</option>
           <option value="high">₵1,000+</option>
@@ -5435,8 +5437,8 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </select>
         <input type="number" class="bl-chip-sel" id="dispatch-min-amount" placeholder="₵ Min" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
         <input type="number" class="bl-chip-sel" id="dispatch-max-amount" placeholder="₵ Max" oninput="_dispatchSearchDebounce()" style="width:72px" min="0">
-        <input type="number" class="bl-chip-sel" id="dispatch-od-min" placeholder="OD Min" oninput="_dispatchSearchDebounce()" style="width:66px" min="0">
-        <input type="number" class="bl-chip-sel" id="dispatch-od-max" placeholder="OD Max" oninput="_dispatchSearchDebounce()" style="width:66px" min="0">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-min" placeholder="OD Min" oninput="_dispatchSearchDebounce()" style="width:66px">
+        <input type="number" class="bl-chip-sel" id="dispatch-od-max" placeholder="OD Max" oninput="_dispatchSearchDebounce()" style="width:66px">
         <select class="bl-chip-sel" id="dispatch-promise-day" onchange="renderDispatch()" title="Filter by promised payment day">
           <option value="">Any Promise Day</option>
           <option value="today">Promised Today</option>
@@ -6001,6 +6003,21 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <input type="checkbox" id="stage-badges-toggle" checked onchange="settingsToggleStageBadges(this.checked)" style="opacity:0;width:0;height:0">
           <span id="stage-badges-slider" style="position:absolute;inset:0;background:var(--gold);border-radius:24px;transition:background 0.2s"></span>
           <span id="stage-badges-knob" style="position:absolute;right:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
+        </label>
+      </div>
+      <!-- Call prompt -->
+      <div class="settings-row" style="cursor:default">
+        <div class="settings-row-icon" style="background:rgba(47,224,165,0.12);color:var(--green)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M5.5 3h2.2l1.2 3-1.6 1.4a9 9 0 004 4L13 9.800l3 1.200V13.500a1.500 1.500 0 01-1.600 1.500A12 12 0 014 4.600 1.500 1.500 0 015.500 3z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Call Prompt</div>
+          <div class="settings-row-label-sub">Ask how a call went when I return to the app</div>
+        </div>
+        <label style="position:relative;width:44px;height:26px;display:inline-block;flex-shrink:0;cursor:pointer">
+          <input type="checkbox" id="callprompt-toggle" checked onchange="settingsToggleCallPrompt(this.checked)" style="opacity:0;width:0;height:0">
+          <span id="callprompt-slider" style="position:absolute;inset:0;background:var(--gold);border-radius:24px;transition:background 0.2s"></span>
+          <span id="callprompt-knob" style="position:absolute;right:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
         </label>
       </div>
       <button class="settings-row" onclick="openAlertSettings()">
@@ -11216,9 +11233,9 @@ function openBorrowerMoreMenu(id, anchorEl) {
       e.stopPropagation();
       const ma = item.dataset.maction;
       closeBorrowerMoreMenu();
-      if (ma === 'call') { if (!b.phone) toast('No phone number on file', 'error'); else window.location.href = 'tel:' + b.phone; }
+      if (ma === 'call') { if (!b.phone) toast('No phone number on file', 'error'); else _acDial(b, b.phone); }
       else if (ma === 'offers') openOfferLadder(b.id);
-      else if (ma === 'call2') window.location.href = 'tel:' + b.phone2;
+      else if (ma === 'call2') _acDial(b, b.phone2);
       else if (ma === 'wa2') window.open('https://wa.me/' + toWaPhone(b.phone2), '_blank');
       else if (ma === 'note') openQuickNote(id);
       else if (ma === 'hist') openHistoryModal(id);
@@ -11710,6 +11727,7 @@ function _stWindow(g) {
 }
 function _stTips(b, g, id) {
   var t = [];
+  if (g.od <= 0) return t;
   if (g.noContact && ['fraud', 'nocontact', 'first', 'msgonly'].indexOf(id) < 0) t.push('Nothing is logged on this account. If you have been in touch outside the app, log it so this plan adapts.');
   if (g.balTop <= 0.15 && g.rem >= 500) t.push((g.balTop < 0.03 ? 'This is the biggest balance on your list.' : 'This is one of your biggest balances (top ' + Math.round(g.balTop * 100) + '%).') + ' Work it before the smaller accounts today.');
   if (g.isPro) t.push('LoanBase Pro balances are larger. If the full amount is out of reach, press for a part-payment today.');
@@ -11739,6 +11757,20 @@ function _strategyFor(b) {
      { t: 'Tell your supervisor today, before any more contact with this borrower.', a: esc },
      { t: 'Only resume the normal steps if your supervisor clears the account.' }],
     'Do not send payment guides or discount offers until it is cleared.');
+
+  else if (g.od <= 0) {
+    var tomorrow = g.od < 0;
+    S1 = S('predue', tomorrow ? 'Due tomorrow: send the reminder' : 'Due today: help them pay', '#38bdf8', tomorrow ? 'normal' : 'high',
+      first + ' is not overdue yet' + (tomorrow ? ', the payment is due tomorrow.' : ', the payment is due today.') + ' A short, friendly reminder is usually all it takes.',
+      tomorrow
+        ? [{ t: 'Send the due-tomorrow reminder so the date is fresh.', a: { k: 'escalate', label: 'Reminder' }, n: 'Send the reminder' },
+           { t: 'If they have paid late before, call this evening and ask how they will pay.', a: call },
+           { t: 'Record the payment as soon as it lands.', a: pay }]
+        : [{ t: g.hour < 11 ? 'Send this morning\'s reminder.' : 'Send the reminder that fits this time of day.', a: { k: 'escalate', label: 'Reminder' }, n: 'Send the reminder' },
+           { t: 'No payment by 2pm: call and ask what is stopping them.', a: call },
+           { t: 'Record the payment as soon as it lands.', a: pay }],
+      'Do not use default or penalty language. They are not overdue.');
+  }
 
   else if (g.plan && g.nextPart) {
     var due = _stDate(g.nextPart.due), dd = _stDayDiff(g.nextPart.due);
@@ -11864,9 +11896,9 @@ function _strategyFor(b) {
     'Do not wait for them to call you.');
 
   S1.g = g;
-  S1.chips = ['Day ' + g.od + ' of ' + g.max, d + ' left',
+  S1.chips = (g.od <= 0 ? [g.od < 0 ? 'Due tomorrow' : 'Due today'] : ['Day ' + g.od + ' of ' + g.max, d + ' left']).concat([
     g.noContact ? 'No contact logged' : g.sinceContact === 0 ? 'Contacted today' : 'Last contact ' + g.sinceContact + 'd ago',
-    fmtC(g.rem) + ' balance'].concat(g.isPro ? ['Pro loan'] : [], g.partPaid ? ['Paid ' + fmtC(b.amountPaid)] : [], g.broken ? ['Promise broken'] : [], g.plan ? ['Plan running'] : []);
+    fmtC(g.rem) + ' balance']).concat(g.isPro ? ['Pro loan'] : [], g.partPaid ? ['Paid ' + fmtC(b.amountPaid)] : [], g.broken ? ['Promise broken'] : [], g.plan ? ['Plan running'] : []);
   S1.tips = _stTips(b, g, S1.id);
   return S1;
 }
@@ -11884,8 +11916,8 @@ function strategyAct(id, kind) {
   var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) return;
   haptic('light');
   var back = function () { _pushModal(function () { openBorrowerDetail(id); }); };
-  if (kind === 'call') { if (!b.phone) { toast('No phone number on file', 'error'); return; } window.location.href = 'tel:' + b.phone; }
-  else if (kind === 'call2') { if (!b.phone2) { toast('No alternative number on file', 'error'); return; } window.location.href = 'tel:' + b.phone2; }
+  if (kind === 'call') { if (!b.phone) { toast('No phone number on file', 'error'); return; } _acDial(b, b.phone); }
+  else if (kind === 'call2') { if (!b.phone2) { toast('No alternative number on file', 'error'); return; } _acDial(b, b.phone2); }
   else if (kind === 'wa') window.open(getWaLink(b, false), '_blank');
   else if (kind === 'offers') openOfferLadder(id);
   else if (kind === 'notice') { back(); openDunningPanel(id); }
@@ -11948,13 +11980,151 @@ function _strategyCardHtml(b) {
     + '<div class="st-head" onclick="stratToggle()"><div class="st-hmain">'
     + '<div class="st-kicker">Working strategy<span class="st-urg st-urg-' + S.urgency + '">' + ST_URG[S.urgency] + '</span></div>'
     + '<div class="st-title">' + escapeHtml(S.title) + '</div>'
-    + '<div class="st-next">' + (next ? 'Next: <b>' + ST_NEXT[next.a.k] + '</b>' : 'All steps done for today') + ' \u00b7 ' + doneN + '/' + S.steps.length + ' done</div></div>'
+    + '<div class="st-next">' + (next ? 'Next: <b>' + (next.n || ST_NEXT[next.a.k]) + '</b>' : 'All steps done for today') + ' \u00b7 ' + doneN + '/' + S.steps.length + ' done</div></div>'
     + (next ? '<button type="button" class="st-go st-go-main" onclick="event.stopPropagation();strategyAct(\'' + b.id + '\',\'' + next.a.k + '\')">' + next.a.label + '</button>' : '')
     + '<span class="st-chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>'
     + '<div class="st-body"><div class="st-chips">' + S.chips.map(function (c) { return '<span>' + escapeHtml(c) + '</span>'; }).join('') + '</div>'
     + '<div class="st-why">' + escapeHtml(S.why) + '</div>' + steps
     + (S.tips.length ? '<div class="st-tips"><div class="st-tips-h">Also worth knowing</div>' + S.tips.map(function (t) { return '<div>' + escapeHtml(t) + '</div>'; }).join('') + '</div>' : '')
     + '<div class="st-avoid"><b>Avoid:</b> ' + escapeHtml(S.avoid) + '</div><div class="st-foot">' + escapeHtml(foot) + '</div></div></div>';
+}
+
+// ── AFTER-CALL PROMPT ─────────────────────────────────────────────────────────────────────────────
+// Tapping any Call button remembers who you rang. When you come back to the app, a small sheet asks how the call
+// went. One tap logs it (same log as the Call Log screen), then the sheet suggests the next move for that outcome.
+// Switch it off under Settings > Collection Rules > Call Prompt.
+var AC_KEY = 'sq_pending_call';
+var AC_OUTCOMES = [
+  { v: 'Answered', l: 'Answered', c: '#22c55e' }, { v: 'Promised', l: 'Promised to pay', c: '#2fe0a5' },
+  { v: 'No Answer', l: 'No answer', c: '#f59e0b' }, { v: 'Phone Off', l: 'Phone off', c: '#f59e0b' },
+  { v: 'Busy', l: 'Busy', c: '#f59e0b' }, { v: 'Requested Callback', l: 'Asked me to call back', c: '#60a5fa' },
+  { v: 'Refused', l: 'Refused', c: '#ef4444' }, { v: 'No Commitment', l: 'No commitment', c: '#f97316' }
+];
+var AC_MORE = [{ v: 'Redirected', l: 'Someone else answered', c: '#60a5fa' }, { v: 'Wrong Number', l: 'Wrong number', c: '#94a3b8' }, { v: 'Fraud', l: 'Possible fraud', c: '#ef4444' }];
+// What to offer next, per outcome. Each key is a strategyAct() kind.
+var AC_NEXT = {
+  'Answered': [['promise', 'Set promise'], ['offers', 'Send offers'], ['note', 'Add note']],
+  'No Answer': [['wa', 'Send WhatsApp']], 'Phone Off': [['wa', 'Send WhatsApp']], 'Busy': [['wa', 'Send WhatsApp']],
+  'Requested Callback': [['note', 'Add note']],
+  'Refused': [['offers', 'Send offers'], ['notice', 'Send notice']], 'No Commitment': [['offers', 'Send offers'], ['notice', 'Send notice']],
+  'Redirected': [['wa', 'Send WhatsApp'], ['note', 'Add note']], 'Wrong Number': [['note', 'Add note']],
+  'Fraud': [['escalate', 'Escalate'], ['note', 'Add note']]
+};
+function _acEnabled() { return localStorage.getItem('sq_call_prompt') !== 'off'; }
+function _acDigits(n) { return String(n || '').replace(/\D/g, '').slice(-9); }
+function _acFind(num) {
+  var d = _acDigits(num); if (!d) return null;
+  return (state.borrowers || []).filter(function (b) { return !b.isPaid && getStatus(b) !== 'Paid' && (_acDigits(b.phone) === d || _acDigits(b.phone2) === d); })[0] || null;
+}
+function _acStart(b, num) {
+  if (!b || !_acEnabled()) return;
+  try { localStorage.setItem(AC_KEY, JSON.stringify({ id: b.id, num: String(num || ''), at: Date.now(), n: (b.callLog || []).length })); } catch (e) {}
+  clearTimeout(window._acTimer);
+  // Phones report coming back reliably. On a desktop window the dialer may never hide the app, so check once after a while.
+  if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) window._acTimer = setTimeout(function () { if (!document.hidden) _acMaybePrompt(); }, 90000);
+}
+function _acDial(b, num) { _acStart(b, num); window.location.href = 'tel:' + num; }
+function _acClear() { try { localStorage.removeItem(AC_KEY); } catch (e) {} clearTimeout(window._acTimer); }
+function _acRead() { try { return JSON.parse(localStorage.getItem(AC_KEY) || 'null'); } catch (e) { return null; } }
+function _acMaybePrompt() {
+  var raw = _acRead(); if (!raw || !_acEnabled()) return;
+  var age = Date.now() - raw.at;
+  if (age > 30 * 60000) { _acClear(); return; }
+  if (age < 4000 || document.getElementById('ac-sheet')) return;
+  var ls = document.getElementById('lock-screen'); if (ls && getComputedStyle(ls).display !== 'none') return;   // never over the lock screen
+  var b = (state.borrowers || []).find(function (x) { return x.id === raw.id; });
+  if (!b || b.isPaid || (b.callLog || []).length > raw.n) { _acClear(); return; }   // gone, paid, or already logged by hand
+  _acShow(b, raw);
+}
+function _acAgo(ms) { var m = Math.max(1, Math.round(ms / 60000)); return m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
+function _acShow(b, raw) {
+  var first = getFirstName(b), more = false;
+  var host = document.createElement('div'); host.id = 'ac-root';
+  var grid = function (list) { return list.map(function (o) { return '<button type="button" class="ac-btn" style="--ac:' + o.c + '" onclick="_acLog(\'' + b.id + '\',\'' + o.v + '\')"><i></i>' + o.l + '</button>'; }).join(''); };
+  host.innerHTML = '<div class="ac-backdrop" onclick="_acClose(true)"></div>'
+    + '<div class="ac-sheet" id="ac-sheet" role="dialog" aria-modal="true" aria-label="Log the call">'
+    + '<div class="ac-grab"></div>'
+    + '<div class="ac-title">How did the call with <b>' + escapeHtml(first) + '</b> go?</div>'
+    + '<div class="ac-sub">Called ' + _acAgo(Date.now() - raw.at) + ' \u00b7 ' + escapeHtml(raw.num) + '</div>'
+    + '<div class="ac-grid" id="ac-grid">' + grid(AC_OUTCOMES) + '</div>'
+    + '<div class="ac-grid" id="ac-more" style="display:none">' + grid(AC_MORE) + '</div>'
+    + '<div class="ac-foot"><button type="button" class="ac-link" id="ac-morebtn" onclick="document.getElementById(\'ac-more\').style.display=\'grid\';this.style.display=\'none\'">More outcomes</button>'
+    + '<button type="button" class="ac-link" onclick="_acClose(true)">I did not call</button></div></div>';
+  document.body.appendChild(host);
+  haptic('light');
+}
+function _acClose(clear) { var h = document.getElementById('ac-root'); if (h) h.remove(); if (clear) _acClear(); }
+function _acLog(id, outcome) {
+  var b = state.borrowers.find(function (x) { return x.id === id; }); if (!b) { _acClose(true); return; }
+  if (outcome === 'Fraud' && !window.confirm('Mark ' + getFirstName(b) + ' as possible fraud? This pauses offers and discounts on the account.')) return;
+  if (!b.callLog) b.callLog = [];
+  b.callLog.push({ outcome: outcome, timestamp: new Date().toLocaleString('en-GB') });
+  saveState(); _acClear(); haptic('medium');
+  toast('Logged: ' + outcome, 'success');
+  if (outcome === 'Promised') { _acClose(false); openPromiseModal(id); return; }   // a promise without a date is worth little: capture it now
+  var sheet = document.getElementById('ac-sheet'); if (!sheet) return;
+  var next = AC_NEXT[outcome] || [], hint = '';
+  if (['No Answer', 'Phone Off', 'Busy'].indexOf(outcome) >= 0 && typeof _stSignals === 'function') { try { hint = _stWindow(_stSignals(b)); } catch (e) {} }
+  if (outcome === 'Requested Callback') hint = 'Call back at the time they asked.';
+  sheet.innerHTML = '<div class="ac-grab"></div><div class="ac-title">Logged: <b>' + escapeHtml(outcome) + '</b></div>'
+    + (hint ? '<div class="ac-sub">' + escapeHtml(hint) + '</div>' : '<div class="ac-sub">What next?</div>')
+    + (next.length ? '<div class="ac-grid">' + next.map(function (n) { return '<button type="button" class="ac-btn ac-next" onclick="_acClose(false);strategyAct(\'' + id + '\',\'' + n[0] + '\')">' + n[1] + '</button>'; }).join('') + '</div>' : '')
+    + '<div class="ac-foot"><button type="button" class="ac-link" onclick="_acClose(false)">Done</button></div>';
+}
+function settingsToggleCallPrompt(on) {
+  localStorage.setItem('sq_call_prompt', on ? 'on' : 'off');
+  if (!on) _acClear();
+  haptic('light');
+  _acSettingsUi();
+}
+function _acSettingsUi() {
+  var on = _acEnabled(), t = document.getElementById('callprompt-toggle'), sl = document.getElementById('callprompt-slider'), kn = document.getElementById('callprompt-knob');
+  if (t) t.checked = on;
+  if (sl) sl.style.background = on ? 'var(--gold)' : 'var(--border2)';
+  if (kn) kn.style.transform = on ? 'translateX(0)' : 'translateX(-20px)';
+}
+// Tap on any tel: link (card buttons, borrower detail, lists) starts the prompt, whoever drew the link.
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest ? e.target.closest('a[href^="tel:"]') : null;
+  if (!a || typeof state === 'undefined' || !state) return;
+  var num = a.getAttribute('href').slice(4), b = _acFind(num);
+  if (b) _acStart(b, num);
+}, true);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(_acMaybePrompt, 700); });
+window.addEventListener('focus', function () { setTimeout(_acMaybePrompt, 700); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('ac-sheet')) _acClose(true); });
+setTimeout(_acMaybePrompt, 3000);   // the app was closed while on the call
+// ── END AFTER-CALL PROMPT ─────────────────────────────────────────────────────────────────────────
+
+// ── M0 REMINDERS (accounts due tomorrow or today) ─────────────────────────────────────────────────
+// The Escalate panel only offered M0 messages when every account in the list was M0, so a normal mixed list showed none.
+// This runs through the accounts in the list that are not yet overdue and picks each one's message: due tomorrow (day -1)
+// gets the L35 reminder; due today gets the morning, midday, afternoon or evening notice for the time of day.
+function _m0Level(b) {
+  if (getOdAge(b.startDate, b) < 0) return 35;
+  var h = new Date().getHours();
+  return h < 11 ? 24 : h < 14 ? 27 : h < 19 ? 29 : 30;
+}
+function _m0Eligible(b) { return !!b && getStatus(b) !== 'Paid' && getOdAge(b.startDate, b) <= 0 && !!b.phone; }
+function launchM0Queue() {
+  var pool = (_currentDispatchIds || []).map(function (id) { return state.borrowers.find(function (b) { return b.id === id; }); }).filter(_m0Eligible);
+  if (!pool.length) { toast('No M0 accounts due today or tomorrow in this list', 'error'); return; }
+  pool.sort(function (a, c) { return getOdAge(c.startDate, c) - getOdAge(a.startDate, a); });   // due today first
+  window._escalSingleId = null; window._escalBorrowers = pool; window._escalIdx = 0; window._escalLevel = 35;
+  window._escalLevelMap = {}; pool.forEach(function (b) { window._escalLevelMap[b.id] = _m0Level(b); });
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light'); escalRenderModal();
+}
+var M0_LEVEL_NAMES = { 35: 'Due tomorrow (reminder)', 24: 'Morning reminder', 25: 'Payment thank-you', 26: 'Easy payment (MoMo)', 27: 'Midday check-in', 28: 'Due today (firm)', 29: 'Afternoon warning', 30: 'Evening final notice' };
+function _escalM0Picker(b, level) {
+  var opts = getOdAge(b.startDate, b) < 0 ? [35, 25] : [24, 25, 26, 27, 28, 29, 30];
+  if (opts.indexOf(level) < 0) opts.unshift(level);
+  return '<select class="bl-chip-sel" style="width:100%;margin-bottom:10px" aria-label="Change the message for this account" onchange="_escalSetLevel(this.value)">'
+    + opts.map(function (l) { return '<option value="' + l + '"' + (l === level ? ' selected' : '') + '>L' + l + ' \u00b7 ' + (M0_LEVEL_NAMES[l] || '') + '</option>'; }).join('') + '</select>';
+}
+function _escalSetLevel(v) {
+  var b = (window._escalBorrowers || [])[window._escalIdx];
+  if (b && window._escalLevelMap) { window._escalLevelMap[b.id] = parseInt(v, 10); escalRenderModal(); }
 }
 
 // ── Offer Ladder in WhatsApp Dispatch: bulk queue ────────────────────────────────────────────────
@@ -11974,6 +12144,7 @@ function _offerSentToday(b) { return !!b.offerSentAt && String(b.offerSentAt).sl
 function _offerSkipReason(b) {
   if (!b || b.isPaid || getStatus(b) === 'Paid' || getRemaining(b) <= 0) return 'paid';
   if (!b.phone) return 'nophone';
+  if (getOdAge(b.startDate, b) <= 0) return 'notdue';   // no fee yet, so there is no discount to offer
   if (b.settlementPlan && b.settlementPlan.status === 'active') return 'plan';   // already agreed a plan: more offers would only confuse
   if (_offerSentToday(b)) return 'sent';
   return '';
@@ -12230,6 +12401,13 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-10a', date: '10 Oct 2026', title: 'M0 reminders', items: [
+    ['M0 Reminders button in Dispatch', 'A new button runs through the accounts in your list that are not overdue yet and picks each one\'s message: the due-tomorrow reminder (day -1), or for due today the morning, midday, afternoon or evening notice by time of day. You can change the message for any account.'],
+    ['Find them fast', 'Dispatch has new filters, Due tomorrow (M0, -1) and Due today (M0), and the OD Min and Max boxes now accept negative days.'],
+    ['Fixes', 'The M0 Due Tomorrow message showed as "undefined" in the preview and queue; it now has its name and colour. The Escalate panel now tells you when your list contains M0 accounts and points to the reminders. Sending a notice now counts as a contact. The Offer Ladder skips accounts that are not overdue.'] ] },
+  { id: '2026-10-09a', date: '9 Oct 2026', title: 'Call prompt', items: [
+    ['One tap to log a call', 'After you tap Call and come back to the app, a small sheet asks how the call went. Tap an outcome and it is logged. Promised opens the promise date straight away. Other outcomes suggest the next move, such as a WhatsApp after no answer.'],
+    ['Your choice', 'It only appears if you actually tapped Call, never over the lock screen, and not if you already logged the call yourself. Turn it off in Settings > Collection Rules > Call Prompt.'] ] },
   { id: '2026-10-08a', date: '8 Oct 2026', title: 'Smarter, collapsed strategy card', items: [
     ['Collapsed by default', 'The card now shows just the plan, how urgent it is and the next step with a button. Tap it to open the full plan.'],
     ['Smarter picks', 'It now looks at where the account sits in your stage, whether it has ever been contacted, the time of day, balance size and payment pattern. An account on Day 11 with no logged contact is no longer called fresh. Steps tick themselves when a call, message or offer is logged today.'] ] },
@@ -13288,6 +13466,8 @@ function renderDispatch() {
     const s = getStatus(b);
     const od = getOdAge(b.startDate, b);
     const due = getDueToday(b);
+    if (filter === 'dueTomorrow') return s !== 'Paid' && od < 0;
+    if (filter === 'dueToday') return s !== 'Paid' && od === 0;
     if (filter === 'Unpaid') return s === 'Unpaid';
     if (filter === 'Partial') return s === 'Partial';
     if (filter === 'high') return s !== 'Paid' && due >= 1000;
@@ -13309,7 +13489,7 @@ function renderDispatch() {
     const odMaxV = document.getElementById('dispatch-od-max')?.value;
     if (!odMinV && !odMaxV) return true;
     const od = getOdAge(b.startDate, b);
-    return od >= (odMinV ? parseInt(odMinV) : 0) && od <= (odMaxV ? parseInt(odMaxV) : Infinity);
+    return od >= (odMinV ? parseInt(odMinV) : -Infinity) && od <= (odMaxV ? parseInt(odMaxV) : Infinity);   // negative days (-1 = due tomorrow) are allowed
   })
   .filter(b => {
     const dayFilter = document.getElementById('dispatch-promise-day')?.value;
@@ -13351,6 +13531,9 @@ function renderDispatch() {
     + '<button class="wa-chip wa-chip-neutral" onclick="toggleDispatchCustomMsg()" id="dispatch-custom-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4 11-11 3 3-11 11z"/><path d="M14 6l3 3"/></svg> Custom</button>'
     + (list.some(b => _recommendDunningTier(b))
         ? '<button class="wa-chip wa-chip-orange" onclick="launchDunningQueue()" title="Auto-picks each borrower\'s tier by their OD day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg> Dunning Ladder (' + list.filter(b => _recommendDunningTier(b)).length + ')</button>'
+        : '')
+    + (list.some(b => _m0Eligible(b))
+        ? '<button class="wa-chip wa-chip-sky" onclick="launchM0Queue()" title="Picks each M0 account\'s reminder: due tomorrow, or by time of day for due today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> M0 Reminders (' + list.filter(b => _m0Eligible(b)).length + ')</button>'
         : '')
     + (list.some(b => _offerEligible(b))
         ? '<button class="wa-chip wa-chip-offer" onclick="launchOfferQueue()" title="Send each account the settlement offers that fit it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg> Offer Ladder (' + list.filter(b => _offerEligible(b)).length + ')</button>'
@@ -13426,7 +13609,7 @@ function renderDispatch() {
         + '<a href="' + waLink + '" target="_blank" class="btn btn-green btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span> WA</a>'
         + '<a href="' + smsLink + '" class="btn btn-ghost btn-sm" style="color:var(--blue);border-color:rgba(96,165,250,0.4)" onclick="markDispatchContacted(\'' + b.id + '\')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span> SMS</a>'
         + (_recommendDunningTier(b) ? '<button class="btn btn-sm" style="background:linear-gradient(135deg,' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + ',' + DUNNING_TIERS.find(t=>t.tier===_recommendDunningTier(b)).color + 'cc);color:#fff;border:none" onclick="openDunningPanel(\'' + b.id + '\')" title="Dunning Ladder: Day ' + _recommendDunningTier(b) + ' recommended"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4v-4h4v-4h4v-4h4V4"/></svg></span></button>' : '')
-        + (!b.isPaid && getRemaining(b) > 0 ? '<button class="btn btn-offer btn-sm" onclick="openOfferLadder(\'' + b.id + '\')" title="Offer ladder"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg></span></button>' : '')
+        + (!b.isPaid && getRemaining(b) > 0 && getOdAge(b.startDate, b) > 0 ? '<button class="btn btn-offer btn-sm" onclick="openOfferLadder(\'' + b.id + '\')" title="Offer ladder"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg></span></button>' : '')
         + '<button class="btn btn-ghost btn-sm" onclick="markDispatchContacted(\'' + b.id + '\')" title="Mark as contacted"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.6 2.6L16 9"/></svg></span></button>'
         + '<button class="btn btn-ghost btn-sm" onclick="copyDispatchMsg(\'' + b.id + '\')" title="Copy message"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span></button>'
         + '</div></div>';
@@ -21023,6 +21206,12 @@ function openEscalationPanel() {
     </div>
     <div style="display:grid;gap:10px;margin-bottom:16px">`;
 
+  const _m0InScope = isSingle ? 0 : _escalScopeBorrowers.filter(_m0Eligible).length;
+  if (_m0InScope > 0 && !_escalAllM0) {
+    html = '<div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.45);border-radius:var(--radius-md);padding:12px;margin-bottom:14px">'
+      + '<div style="font-size:var(--text-sm);line-height:1.5;color:var(--text2);margin-bottom:10px"><b>' + _m0InScope + '</b> of the ' + _escalScopeBorrowers.length + ' accounts here are M0 (due today or tomorrow). The overdue notices below do not fit them, so they get their own reminders.</div>'
+      + '<button class="btn btn-sm" style="width:100%;border:none;color:#04202d;font-weight:800;background:linear-gradient(135deg,#38bdf8,#22d3ee)" onclick="closeAllModals();launchM0Queue()">Send M0 reminders (' + _m0InScope + ')</button></div>' + html;
+  }
   escalationOptions.forEach(opt => {
     const isRec = opt.level === recommendedLevel;
     html += `
@@ -21094,8 +21283,8 @@ function previewEscalation(level) {
   const sampleB  = sampleId && state.borrowers.find(b => b.id === sampleId);
   const count    = window._escalSingleId ? 1 : (_currentDispatchIds ? _currentDispatchIds.length : 0);
   const previewMsg = sampleB ? buildEscalationMsg(sampleB, level) : '(No contacts selected)';
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d',32:'#6b1717',33:'#5b1414',34:'#4a1010',35:'#38bdf8'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning',32:'Legal Handover Confirmed',33:'Civil Suit Filed',34:'Default Judgment Entered',35:'M0 Due Tomorrow (Reminder)'};
 
   _pushModal();
   document.getElementById('modal-title').textContent = '' + levelLabels[level];
@@ -21114,6 +21303,7 @@ function previewEscalation(level) {
 
 function launchEscalationQueue(level) {
   closeAllModals();
+  window._escalLevelMap = null;   // a fixed level for everyone, not the per-account M0 reminders
   let borrowers;
   if (window._escalSingleId) {
     const b = state.borrowers.find(b => b.id === window._escalSingleId);
@@ -21143,15 +21333,15 @@ function escalRenderModal() {
     return;
   }
   const b     = window._escalBorrowers[idx];
-  const level = window._escalLevel;
+  const level = (window._escalLevelMap && window._escalLevelMap[b.id]) || window._escalLevel;
   const msg   = buildEscalationMsg(b, level);
   const useContactPhone = (level === 17 && !!b.guarantorPhone);
   const targetPhone = useContactPhone ? b.guarantorPhone : b.phone;
   const ph    = toWaPhone(targetPhone);
   const waLink = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg);
   const pct   = Math.round((idx / tot) * 100);
-  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d'};
-  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning'};
+  const levelColors = {1:'#10b981',2:'#3b82f6',3:'#60a5fa',4:'#a78bfa',5:'#f59e0b',6:'#3b82f6',7:'#94a3b8',8:'#f97316',9:'#ef4444',10:'#dc2626',11:'#f97316',12:'#10b981',13:'#22c55e',14:'#f0a030',15:'#f97316',16:'#f97316',17:'#8b5cf6',18:'#ef4444',19:'#dc2626',20:'#dc2626',21:'#22c55e',22:'#b91c1c',23:'#b91c1c',24:'#3b82f6',25:'#22c55e',26:'#06b6d4',27:'#f0a030',28:'#f97316',29:'#ea580c',30:'#dc2626',31:'#7f1d1d',32:'#6b1717',33:'#5b1414',34:'#4a1010',35:'#38bdf8'};
+  const levelLabels = {1:'Sympathetic (Good History)',2:'PTP Due Tomorrow',3:'Gentle Early Reminder',4:'M2 Stage Entry (Day 6)',5:'Partial Follow-Up',6:'Instalment Confirm',7:'Wrong/Unreachable Number',8:'Formal Warning',9:'Broken Promise',10:'Repeat Broken Promise',11:'Instalment Breach',12:'Settlement Offer',13:'OD Fee Waiver',14:'Day 1 OD Only Waiver',15:'Unreachable',16:'Legal & Bureau Escalation',17:'Emergency Contact',18:'Workplace Warning',19:'Credit Bureau Filed',20:'Final Demand',21:'Payment Ack',22:'Refusal to Pay',23:'Blocking Contact / Evasion',24:'M0 Morning Reminder',25:'M0 Payment Ack (Soft)',26:'M0 Easy Payment (MoMo)',27:'M0 Midday Check-In',28:'M0 Due Today (Hard)',29:'M0 Afternoon Firm Warning',30:'M0 Evening Final Notice (Hard)',31:'Ultimate Final Warning',32:'Legal Handover Confirmed',33:'Civil Suit Filed',34:'Default Judgment Entered',35:'M0 Due Tomorrow (Reminder)'};
   const col = levelColors[level] || '#dc2626';
 
   document.getElementById('modal-title').textContent = 'Escalation — ' + (idx+1) + ' of ' + tot;
@@ -21161,6 +21351,7 @@ function escalRenderModal() {
     + '<div style="padding:3px 10px;border-radius:var(--radius);background:' + col + '22;color:' + col + ';font-size:var(--text-sm);font-weight:700">Level ' + level + ' — ' + levelLabels[level] + '</div>'
     + '<div style="font-size:var(--text-sm);color:var(--text3)">' + (idx+1) + ' / ' + tot + '</div>'
     + '</div>'
+    + (window._escalLevelMap ? _escalM0Picker(b, level) : '')
     // Contact card
     + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + col + '">'
     + '<div style="font-weight:700;font-size:var(--text-lg)">' + escapeHtml(b.name) + '</div>'
@@ -21186,7 +21377,7 @@ function escalRenderModal() {
     + '<button class="btn btn-ghost btn-sm"' + (idx === 0 ? ' disabled style="opacity:0.4;cursor:not-allowed"' : '') + ' onclick="escalGoPrev()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg></span> Previous</button>'
     + '<button class="btn btn-ghost btn-sm" onclick="window._escalIdx++;escalRenderModal()">Skip <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></button>'
     + '<button class="btn btn-ghost btn-sm" onclick="copyEscalMsg()"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span> Copy</button>'
-    + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,' + col + ',' + col + 'bb);color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="setTimeout(function(){window._escalIdx++;escalRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Send & Next ▶</a>';
+    + '<a href="' + waLink + '" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,' + col + ',' + col + 'bb);color:#fff;border:none;border-radius:var(--radius-md);padding:8px 16px;font-size:var(--text-base);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="try{markDispatchContacted(\'' + b.id + '\')}catch(e){}setTimeout(function(){window._escalIdx++;escalRenderModal();},400)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 5l-6 3 3 6 3-6"/><path d="M12 5l6 3-3 6-3-6"/><line x1="6" y1="21" x2="18" y2="21"/></svg></span> Send & Next ▶</a>';
 }
 
 function escalGoPrev() {
@@ -22447,6 +22638,7 @@ function logCallOutcome(id, outcome, btn) {
   if (!b) return;
   if (!b.callLog) b.callLog = [];
   b.callLog.push({ outcome, timestamp: new Date().toLocaleString('en-GB') });
+  if (typeof _acClear === 'function') _acClear();
   haptic('medium');
   document.querySelectorAll('.call-outcome-btn').forEach(el => el.classList.remove('active'));
   btn.classList.add('active');
@@ -30219,6 +30411,7 @@ function renderSettingsPage() {
   if (sbToggle) sbToggle.checked = sbOn;
   if (sbSlider) sbSlider.style.background = sbOn ? 'var(--gold)' : 'var(--border2)';
   if (sbKnob)   sbKnob.style.transform = sbOn ? 'translateX(0)' : 'translateX(-20px)';
+  _acSettingsUi();
   // PTP history count
   const ptpCountEl = document.getElementById('settings-ptp-hist-count');
   if (ptpCountEl) ptpCountEl.textContent = (state.ptpHistory?.length || 0) + ' days recorded';
@@ -33971,6 +34164,24 @@ loadChartJS().catch(e => console.warn('Chart.js failed to load:', e));
 </div>
 
 <style id="offer-ladder-css">
+.wa-chip-sky{border:none;color:#04202d;font-weight:800;background:linear-gradient(135deg,#38bdf8 0%,#22d3ee 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 12px rgba(56,189,248,.35)}
+.wa-chip-sky:hover{filter:brightness(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 5px 18px rgba(56,189,248,.5)}
+html[data-theme="aurora"] .wa-chip-sky{border:none;color:#04202d;background:linear-gradient(135deg,#38bdf8,#22d3ee)}
+.ac-backdrop{position:fixed;inset:0;z-index:9590;background:rgba(0,0,0,.5);animation:acFade .18s ease-out}
+.ac-sheet{position:fixed;left:0;right:0;bottom:0;z-index:9600;max-width:520px;margin:0 auto;padding:8px 16px calc(16px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0;background:var(--surface);border:1px solid var(--border2);border-bottom:none;box-shadow:0 -16px 48px rgba(0,0,0,.55);animation:acUp .22s ease-out}
+.ac-grab{width:38px;height:4px;border-radius:4px;margin:2px auto 12px;background:var(--border2)}
+.ac-title{font-size:var(--text-xl);font-weight:700;line-height:1.3}
+.ac-sub{margin:4px 0 12px;font-size:var(--text-sm);color:var(--text3);line-height:1.45}
+.ac-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.ac-btn{display:flex;align-items:center;gap:9px;min-height:48px;padding:10px 12px;border-radius:14px;cursor:pointer;text-align:left;font:600 var(--text-md) var(--font-body);color:var(--text);background:var(--surface2);border:1px solid color-mix(in srgb,var(--ac,var(--border2)) 40%,var(--border2));-webkit-tap-highlight-color:transparent}
+.ac-btn i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--ac,var(--gold));box-shadow:0 0 8px var(--ac,var(--gold))}
+.ac-btn:active{transform:scale(.97)}
+.ac-next{--ac:var(--green);justify-content:center;font-weight:700}
+.ac-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.ac-link{padding:10px 4px;border:none;background:none;cursor:pointer;font:600 var(--text-sm) var(--font-body);color:var(--text3)}
+@keyframes acUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes acFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.ac-sheet,.ac-backdrop{animation:none}}
 .st-card{--stc:var(--gold);margin:0 0 12px;border-radius:16px;overflow:hidden;border:1px solid color-mix(in srgb,var(--stc) 45%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--stc) 11%,var(--surface)),var(--surface) 70%)}
 .st-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .st-kicker{font-family:var(--font-mono);font-size:var(--text-2xs);letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--stc)}
