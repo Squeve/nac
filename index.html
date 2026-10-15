@@ -6300,7 +6300,7 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <div class="settings-row-label">
           <div class="settings-row-label-main">Decoy Calculator</div>
-          <div class="settings-row-label-sub">Show a calculator before the lock screen</div>
+          <div class="settings-row-label-sub">Show a calculator before the lock screen (an admin key change always forces it once)</div>
         </div>
         <label style="position:relative;width:44px;height:26px;display:inline-block;flex-shrink:0;cursor:pointer">
           <input type="checkbox" id="decoy-toggle" checked onchange="settingsToggleDecoy(this.checked)" style="opacity:0;width:0;height:0">
@@ -12401,6 +12401,9 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-11a', date: '11 Oct 2026', title: 'Escalate text is easier to read', items: [
+    ['Readable level names', 'The dark red legal levels (L31 to L34) and other deep colours were almost invisible on dark themes. Level names now adjust to the theme so they are clear everywhere in the Escalate and Dunning panels and the sending queue.'],
+    ['Brighter descriptions', 'The description under each level is now a stronger colour.'] ] },
   { id: '2026-10-10a', date: '10 Oct 2026', title: 'M0 reminders', items: [
     ['M0 Reminders button in Dispatch', 'A new button runs through the accounts in your list that are not overdue yet and picks each one\'s message: the due-tomorrow reminder (day -1), or for due today the morning, midday, afternoon or evening notice by time of day. You can change the message for any account.'],
     ['Find them fast', 'Dispatch has new filters, Due tomorrow (M0, -1) and Due today (M0), and the OD Min and Max boxes now accept negative days.'],
@@ -19705,6 +19708,7 @@ function openUserManual() {
       <div class="um-row"><div class="um-dot"></div><div>View all registered agents across all stages — name, stage, account count, last active</div></div>
       <div class="um-row"><div class="um-dot"></div><div><strong>Reset PIN</strong> — clears an agent's PIN from Supabase. The agent is forced to set a new PIN the next time they open the app (even if currently offline — the reset syncs the moment they connect)</div></div>
       <div class="um-row"><div class="um-dot"></div><div><strong>Delete Agent</strong> — permanently removes the agent and all their data from Supabase. This cannot be undone.</div></div>
+      <div class="um-row"><div class="um-dot"></div><div><strong>Change Unlock Key</strong> — sets a new calculator code for everyone. All accounts, including ones with Decoy Calculator off, are locked behind the calculator until the new key is entered once on each device</div></div>
       <div class="um-sub">Dev override</div>
       <div class="um-row"><div class="um-dot"></div><div>The lock screen has a hidden developer override accessible via a secure code. This allows PIN reset in emergency without admin panel access. Contact the developer for the override code.</div></div>
     </div>
@@ -19853,6 +19857,13 @@ async function adminShowDashboard(db) {
       dash.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3)">No agents found</div>';
       return;
     }
+    let _gkInfo = 'Using the built-in default key';
+    try {
+      const { data: _cfgRow } = await db.from('app_state').select('data').eq('id','sqv_config').maybeSingle();
+      if (_cfgRow && _cfgRow.data && _cfgRow.data.updatedAt) {
+        _gkInfo = 'Last changed ' + new Date(_cfgRow.data.updatedAt).toLocaleString('en-GB');
+      }
+    } catch(_e) {}
     const agents = rows.map(function(r) {
       return {
         slug:      r.id.replace('agent_',''),
@@ -19877,6 +19888,11 @@ async function adminShowDashboard(db) {
     const activeToday = agents.filter(a => a.updatedAt && (Date.now() - new Date(a.updatedAt).getTime()) < 86400000).length;
 
     dash.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md)">' +
+        '<div style="min-width:0;flex:1"><div style="font-weight:700;font-size:var(--text-base)">Calculator Unlock Key</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:2px">' + escapeHtml(_gkInfo) + '</div></div>' +
+        '<button class="btn btn-gold btn-sm" onclick="adminChangeUnlockKey()">Change Key</button>' +
+      '</div>' +
       '<div class="admin-stats-grid">' +
         '<div class="admin-stat"><div class="admin-stat-label">Agents</div><div class="admin-stat-val">'+agents.length+'</div></div>' +
         '<div class="admin-stat"><div class="admin-stat-label">Active Today</div><div class="admin-stat-val" style="color:var(--green)">'+activeToday+'</div></div>' +
@@ -20079,6 +20095,62 @@ function adminChangePw() {
     '<button class="btn btn-ghost" onclick="adminShowDashboard(initSupabase())">Cancel</button>' +
     '<button class="btn btn-gold" id="admin-newpw-submit" onclick="_adminSubmitChangePw()">Update Password</button>';
   setTimeout(() => document.getElementById('admin-newpw-input')?.focus(), 250);
+}
+
+function adminChangeUnlockKey() {
+  _pushModal(); // so Cancel returns to the agent dashboard
+  document.getElementById('modal-title').textContent = 'Change Unlock Key';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:14px;line-height:1.5">
+      Sets the code agents type on the calculator, then press <strong>=</strong>.
+      <strong style="color:var(--red)">The moment you save, every account on every device is locked behind the calculator — including accounts with Decoy Calculator switched off — until the new key is entered.</strong>
+      Tell your agents the new key first.
+    </div>
+    <div class="form-group">
+      <label>New Unlock Key</label>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="9" id="admin-ukey-input" class="form-input" placeholder="4–9 digits" autocomplete="off" style="font-size:var(--text-xl);letter-spacing:3px;text-align:center" onkeydown="if(event.key==='Enter')document.getElementById('admin-ukey2-input').focus()">
+    </div>
+    <div class="form-group">
+      <label>Confirm Key</label>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="9" id="admin-ukey2-input" class="form-input" placeholder="Re-enter key" autocomplete="off" style="font-size:var(--text-xl);letter-spacing:3px;text-align:center" onkeydown="if(event.key==='Enter')_adminSubmitUnlockKey()">
+    </div>
+    <div id="admin-ukey-error" style="color:var(--red);font-size:var(--text-base);min-height:18px;text-align:center"></div>`;
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="adminShowDashboard(initSupabase())">Cancel</button>' +
+    '<button class="btn btn-gold" id="admin-ukey-submit" onclick="_adminSubmitUnlockKey()">Save &amp; Lock All</button>';
+  setTimeout(() => document.getElementById('admin-ukey-input')?.focus(), 250);
+}
+
+async function _adminSubmitUnlockKey() {
+  const k1 = (document.getElementById('admin-ukey-input')?.value || '').trim();
+  const k2 = (document.getElementById('admin-ukey2-input')?.value || '').trim();
+  const errEl = document.getElementById('admin-ukey-error');
+  if (!/^\d{4,9}$/.test(k1)) { if (errEl) errEl.textContent = 'Key must be 4–9 digits (numbers only)'; return; }
+  if (k1 !== k2) { if (errEl) errEl.textContent = 'Keys do not match'; return; }
+  const db = initSupabase();
+  if (!db) { if (errEl) errEl.textContent = 'No connection'; return; }
+  const btn = document.getElementById('admin-ukey-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const hash = await window._gkHash(k1);
+    const ver  = Date.now();
+    const nowIso = new Date().toISOString();
+    const { error } = await db.from('app_state').upsert({
+      id: 'sqv_config',
+      data: { unlockHash: hash, keyVersion: ver, updatedAt: nowIso },
+      updated_at: nowIso
+    });
+    if (error) throw error;
+    // The admin's own device already knows the key — don't lock them out
+    localStorage.setItem('sq_gk_cfg', JSON.stringify({ h: hash, v: ver }));
+    localStorage.setItem('sq_gk_ok', String(ver));
+    toast('Unlock key changed — all accounts are now locked behind it', 'success');
+    haptic('success');
+    adminShowDashboard(db);
+  } catch(e) {
+    if (errEl) errEl.textContent = 'Error: ' + (e.message || e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Save & Lock All'; }
+  }
 }
 
 async function _adminSubmitChangePw() {
@@ -21105,6 +21177,30 @@ function _recommendEscalLevel(b) {
   return 20;
 }
 
+// The legal part of the escalation ladder uses deep reds (#4a1010 and friends). As text on a dark theme they all but
+// vanish. This returns a version of a colour that reads on the current theme (lighter on dark, darker on light);
+// the original colour stays for borders and fills.
+var _inkCache = {};
+function _escalInk(hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return hex;
+  var rgb = [10, 14, 26], layers = [];
+  for (var e = document.getElementById('modal-body') || document.body; e; e = e.parentElement) {
+    var mm = (getComputedStyle(e).backgroundColor.match(/[\d.]+/g) || []).map(Number);
+    if (mm.length >= 3 && (mm.length < 4 || mm[3] > 0)) { layers.push(mm); if (mm.length < 4 || mm[3] >= 0.99) break; }
+  }
+  for (var li = layers.length - 1; li >= 0; li--) { var al = layers[li].length > 3 ? layers[li][3] : 1; rgb = [0, 1, 2].map(function (k) { return layers[li][k] * al + rgb[k] * (1 - al); }); }
+  var dark = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) < 140, key = hex + dark;
+  if (_inkCache[key]) return _inkCache[key];
+  var lum = function (r, g, b) { return [r, g, b].map(function (c, i) { c /= 255; c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); return c * [0.2126, 0.7152, 0.0722][i]; }).reduce(function (a, c) { return a + c; }, 0); };
+  var n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255, tgt = dark ? 255 : 0, out = hex;
+  for (var t = 0; t <= 1.0001; t += 0.05) {
+    var rr = Math.round(r + (tgt - r) * t), gg = Math.round(g + (tgt - g) * t), bb = Math.round(b + (tgt - b) * t);
+    out = '#' + [rr, gg, bb].map(function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+    var L = lum(rr, gg, bb); if (dark ? L >= 0.3 : L <= 0.12) break;
+  }
+  return (_inkCache[key] = out);
+}
+
 function openEscalationPanel() {
   const isSingle = !!window._escalSingleId;
   const singleB  = isSingle ? state.borrowers.find(b => b.id === window._escalSingleId) : null;
@@ -21214,19 +21310,20 @@ function openEscalationPanel() {
   }
   escalationOptions.forEach(opt => {
     const isRec = opt.level === recommendedLevel;
+    const ink = _escalInk(opt.color);
     html += `
-      <div style="background:var(--surface2);border:2px solid ${isRec ? opt.color : opt.color+'22'};border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;${isRec ? 'box-shadow:0 0 0 3px '+opt.color+'22' : ''}"
+      <div style="background:var(--surface2);border:2px solid ${isRec ? ink : ink+'44'};border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;${isRec ? 'box-shadow:0 0 0 3px '+opt.color+'22' : ''}"
         onclick="previewEscalation(${opt.level})"
-        onmouseover="this.style.borderColor='${opt.color}88'"
-        onmouseout="this.style.borderColor='${isRec ? opt.color : opt.color+'22'}'">
+        onmouseover="this.style.borderColor='${ink}99'"
+        onmouseout="this.style.borderColor='${isRec ? ink : ink+'44'}'">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">
-          <span style="font-weight:800;font-size:var(--text-md);color:${opt.color}">${opt.label}</span>
+          <span style="font-weight:800;font-size:var(--text-md);color:${ink}">${opt.label}</span>
           <span style="display:flex;align-items:center;gap:6px">
             ${isRec ? `<span style="font-size:var(--text-2xs);background:${opt.color};color:#fff;padding:2px 7px;border-radius:var(--radius);font-weight:800;letter-spacing:0.3px">RECOMMENDED</span>` : ''}
-            <span style="font-size:var(--text-sm);color:var(--text3);background:var(--surface);padding:2px 8px;border-radius:var(--radius)">Preview <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+            <span style="font-size:var(--text-sm);color:var(--text2);background:var(--surface);padding:2px 8px;border-radius:var(--radius)">Preview <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></span></span>
           </span>
         </div>
-        <div style="font-size:var(--text-sm);color:var(--text3)">${opt.desc}</div>
+        <div style="font-size:var(--text-sm);line-height:1.5;color:var(--text2)">${opt.desc}</div>
       </div>`;
   });
 
@@ -21234,15 +21331,15 @@ function openEscalationPanel() {
     <div style="background:rgba(240,160,48,0.08);border:1px solid rgba(240,160,48,0.2);border-radius:var(--radius-md);padding:10px 12px">
       <div style="font-size:var(--text-sm);font-weight:700;color:var(--gold);margin-bottom:8px"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 000-3l1-1.7-2-2-1.7 1a1.7 1.7 0 00-3 0l-.3-2h-2.8l-.3 2a1.7 1.7 0 00-3 0l-1.7-1-2 2 1 1.7a1.7 1.7 0 000 3l-1 1.7 2 2 1.7-1a1.7 1.7 0 003 0l.3 2h2.8l.3-2a1.7 1.7 0 003 0l1.7 1 2-2z"/></svg></span> Escalation Settings</div>
       <div style="margin-bottom:8px">
-        <label style="font-size:var(--text-sm);color:var(--text3);display:block;margin-bottom:4px">Deadline time:</label>
+        <label style="font-size:var(--text-sm);color:var(--text2);display:block;margin-bottom:4px">Deadline time:</label>
         <input id="escal-deadline" type="text" value="${_escalDeadline()}" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
       </div>
       <div style="margin-bottom:8px">
-        <label style="font-size:var(--text-sm);color:var(--text3);display:block;margin-bottom:4px">Payment dial:</label>
+        <label style="font-size:var(--text-sm);color:var(--text2);display:block;margin-bottom:4px">Payment dial:</label>
         <input id="escal-paynum" type="tel" value="${_escalPhone()}" inputmode="tel" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
       </div>
       <div>
-        <label style="font-size:var(--text-sm);color:var(--text3);display:block;margin-bottom:4px">Agent phone (recovery correspondence):</label>
+        <label style="font-size:var(--text-sm);color:var(--text2);display:block;margin-bottom:4px">Agent phone (recovery correspondence):</label>
         <input id="escal-agent-phone" type="tel" value="${_escalAgentPhone()}" inputmode="tel" autocomplete="tel" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:5px 8px;font-size:var(--text-base)">
       </div>
     </div>`;
@@ -21348,16 +21445,16 @@ function escalRenderModal() {
   document.getElementById('modal-body').innerHTML =
     // Level + progress header
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    + '<div style="padding:3px 10px;border-radius:var(--radius);background:' + col + '22;color:' + col + ';font-size:var(--text-sm);font-weight:700">Level ' + level + ' — ' + levelLabels[level] + '</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3)">' + (idx+1) + ' / ' + tot + '</div>'
+    + '<div style="padding:3px 10px;border-radius:var(--radius);background:' + col + '33;color:' + _escalInk(col) + ';font-size:var(--text-sm);font-weight:700">Level ' + level + ' — ' + levelLabels[level] + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2)">' + (idx+1) + ' / ' + tot + '</div>'
     + '</div>'
     + (window._escalLevelMap ? _escalM0Picker(b, level) : '')
     // Contact card
     + '<div style="background:var(--surface2);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + col + '">'
-    + '<div style="font-weight:700;font-size:var(--text-lg)">' + escapeHtml(b.name) + '</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-top:2px">'
+    + '<div style="font-weight:700;font-size:var(--text-lg);color:var(--text)">' + escapeHtml(b.name) + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2);margin-top:2px">'
     + (useContactPhone
-        ? ('Sending to emergency contact: <strong style="color:' + col + '">' + escapeHtml(b.guarantorName || 'Unnamed contact') + '</strong> · ' + b.guarantorPhone)
+        ? ('Sending to emergency contact: <strong style="color:' + _escalInk(col) + '">' + escapeHtml(b.guarantorName || 'Unnamed contact') + '</strong> · ' + b.guarantorPhone)
         : (b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b))))
     + '</div>'
     + (level === 17 && !useContactPhone
@@ -21370,7 +21467,7 @@ function escalRenderModal() {
     + '<div style="margin-top:10px;background:var(--surface2);border-radius:4px;height:4px;overflow:hidden">'
     + '<div style="height:100%;background:' + col + ';width:' + pct + '%;transition:width 0.3s"></div>'
     + '</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:4px;text-align:center">' + idx + ' of ' + tot + ' sent</div>';
+    + '<div style="font-size:var(--text-xs);color:var(--text2);margin-top:4px;text-align:center">' + idx + ' of ' + tot + ' sent</div>';
 
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal()">Stop</button>'
@@ -21621,12 +21718,12 @@ function openDunningPanel(borrowerId) {
 
   DUNNING_TIERS.forEach(function(t) {
     const isRec = t.tier === recTier;
-    html += '<div style="background:var(--surface2);border:2px solid ' + (isRec ? t.color : t.color + '22') + ';border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;' + (isRec ? 'box-shadow:0 0 0 3px ' + t.color + '22' : '') + '"'
+    html += '<div style="background:var(--surface2);border:2px solid ' + (isRec ? _escalInk(t.color) : _escalInk(t.color) + '44') + ';border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color 0.15s;' + (isRec ? 'box-shadow:0 0 0 3px ' + t.color + '22' : '') + '"'
       + ' onclick="previewDunning(' + t.tier + ')"'
-      + ' onmouseover="this.style.borderColor=\'' + t.color + '88\'"'
-      + ' onmouseout="this.style.borderColor=\'' + (isRec ? t.color : t.color + '22') + '\'">'
+      + ' onmouseover="this.style.borderColor=\'' + _escalInk(t.color) + '99\'"'
+      + ' onmouseout="this.style.borderColor=\'' + (isRec ? _escalInk(t.color) : _escalInk(t.color) + '44') + '\'">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-      + '<span style="font-weight:800;font-size:var(--text-md);color:' + t.color + '">Day ' + t.tier + ': ' + t.title + '</span>'
+      + '<span style="font-weight:800;font-size:var(--text-md);color:' + _escalInk(t.color) + '">Day ' + t.tier + ': ' + t.title + '</span>'
       + (isRec ? '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 7px;border-radius:var(--radius);font-weight:800;letter-spacing:0.3px">RECOMMENDED</span>' : '')
       + '</div>'
       + '</div>';
@@ -21725,10 +21822,10 @@ function dunningQueueRenderModal() {
     + '<strong style="font-size:var(--text-lg)">' + escapeHtml(b.name) + '</strong>'
     + '<span style="font-size:var(--text-2xs);background:' + t.color + ';color:#fff;padding:2px 8px;border-radius:var(--radius);font-weight:800">DAY ' + tier + ': ' + t.title + '</span>'
     + '</div>'
-    + '<div style="font-size:var(--text-sm);color:var(--text3);margin-bottom:10px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">' + b.phone + ' · Day ' + getOdAge(b.startDate, b) + ' · ' + fmtC(getDueToday(b)) + '</div>'
     + '<div style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.8;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;max-height:260px;overflow-y:auto;font-family:var(--font-body)">'
     + escapeHtml(msg) + '</div>'
-    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:6px;text-align:center">' + idx + ' of ' + tot + ' sent</div>';
+    + '<div style="font-size:var(--text-xs);color:var(--text2);margin-top:6px;text-align:center">' + idx + ' of ' + tot + ' sent</div>';
 
   document.getElementById('modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="window._dunningQueue=null;closeModal()">Stop</button>'
@@ -34384,12 +34481,67 @@ const DECOY_SECRET = '1047';
 
   // ── show / hide ───────────────────────────────────
 
+  // ── Admin-controlled global unlock key ────────────────────────
+  // The admin panel stores a salted SHA-256 of the key + a version number in
+  // Supabase (app_state id 'sqv_config'). Every device caches it. A device is
+  // "gated" until it has entered the CURRENT key (version) once. While gated,
+  // the calculator is forced on for every account — the per-device
+  // "Decoy Calculator" switch and the per-session unlock flag are ignored.
+  function gkCfg() {
+    try {
+      var c = JSON.parse(localStorage.getItem('sq_gk_cfg') || 'null');
+      return (c && c.h && c.v) ? c : null;
+    } catch (e) { return null; }
+  }
+  function gkRequired() {
+    var c = gkCfg();
+    return !!c && localStorage.getItem('sq_gk_ok') !== String(c.v);
+  }
+  async function gkHash(key) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('sqv-unlock-v1:' + key));
+    return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  window._gkHash = gkHash; // used by the admin panel
+
+  // Lock this device right now if it hasn't entered the current key.
+  function gkEnforce() {
+    if (!dc || !gkRequired()) return;
+    sessionStorage.removeItem('sq_dcoy_ok');
+    if (dc.classList.contains('dc-visible') && !dc.classList.contains('dc-hiding')) return; // already showing — don't wipe what they're typing
+    window.showDecoyCalc();
+  }
+
+  // Pull the latest key/version from Supabase (falls back to the cached copy offline).
+  async function gkSync() {
+    try {
+      var db = (typeof initSupabase === 'function') ? initSupabase() : null;
+      if (!db) return;
+      var r = await Promise.race([
+        db.from('app_state').select('data').eq('id', 'sqv_config').maybeSingle(),
+        new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 6000); })
+      ]);
+      if (!r || r.error) return;
+      var d = r.data && r.data.data;
+      if (d && d.unlockHash && d.keyVersion) {
+        localStorage.setItem('sq_gk_cfg', JSON.stringify({ h: d.unlockHash, v: d.keyVersion }));
+      }
+      gkEnforce();
+    } catch (e) { /* offline — keep using cached config */ }
+  }
+  window._gkSync = gkSync;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gkSync);
+  else gkSync();
+  setInterval(gkSync, 60000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) gkSync(); });
+  window.addEventListener('online', gkSync);
+
   window.showDecoyCalc = function () {
     if (!dc) return;
-    // Agent has switched the decoy off in Settings (default: on)
-    if (localStorage.getItem('sq_decoy') === 'off') return;
-    // Only show if not already unlocked this session
-    if (sessionStorage.getItem('sq_dcoy_ok') === '1') return;
+    var forced = gkRequired();   // admin changed the key and this device hasn't entered it yet
+    // Agent has switched the decoy off in Settings (default: on) — ignored while forced
+    if (!forced && localStorage.getItem('sq_decoy') === 'off') return;
+    // Only show if not already unlocked this session — ignored while forced
+    if (!forced && sessionStorage.getItem('sq_dcoy_ok') === '1') return;
     calcReset();
     dc.classList.remove('dc-hiding');
     dc.style.opacity = '';
@@ -34398,6 +34550,8 @@ const DECOY_SECRET = '1047';
 
   function hideDecoy() {
     sessionStorage.setItem('sq_dcoy_ok', '1');
+    var _c = gkCfg();
+    if (_c) localStorage.setItem('sq_gk_ok', String(_c.v)); // this device now holds the current key
     dc.classList.add('dc-hiding');
     setTimeout(function () {
       dc.classList.remove('dc-visible', 'dc-hiding');
@@ -34457,7 +34611,18 @@ const DECOY_SECRET = '1047';
     // ─ equals ─
     if (btn === '=') {
       opHL(null);
-      if (iBuf === DECOY_SECRET) { haptic('unlock'); hideDecoy(); return; }
+      if (iBuf) {
+        if (!gkCfg()) {
+          // No admin key set yet — built-in default
+          if (iBuf === DECOY_SECRET) { haptic('unlock'); hideDecoy(); return; }
+        } else {
+          // Admin-managed key: compare hashes (async), keep behaving like a normal calculator meanwhile
+          gkHash(iBuf).then(function (h) {
+            var c = gkCfg();
+            if (c && h === c.h) { haptic('unlock'); hideDecoy(); }
+          }).catch(function () {});
+        }
+      }
       if (cOp && cPrev !== null) {
         cLastOp = cOp; cLastOperand = parseFloat(cVal);
         var res = doMath(cPrev, parseFloat(cVal), cOp);
