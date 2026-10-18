@@ -38,13 +38,13 @@
 <link rel="icon" type="image/png" href="./icon-192.png">
 <script>
 /* ── SqueveTrack version ───────────────────────────────────────────────
-   BASE  : bump by hand for a feature release (2.3 -> 2.4 -> 3.0).
+   BASE  : bump by hand for a feature release (2.4 -> 2.5 -> 3.0).
    BUILD : stamped automatically on every deployment by the CI workflow
            (.github/workflows/deploy.yml). It replaces the two __SQ_...__
-           tokens below, so each deploy ships a higher version: v2.3.<n>.
+           tokens below, so each deploy ships a higher version: v2.4.<n>.
    Opened locally / never stamped -> shows "dev". Do not edit the tokens. */
 window.SQ_VERSION = (function () {
-  var base = '2.3', build = '__SQ_BUILD__', date = '__SQ_BUILD_DATE__';
+  var base = '2.4', build = '__SQ_BUILD__', date = '__SQ_BUILD_DATE__';
   var stamped = /^\d+$/.test(build);
   return {
     base: base,
@@ -5447,6 +5447,24 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <option value="week">Promised This Week</option>
           <option value="overdue">Promise Overdue</option>
         </select>
+        <select class="bl-chip-sel" id="dispatch-call-outcome" onchange="renderDispatch()" title="Filter by what happened on the last call">
+          <option value="">Any Call Outcome</option>
+          <option value="Busy">Busy</option>
+          <option value="No Answer">No answer</option>
+          <option value="Phone Off">Phone off</option>
+          <option value="Requested Callback">Asked to call back</option>
+          <option value="No Commitment">No commitment</option>
+          <option value="Answered">Answered</option>
+          <option value="Refused">Refused</option>
+          <option value="Redirected">Someone else answered</option>
+          <option value="Wrong Number">Wrong number</option>
+          <option value="__none">No call logged</option>
+        </select>
+        <select class="bl-chip-sel" id="dispatch-call-scope" onchange="renderDispatch()" title="Which calls count">
+          <option value="today">Called today</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="any">Any time</option>
+        </select>
         <button class="btn btn-ghost btn-xs" onclick="clearDispatchFilters()" style="margin-left:auto">Clear all</button>
       </div>
       <!-- Discount -->
@@ -6021,6 +6039,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
           <span id="callprompt-knob" style="position:absolute;right:3px;top:4px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform 0.2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
         </label>
       </div>
+      <button class="settings-row" onclick="openOutcomeWording(false)">
+        <div class="settings-row-icon" style="background:rgba(217,70,239,0.12);color:#d946ef">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 4h12a1 1 0 011 1v7a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Outcome Messages</div>
+          <div class="settings-row-label-sub">Edit the wording sent for busy, no answer, phone off and more</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
       <button class="settings-row" onclick="openAlertSettings()">
         <div class="settings-row-icon" style="background:rgba(240,160,48,0.12);color:var(--gold)">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M5 8a5 5 0 0110 0c0 4 1.5 5 1.5 5h-13S5 12 5 8z"/><path d="M8.5 16a1.7 1.7 0 003 0"/></svg>
@@ -6439,6 +6467,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">Recover All Borrowers</div>
           <div class="settings-row-label-sub">Everyone who ever passed through the app, as a formatted Excel file</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
+      <button class="settings-row" onclick="openCleanNames()">
+        <div class="settings-row-icon" style="background:rgba(56,189,248,0.12);color:#38bdf8">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M4 6h12M4 10h8M4 14h5"/><path d="M13 13l2 2 3-4"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Clean Names</div>
+          <div class="settings-row-label-sub">Remove repeated words, like Micheal Micheal Antwi</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -9282,13 +9320,70 @@ function getOdAge(startDate, borrower) {
   return result;
 }
 
+// ── NAME CLEAN-UP ────────────────────────────────────────────────────────────────────────────────
+// A word that already appeared earlier in the same name is dropped ("Micheal Micheal Antwi" becomes "Micheal Antwi").
+// Single-letter initials are left alone, so "A. K. Mensah" is safe. The first spelling and its capitals are the ones kept.
+function dedupeNameWords(str) {
+  var seen = {}, out = [];
+  String(str == null ? '' : str).split(/\s+/).forEach(function (w) {
+    if (!w) return;
+    var key = w.toLowerCase().replace(/[.,]/g, '');
+    if (key.length <= 1) { out.push(w); return; }
+    if (seen[key]) return;
+    seen[key] = 1; out.push(w);
+  });
+  return out.join(' ');
+}
+// Names already saved: remove repeats and stray spaces only. Capitals are left exactly as they are, so a corrected "McDonald" stays.
+function _cnFix(n) { return dedupeNameWords(String(n == null ? '' : n).trim()); }
+function _cnFind() {
+  var out = [];
+  var scan = function (list, where) {
+    (list || []).forEach(function (b) {
+      if (!b) return;
+      if (b.name && _cnFix(b.name) !== b.name) out.push({ b: b, field: 'name', from: b.name, to: _cnFix(b.name), where: where });
+      if (b.guarantorName && _cnFix(b.guarantorName) !== b.guarantorName) out.push({ b: b, field: 'guarantorName', from: b.guarantorName, to: _cnFix(b.guarantorName), where: where });
+    });
+  };
+  scan(state.borrowers, 'live'); scan(state.archivedBorrowers, 'archived');
+  return out;
+}
+function openCleanNames() {
+  var ch = _cnFind();
+  window._cnChanges = ch;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-title').textContent = 'Clean names';
+  if (!ch.length) {
+    document.getElementById('modal-body').innerHTML = '<div style="font-size:var(--text-sm);color:var(--text2)">All names are clean. No name has a repeated word.</div>';
+    document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+    return;
+  }
+  var rows = ch.map(function (c) {
+    return '<div style="padding:9px 0;border-bottom:1px solid var(--border)"><div style="font-size:var(--text-xs);color:var(--text3);text-decoration:line-through">' + escapeHtml(c.from) + '</div>'
+      + '<div style="font-size:var(--text-md);font-weight:700;color:var(--text)">' + escapeHtml(c.to) + '</div>'
+      + (c.field === 'guarantorName' || c.where === 'archived' ? '<div style="font-size:var(--text-2xs);color:var(--text3);margin-top:2px">' + (c.field === 'guarantorName' ? 'guarantor name' : '') + (c.field === 'guarantorName' && c.where === 'archived' ? ' \u00b7 ' : '') + (c.where === 'archived' ? 'archived account' : '') + '</div>' : '') + '</div>';
+  }).join('');
+  document.getElementById('modal-body').innerHTML = '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:8px">' + ch.length + ' name' + (ch.length > 1 ? 's have' : ' has') + ' a repeated word. Only the repeat is removed. You can undo it in Settings \u2192 Archives & History.</div>' + rows;
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-gold" onclick="applyCleanNames()">Fix ' + ch.length + '</button>';
+}
+function applyCleanNames() {
+  var ch = window._cnChanges || [];
+  if (!ch.length) { closeModal(); return; }
+  pushUndo('Clean names (' + ch.length + ')', { borrowers: state.borrowers, dailyLog: state.dailyLog });
+  ch.forEach(function (c) { c.b[c.field] = c.to; });
+  window._cnChanges = [];
+  saveState(); closeModal();
+  try { renderCurrentPage(); } catch (e) { _sw(e, 'cleanNames'); }
+  toast(ch.length + ' name' + (ch.length > 1 ? 's' : '') + ' fixed. Undo is in Settings \u2192 Archives & History.', 'success'); haptic('pay');
+}
+
 // Normalize phone numbers for storage (store as +233XXXXXXXXX)
 // Capitalise the first letter of every word in a name, however it was typed
 // (all caps, all lowercase, mixed case) — keeps particles like "Mc" intact
 // where possible and handles hyphenated / apostrophe'd names.
 function toTitleCaseName(str) {
   if (!str) return '';
-  return str.trim().replace(/\s+/g, ' ').split(' ').map(word => {
+  const cased = str.trim().replace(/\s+/g, ' ').split(' ').map(word => {
     if (!word) return word;
     return word.split('-').map(part => {
       if (!part) return part;
@@ -9298,6 +9393,7 @@ function toTitleCaseName(str) {
       }).join('\'');
     }).join('-');
   }).join(' ');
+  return dedupeNameWords(cased);   // "Micheal Micheal Antwi" -> "Micheal Antwi", at every place a name is typed or imported
 }
 
 function normalizePhone(phone) {
@@ -12297,6 +12393,331 @@ function _escalSetLevel(v) {
   if (b && window._escalLevelMap) { window._escalLevelMap[b.id] = parseInt(v, 10); escalRenderModal(); }
 }
 
+// ── CALL-OUTCOME MESSAGES (Dispatch) ─────────────────────────────────────────────────────────────
+// Filter the Dispatch list by what happened on the last call (Busy, No answer, Phone off ...) and send each group a message
+// written for that outcome, through a tick-and-send queue. Accounts that should not get a message are left out and counted.
+var CO_DEFS = [
+  { k: 'Busy', label: 'Busy', color: '#f59e0b' },
+  { k: 'No Answer', label: 'No answer', color: '#f97316' },
+  { k: 'Phone Off', label: 'Phone off', color: '#ef8a3c' },
+  { k: 'Requested Callback', label: 'Asked to call back', color: '#60a5fa' },
+  { k: 'No Commitment', label: 'No commitment', color: '#a78bfa' },
+  { k: 'Answered', label: 'Answered', color: '#22c55e' },
+  { k: 'Refused', label: 'Refused', color: '#ef4444' },
+  { k: 'Redirected', label: 'Someone else answered', color: '#38bdf8' }
+];
+var CO_MSG_OK = { 'Busy': 1, 'No Answer': 1, 'Phone Off': 1, 'Requested Callback': 1, 'No Commitment': 1, 'Answered': 1, 'Refused': 1, 'Redirected': 1 };
+window._coq = window._coq || { active: false };
+function _coDef(k) { for (var i = 0; i < CO_DEFS.length; i++) if (CO_DEFS[i].k === k) return CO_DEFS[i]; return { k: k, label: k, color: '#94a3b8' }; }
+function _coScope() { var el = document.getElementById('dispatch-call-scope'); return (el && el.value) || 'today'; }
+// The most recent call on the account (calls only, not WhatsApp/SMS entries). t is null when the time cannot be read.
+function _coLastCall(b) {
+  var calls = ((b && b.callLog) || []).filter(function (c) { return c && ST_CALL_OUTCOMES.indexOf(c.outcome) >= 0; });
+  if (!calls.length) return null;
+  var best = null, bt = null;
+  calls.forEach(function (c) { var t = _stParseTs(c.timestamp); if (t && (!bt || t >= bt)) { bt = t; best = c; } });
+  return best ? { c: best, t: bt } : { c: calls[calls.length - 1], t: null };
+}
+function _coInScope(t, scope) {
+  if (scope === 'any') return true;
+  if (!t) return false;
+  var now = new Date();
+  if (scope === '24h') return now - t <= 86400000;
+  return t.toDateString() === now.toDateString();
+}
+function _coMatch(b, outcome, scope) {
+  var L = _coLastCall(b);
+  if (outcome === '__none') return !L || !_coInScope(L.t, scope);
+  return !!L && L.c.outcome === outcome && _coInScope(L.t, scope);
+}
+function _coLivePromise(b) {
+  if (!b.promisedToPay || !b.promiseDate) return false;
+  var d = new Date(String(b.promiseDate).slice(0, 10) + 'T00:00:00');
+  if (isNaN(d.getTime())) return false;
+  var n = new Date();
+  return d >= new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+// Why an account is left out of the queue ('' = it gets a message)
+function _coSkipReason(b, L) {
+  if (!b || b.isPaid || getStatus(b) === 'Paid' || getRemaining(b) <= 0) return 'paid';
+  if (!b.phone) return 'nophone';
+  if (!L || !CO_MSG_OK[L.c.outcome]) return 'nomsg';
+  if (b.settlementPlan && b.settlementPlan.status === 'active') return 'plan';
+  if (_coLivePromise(b)) return 'promise';
+  if (b.coMsgFor && b.coMsgFor === (L.c.timestamp || '')) return 'sent';
+  if (L.t) {
+    var later = (b.callLog || []).some(function (c) { if (!c || c.outcome !== 'WA/SMS') return false; var t = _stParseTs(c.timestamp); return !!t && t > L.t; });
+    if (later) return 'messaged';
+  }
+  return '';
+}
+var CO_LEFT_TEXT = { paid: 'paid', plan: 'on a payment plan', promise: 'have a promise coming up', sent: 'already messaged for this call', messaged: 'already messaged since the call', nophone: 'no phone number' };
+function _coPool() {
+  return (_currentDispatchIds || []).map(function (id) { return state.borrowers.find(function (x) { return x.id === id; }); }).filter(Boolean);
+}
+function _coCounts(scope) {
+  var by = {}, total = 0;
+  _coPool().forEach(function (b) {
+    var L = _coLastCall(b);
+    if (!L || !CO_MSG_OK[L.c.outcome] || !_coInScope(L.t, scope)) return;
+    if (_coSkipReason(b, L)) return;
+    by[L.c.outcome] = (by[L.c.outcome] || 0) + 1; total++;
+  });
+  return { by: by, total: total };
+}
+function _coBuild(outcome, scope) {
+  var ok = [], left = {};
+  _coPool().forEach(function (b) {
+    var L = _coLastCall(b);
+    if (!L || L.c.outcome !== outcome || !_coInScope(L.t, scope)) return;
+    var r = _coSkipReason(b, L);
+    if (r) left[r] = (left[r] || 0) + 1; else ok.push(b);
+  });
+  ok.sort(function (a, c) { return (getOdAge(c.startDate, c) - getOdAge(a.startDate, a)) || (getRemaining(c) - getRemaining(a)); });
+  return { ok: ok, left: left };
+}
+// Small tag for each Dispatch row: the last call and when it was
+function _coRowChip(b) {
+  var L = _coLastCall(b); if (!L) return '';
+  var when = '';
+  if (L.t) { var td = L.t.toDateString() === new Date().toDateString(); when = td ? L.t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : String(L.t.getDate()).padStart(2, '0') + '/' + String(L.t.getMonth() + 1).padStart(2, '0'); }
+  var d = _coDef(L.c.outcome), sent = b.coMsgFor && b.coMsgFor === (L.c.timestamp || '');
+  return ' &nbsp;·&nbsp; <span style="font-size:var(--text-xs);font-weight:700;color:' + d.color + '">' + escapeHtml(d.label) + (when ? ' ' + when : '') + (sent ? ' \u2713 messaged' : '') + '</span>';
+}
+function _coChipHtml() {
+  var n = _coCounts(_coScope()).total;
+  if (!n) return '';
+  return '<button class="wa-chip wa-chip-outcome" onclick="launchOutcomeQueue()" title="Send each group the message that fits its call outcome (busy, no answer, phone off ...)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2 2A16 16 0 014.5 5a2 2 0 012-2z"/></svg> Outcome (' + n + ')</button>';
+}
+// Message wording. Each outcome has a default template; your edits are saved per outcome on this phone (sq_co_tpl_<outcome>).
+// Placeholders: {salute} {first} {loan} {amount} {days} {due} {pay} {deadline} {callme} {firmnote}
+var CO_TOKENS = [
+  ['{salute}', 'Mr./Ms. Surname'], ['{first}', 'First name'], ['{loan}', 'LoanBase / Pro'], ['{amount}', 'Amount due'], ['{days}', 'Days overdue'],
+  ['{due}', 'Full amount phrase'], ['{pay}', 'How to pay'], ['{deadline}', 'Deadline time'], ['{callme}', 'Your phone line'], ['{firmnote}', 'Firm line, Day 6+']
+];
+var CO_SIGN = '\n\n*LoanBase Recovery Team*';
+var CO_TPL = {
+  'Busy': '*Sorry I Missed You*\n\n{salute},\n\nI called about {due} and you were busy. No problem. Please reply with a time today that suits you and I will call you back.\n\nIf you would rather pay straight away: {pay}' + CO_SIGN,
+  'No Answer': '*Trying To Reach You*\n\n{salute},\n\nI tried calling you about {due} but could not get through. Please call me back or reply here by {deadline} so we can sort this out.{callme}\n\nTo pay now: {pay}\n\n{firmnote}' + CO_SIGN,
+  'Phone Off': '*Your Phone Was Off*\n\n{salute},\n\nI tried your number about {due} and it was switched off. Please switch it on and reply here, or call me, so we can talk.{callme}\n\nTo pay now: {pay}' + CO_SIGN,
+  'Requested Callback': '*Following Up On Your Call*\n\n{salute},\n\nThank you for speaking with me. As you asked, I will call you back. Please reply with the best time so I do not miss you.\n\nFor reference, {due}. To pay now: {pay}' + CO_SIGN,
+  'No Commitment': '*Thank You For Speaking With Me*\n\n{salute},\n\nThank you for speaking with me about {due}. To update your account, please reply with the amount you will pay and the date you will pay it.\n\nTo pay now: {pay}\n\n{firmnote}' + CO_SIGN,
+  'Answered': '*Thank You For Speaking With Me*\n\n{salute},\n\nThank you for speaking with me about {due}. To update your account, please reply with the amount you will pay and the date you will pay it.\n\nTo pay now: {pay}\n\n{firmnote}' + CO_SIGN,
+  'Refused': '*Your Account Needs Attention*\n\n{salute},\n\nI spoke with you about {due} and you were not able to commit to payment. Please contact me today so we can agree a way to clear it before it goes further.{callme}\n\nTo pay: {pay}' + CO_SIGN,
+  // Someone else answered, so this one leaves out the amount on purpose.
+  'Redirected': '*Please Call Me Back*\n\nHello {first},\n\nI called your line earlier and someone else answered. Please reply here or call me back when you can about your {loan} account.{callme}' + CO_SIGN
+};
+var CO_FIRM = {
+  'No Answer': 'We would much rather settle this with you directly. If we do not hear from you, the account will be treated as unresponsive and reviewed further.',
+  'No Commitment': 'Please do not leave this open. A clear date and amount from you today will help keep your account from moving further.',
+  'Answered': 'Please do not leave this open. A clear date and amount from you today will help keep your account from moving further.'
+};
+function _coCustom(k) { try { return localStorage.getItem('sq_co_tpl_' + k) || ''; } catch (e) { return ''; } }
+function _coTemplate(k) { return _coCustom(k) || CO_TPL[k] || ''; }
+function _coFill(tpl, b, outcome) {
+  var od = getOdAge(b.startDate, b), loan = b.loanType || 'LoanBase', amount = fmtC(getDueToday(b));
+  var ap = ''; try { ap = localStorage.getItem('sq_agent_phone') || ''; } catch (e) {}
+  var v = {
+    salute: _escalSalutation(b), first: getFirstName(b), loan: loan, amount: amount, days: String(od),
+    due: od > 0 ? 'your overdue ' + loan + ' balance of *' + amount + '* (Day ' + od + ')' : 'your ' + loan + ' payment of *' + amount + '*',
+    pay: _escalPayGuide(b), deadline: _escalDeadline(),
+    callme: ap ? ' You can also call me on ' + ap + '.' : '',
+    firmnote: od >= 6 ? (CO_FIRM[outcome] || '') : ''
+  };
+  return String(tpl).replace(/\{(salute|first|loan|amount|days|due|pay|deadline|callme|firmnote)\}/g, function (m, k) { return v[k]; })
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
+}
+// The message for each outcome. A saved edit of yours always wins; otherwise Refused uses your Dunning notice for the account's day.
+function _coMsg(b, outcome) {
+  if (outcome === 'Refused' && !_coCustom('Refused')) { var tier = _recommendDunningTier(b); if (tier) return buildDunningMsg(b, tier); }
+  return _coFill(_coTemplate(outcome), b, outcome);
+}
+// ── Wording editor (Settings > Collection Rules > Outcome Messages, and the Edit wording link in the queue) ──
+window._cow = window._cow || {};
+function openOutcomeWording(fromQueue) {
+  var c = window._cow; c.from = !!fromQueue; c.k = c.k || 'Busy';
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light'); _cowRender();
+}
+function _cowSample() {
+  var list = (state.borrowers || []).filter(function (b) { return !b.isPaid && getStatus(b) !== 'Paid' && b.phone; });
+  return list.filter(function (b) { return getOdAge(b.startDate, b) > 0; })[0] || list[0] || null;
+}
+function _cowRender() {
+  var c = window._cow, def = _coDef(c.k), cur = _coTemplate(c.k), edited = !!_coCustom(c.k);
+  var chips = CO_DEFS.map(function (d) {
+    var on = d.k === c.k, ed = !!_coCustom(d.k);
+    return '<button class="btn btn-sm" onclick="_cowPick(\'' + d.k + '\')" style="border:1.5px solid ' + (on ? d.color : 'var(--border2)') + ';background:' + (on ? d.color + '22' : 'var(--surface2)') + ';color:' + (on ? d.color : 'var(--text2)') + ';font-weight:700">' + escapeHtml(d.label) + (ed ? ' \u2022' : '') + '</button>';
+  }).join('');
+  var toks = CO_TOKENS.map(function (t) {
+    return '<button class="btn btn-ghost btn-sm" onclick="_cowInsert(\'' + t[0] + '\')" title="' + escapeHtml(t[1]) + '" style="font-family:var(--font-mono);font-size:var(--text-xs);padding:4px 8px">' + t[0] + '</button>';
+  }).join('');
+  document.getElementById('modal-title').textContent = 'Outcome messages: wording';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Pick an outcome and change the message. It saves as you type and is used the next time you send. A dot marks outcomes you have changed.</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">' + chips + '</div>'
+    + '<textarea id="cow-tpl" rows="11" oninput="_cowSave()" aria-label="Message wording" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text);line-height:1.6;font-family:var(--font-mono);resize:vertical">' + escapeHtml(cur) + '</textarea>'
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin:10px 0 6px;letter-spacing:.04em;font-weight:700">TAP TO INSERT AT THE CURSOR</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">' + toks + '</div>'
+    + (c.k === 'Refused' ? '<div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:10px">While this one is not changed, accounts on Day 6 to 15 get their Dunning notice instead. This text is used for the others.</div>' : '')
+    + '<div style="font-size:var(--text-xs);color:var(--text3);margin-bottom:6px;letter-spacing:.04em;font-weight:700" id="cow-prev-h">PREVIEW</div>'
+    + '<div id="cow-prev" style="background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.2);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text2);line-height:1.7;white-space:pre-wrap;word-break:break-word"></div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" id="cow-reset" onclick="_cowReset()"' + (edited ? '' : ' disabled') + '>Reset to default</button>'
+    + '<button class="btn btn-offer" onclick="_cowDone()">Done</button>';
+  _cowPreview();
+}
+function _cowPick(k) { window._cow.k = k; haptic('light'); _cowRender(); }   // edits are already saved, so nothing is lost by switching
+function _cowSave() {
+  var c = window._cow, ta = document.getElementById('cow-tpl'); if (!ta) return;
+  var v = ta.value;
+  try {
+    if (!v.trim() || v === CO_TPL[c.k]) localStorage.removeItem('sq_co_tpl_' + c.k); else localStorage.setItem('sq_co_tpl_' + c.k, v);
+  } catch (e) { _sw(e, 'cowSave'); toast('Could not save this change', 'error'); }
+  var rb = document.getElementById('cow-reset'); if (rb) rb.disabled = !_coCustom(c.k);
+  _cowPreview();
+}
+function _cowInsert(tok) {
+  var ta = document.getElementById('cow-tpl'); if (!ta) return;
+  var s = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e = ta.selectionEnd == null ? s : ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + tok + ta.value.slice(e);
+  ta.focus(); ta.setSelectionRange(s + tok.length, s + tok.length);
+  _cowSave();
+}
+function _cowPreview() {
+  var c = window._cow, ta = document.getElementById('cow-tpl'), box = document.getElementById('cow-prev'); if (!ta || !box) return;
+  var b = _cowSample(), h = document.getElementById('cow-prev-h');
+  if (!b) { box.textContent = 'Add an account to see a preview.'; return; }
+  if (h) h.textContent = 'PREVIEW WITH ' + b.name.toUpperCase();
+  var tpl = ta.value.trim() ? ta.value : CO_TPL[c.k];
+  try { box.textContent = _coFill(tpl, b, c.k); } catch (e) { box.textContent = 'Preview not available.'; _sw(e, 'cowPreview'); }
+}
+function _cowReset() {
+  var c = window._cow; try { localStorage.removeItem('sq_co_tpl_' + c.k); } catch (e) {}
+  haptic('light'); toast('Back to the default wording', 'info'); _cowRender();
+}
+function _cowDone() {
+  haptic('light');
+  if (window._cow.from && window._coq && window._coq.pool) _coqSetup(); else closeModal();
+}
+function _coLastMsgStr(b) {
+  var best = null;
+  (b.callLog || []).forEach(function (c) { if (!c || c.outcome !== 'WA/SMS') return; var t = _stParseTs(c.timestamp); if (t && (!best || t > best)) best = t; });
+  if (!best) return null;
+  var n = new Date(), d = Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(best.getFullYear(), best.getMonth(), best.getDate())) / 86400000);
+  return 'Messaged ' + (d <= 0 ? 'today' : d === 1 ? 'yesterday' : d + 'd ago');
+}
+
+function launchOutcomeQueue() {
+  var q = window._coq, scope = _coScope(), cnt = _coCounts(scope);
+  if (!cnt.total) { toast('No accounts to message by call outcome in this list', 'error'); return; }
+  var sel = (document.getElementById('dispatch-call-outcome') || {}).value || '';
+  q.active = false; q.scope = scope; q.idx = 0; q.dir = 1; q.edits = {}; q.sent = {}; q.off = {};
+  q.outcome = (sel && cnt.by[sel]) ? sel : CO_DEFS.map(function (d) { return d.k; }).sort(function (a, c) { return (cnt.by[c] || 0) - (cnt.by[a] || 0); })[0];
+  document.getElementById('modal-overlay').classList.add('open');
+  haptic('light'); _coqSetup();
+}
+function _coqOutcome(k) { window._coq.outcome = k; haptic('light'); _coqSetup(); }
+function _coqScope(sc) {
+  var q = window._coq; q.scope = sc;
+  var el = document.getElementById('dispatch-call-scope'); if (el) el.value = sc;   // keep the Dispatch filter in step
+  var cnt = _coCounts(sc);
+  if (!cnt.by[q.outcome]) { var first = CO_DEFS.filter(function (d) { return cnt.by[d.k]; })[0]; if (first) q.outcome = first.k; }
+  haptic('light'); _coqSetup();
+}
+function _coqTick(i) { var q = window._coq, id = q.pool[i]; if (id == null) return; if (q.off[id]) delete q.off[id]; else q.off[id] = true; haptic('light'); _coqSetup(); }
+function _coqAll(on) { var q = window._coq; q.off = {}; if (!on) q.pool.forEach(function (id) { q.off[id] = true; }); haptic('light'); _coqSetup(); }
+function _coqSetup() {
+  var q = window._coq, cnt = _coCounts(q.scope), built = _coBuild(q.outcome, q.scope), def = _coDef(q.outcome);
+  q.pool = built.ok.map(function (b) { return b.id; });
+  var ticked = q.pool.filter(function (id) { return !q.off[id]; }).length;
+  var chips = CO_DEFS.filter(function (d) { return cnt.by[d.k]; }).map(function (d) {
+    var on = d.k === q.outcome;
+    return '<button class="btn btn-sm" onclick="_coqOutcome(\'' + d.k + '\')" style="border:1.5px solid ' + (on ? d.color : 'var(--border2)') + ';background:' + (on ? d.color + '22' : 'var(--surface2)') + ';color:' + (on ? d.color : 'var(--text2)') + ';font-weight:700">' + escapeHtml(d.label) + ' ' + cnt.by[d.k] + '</button>';
+  }).join('');
+  var scopeBtns = [['today', 'Today'], ['24h', 'Last 24 hours'], ['any', 'Any time']].map(function (s) {
+    var on = q.scope === s[0];
+    return '<button class="btn btn-sm" onclick="_coqScope(\'' + s[0] + '\')" style="flex:1;border:1.5px solid ' + (on ? 'var(--gold)' : 'var(--border2)') + ';background:' + (on ? 'rgba(255,166,43,.12)' : 'var(--surface2)') + ';color:' + (on ? 'var(--gold)' : 'var(--text2)') + ';font-weight:700">' + s[1] + '</button>';
+  }).join('');
+  var rows = built.ok.map(function (b, i) {
+    var on = !q.off[b.id], L = _coLastCall(b), when = L && L.t ? L.t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+    return '<div class="of-card' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + on + '" tabindex="0" onclick="_coqTick(' + i + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_coqTick(' + i + ')}" style="padding:10px 12px;margin-bottom:8px">'
+      + '<span class="of-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg></span>'
+      + '<div class="of-main"><div class="of-top"><b>' + escapeHtml(b.name) + '</b></div>'
+      + '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:2px">Day ' + getOdAge(b.startDate, b) + ' \u00b7 ' + fmtC(getDueToday(b)) + (when ? ' \u00b7 called ' + when : '') + '</div></div></div>';
+  }).join('');
+  var left = Object.keys(built.left).map(function (k) { return built.left[k] + ' ' + (CO_LEFT_TEXT[k] || k); });
+  document.getElementById('modal-title').textContent = 'Messages by call outcome';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">Pick who you called. Each person gets a message written for what happened on that call. Untick anyone you want to skip.</div>'
+    + '<div style="text-align:right;margin:-4px 0 6px"><button class="ac-link" onclick="openOutcomeWording(true)" style="color:var(--gold)">Edit wording</button></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px">' + scopeBtns + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">' + (chips || '<span style="font-size:var(--text-sm);color:var(--text3)">No accounts to message in this period.</span>') + '</div>'
+    + (rows ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:var(--text-sm);font-weight:700;color:var(--text3);letter-spacing:.04em">' + escapeHtml(def.label.toUpperCase()) + ' \u00b7 ' + ticked + ' OF ' + built.ok.length + ' TICKED</span>'
+      + '<span><button class="ac-link" onclick="_coqAll(true)">All</button> \u00b7 <button class="ac-link" onclick="_coqAll(false)">None</button></span></div>' + rows : '')
+    + (left.length ? '<div style="font-size:var(--text-xs);color:var(--text3);margin-top:10px">Left out: ' + escapeHtml(left.join(', ')) + '.</div>' : '');
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>'
+    + '<button class="btn btn-offer"' + (ticked ? '' : ' disabled') + ' onclick="_coqStart()">Start (' + ticked + ')</button>';
+}
+function _coqStart() {
+  var q = window._coq;
+  q.ids = q.pool.filter(function (id) { return !q.off[id]; });
+  if (!q.ids.length) { toast('Tick at least one account', 'error'); return; }
+  q.active = true; q.idx = 0; q.dir = 1; q.edits = {}; q.sent = {};
+  haptic('light'); _coqRender();
+}
+function _coqKeep() {
+  var q = window._coq, ta = document.getElementById('coq-msg');
+  if (ta && q.ids && q.ids[q.idx] != null) q.edits[q.ids[q.idx]] = ta.value;
+}
+function _coqRender() {
+  var q = window._coq; if (!q || !q.active) return;
+  var tot = q.ids.length;
+  if (q.idx >= tot) { _coqFinish(); return; }
+  if (q.idx < 0) q.idx = 0;
+  var b = (state.borrowers || []).find(function (x) { return x.id === q.ids[q.idx]; });
+  if (!b) { q.idx += q.dir < 0 ? -1 : 1; if (q.idx < 0) { q.idx = 0; q.dir = 1; } _coqRender(); return; }
+  var def = _coDef(q.outcome), L = _coLastCall(b), pct = Math.round(q.idx / tot * 100);
+  var msg = q.edits[b.id] != null ? q.edits[b.id] : _coMsg(b, q.outcome);
+  var when = L && L.t ? L.t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  document.getElementById('modal-title').textContent = def.label + ' (' + (q.idx + 1) + '/' + tot + ')';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="height:4px;background:var(--border);border-radius:4px;margin-bottom:14px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + def.color + ';transition:width .3s"></div></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><strong style="font-size:var(--text-lg)">' + escapeHtml(b.name) + '</strong>'
+    + '<span style="font-size:var(--text-2xs);background:' + def.color + ';color:#fff;padding:2px 8px;border-radius:var(--radius);font-weight:800">' + escapeHtml(def.label.toUpperCase()) + (when ? ' ' + when : '') + '</span></div>'
+    + '<div style="font-size:var(--text-sm);color:var(--text2);margin-bottom:10px">' + escapeHtml(b.phone) + ' \u00b7 Day ' + getOdAge(b.startDate, b) + ' \u00b7 ' + fmtC(getDueToday(b)) + (q.sent[b.id] ? ' \u00b7 <b style="color:var(--green)">sent \u2713</b>' : '') + '</div>'
+    + '<textarea id="coq-msg" rows="10" aria-label="Message to send" style="width:100%;box-sizing:border-box;background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.25);border-radius:var(--radius-md);padding:12px;font-size:var(--text-sm);color:var(--text);line-height:1.7;font-family:inherit;resize:vertical">' + escapeHtml(msg) + '</textarea>'
+    + '<div style="font-size:var(--text-xs);color:var(--text2);margin-top:6px;text-align:center">' + Object.keys(q.sent).length + ' of ' + tot + ' sent \u00b7 you can edit the message before sending</div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="_coqStop()">Stop</button>'
+    + '<button class="btn btn-ghost btn-sm"' + (q.idx === 0 ? ' disabled' : '') + ' onclick="_coqBack()">Back</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="_coqSkip()">Skip</button>'
+    + '<button class="btn btn-offer btn-sm" onclick="_coqSend()">Send &amp; Next</button>';
+}
+function _coqBack() { var q = window._coq; _coqKeep(); q.dir = -1; q.idx = Math.max(0, q.idx - 1); haptic('light'); _coqRender(); }
+function _coqSkip() { var q = window._coq; _coqKeep(); q.dir = 1; q.idx++; haptic('light'); _coqRender(); }
+function _coqStop() { var q = window._coq; q.active = false; closeModal(); renderDispatch(); }
+function _coqSend() {
+  var q = window._coq, b = (state.borrowers || []).find(function (x) { return x.id === q.ids[q.idx]; });
+  if (!b) { _coqSkip(); return; }
+  var ta = document.getElementById('coq-msg'), msg = ta ? ta.value : _coMsg(b, q.outcome);
+  if (!String(msg).trim()) { toast('The message is empty', 'error'); return; }
+  var L = _coLastCall(b);
+  window.open('https://wa.me/' + toWaPhone(b.phone) + '?text=' + encodeURIComponent(msg), '_blank');
+  b.coMsgFor = L ? (L.c.timestamp || '') : ''; b.coMsgAt = new Date().toISOString(); b.coMsgOutcome = q.outcome;
+  try { markDispatchContacted(b.id); } catch (e) { _sw(e, 'coqSend'); }
+  saveState();
+  q.edits[b.id] = msg; q.sent[b.id] = true; q.dir = 1; q.idx++;
+  haptic('light'); _coqRender();
+}
+function _coqFinish() {
+  var q = window._coq, n = Object.keys(q.sent).length;
+  q.active = false; closeModal();
+  toast(n ? n + ' message' + (n > 1 ? 's' : '') + ' sent by call outcome' : 'No messages sent', n ? 'success' : 'info');
+  if (n) haptic('pay');
+  renderDispatch();
+}
+
 // ── Offer Ladder in WhatsApp Dispatch: bulk queue ────────────────────────────────────────────────
 // Same flow as the Dunning Ladder: one tap on the toolbar, then step through the accounts. Each account shows its own offers
 // already ticked (smart picks, or the set you ticked for everyone); change the ticks if you like, then Send & Next.
@@ -12571,6 +12992,14 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-18e', date: '18 Oct 2026', title: 'No more repeated names', items: [
+    ['Repeats removed as names come in', 'Typing a name, importing Excel, scanning a sheet or adding from the onboarding list now drops a repeated word, so Micheal Micheal Antwi becomes Micheal Antwi. Single-letter initials are left alone.'],
+    ['Clean Names', 'Settings \u2192 Data & Backup \u2192 Clean Names fixes names already saved. It shows each change first, only removes the repeat (capitals stay as they are), and can be undone.'] ] },
+  { id: '2026-10-18d', date: '18 Oct 2026', title: 'Messages by call outcome', items: [
+    ['Send by outcome', 'Dispatch has a new Call Outcome filter (Busy, No answer, Phone off, Asked to call back and more) with a Called today, Last 24 hours or Any time scope. The purple Outcome button runs a tick-and-send queue where each person gets a message written for what happened on their call.'],
+    ['Nobody gets spammed', 'Paid accounts, accounts on a plan, accounts with a promise still ahead, wrong numbers, and anyone already messaged since the call are left out, and the queue tells you how many and why.'],
+    ['Your own wording', 'Settings \u2192 Collection Rules \u2192 Outcome Messages, or Edit wording inside the queue. Change any message and it saves as you type. Reset to default brings the original back.'],
+    ['Last contact tag fixed', 'Dispatch rows now show the last call (for example Busy 14:43) and Messaged today, yesterday or 3d ago. The old tag never appeared.'] ] },
   { id: '2026-10-18c', date: '18 Oct 2026', title: 'Safer saving and styled Excel', items: [
     ['Two devices, no more stopping', 'If another device saved while you were working, the app now merges the two versions borrower by borrower instead of asking you to pick one. Payments recorded on both devices add up. The sync conflict sheet only appears if a merge is not possible.'],
     ['One save at a time', 'Saves from this phone now go in a queue, and a save only lands if the cloud copy is the one this phone last saw, so two saves can no longer overwrite each other.'],
@@ -13717,6 +14146,10 @@ function clearDispatchFilters() {
   });
   const dayEl = document.getElementById('dispatch-promise-day');
   if (dayEl) dayEl.value = '';
+  const coEl = document.getElementById('dispatch-call-outcome');
+  if (coEl) coEl.value = '';
+  const csEl = document.getElementById('dispatch-call-scope');
+  if (csEl) csEl.value = 'today';
   renderDispatch();
   haptic('light');
 }
@@ -13740,7 +14173,8 @@ function renderDispatch() {
   const _dMinOd  = document.getElementById('dispatch-od-min')?.value;
   const _dMaxOd  = document.getElementById('dispatch-od-max')?.value;
   const _dPromiseDay = document.getElementById('dispatch-promise-day')?.value;
-  const _dActiveCount = [filter, _dMinAmt, _dMaxAmt, _dMinOd, _dMaxOd, _dPromiseDay].filter(v => v !== '' && v != null).length;
+  const _dCallOut = document.getElementById('dispatch-call-outcome')?.value;
+  const _dActiveCount = [filter, _dMinAmt, _dMaxAmt, _dMinOd, _dMaxOd, _dPromiseDay, _dCallOut].filter(v => v !== '' && v != null).length;
   const _dCountEl = document.getElementById('dispatch-filters-count');
   if (_dCountEl) {
     _dCountEl.textContent = _dActiveCount;
@@ -13794,6 +14228,11 @@ function renderDispatch() {
     if (dayFilter === 'overdue')  return diffDays < 0;
     return true;
   })
+  .filter(b => {
+    const coV = document.getElementById('dispatch-call-outcome')?.value;
+    if (!coV) return true;
+    return _coMatch(b, coV, _coScope());
+  })
   .map(b => ({...b, status: getStatus(b), odAge: getOdAge(b.startDate, b),
     generous: getGenerous(b), dueToday: getDueToday(b) }))
     .sort((a,b) => a.odAge - b.odAge);
@@ -13825,6 +14264,7 @@ function renderDispatch() {
     + (list.some(b => _offerEligible(b))
         ? '<button class="wa-chip wa-chip-offer" onclick="launchOfferQueue()" title="Send each account the settlement offers that fit it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.3"/><circle cx="16.5" cy="16.5" r="2.3"/></svg> Offer Ladder (' + list.filter(b => _offerEligible(b)).length + ')</button>'
         : '')
+    + _coChipHtml()
     + '<button class="wa-chip wa-chip-neutral" data-action="dispatch-more" aria-label="More actions" title="More actions" style="padding:7px 10px"><svg viewBox="0 0 20 20" fill="currentColor" style="width:14px;height:14px"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>'
     + '</div>'
 
@@ -13875,9 +14315,7 @@ function renderDispatch() {
 
       // Last contacted
       const lastCall = (b.callLog||[]).slice(-1)[0];
-      const lastContactStr = lastCall?.date
-        ? (() => { const d=Math.floor((Date.now()-new Date(lastCall.date).getTime())/86400000); return d===0?'Today':d===1?'Yesterday':d+'d ago'; })()
-        : null;
+      const lastContactStr = _coLastMsgStr(b);   // last WhatsApp/SMS sent; the last call shows as its own tag
 
       html += '<div class="dispatch-item" id="drow-' + b.id + '">'
         + '<div class="dispatch-rank">' + (i+1) + '</div>'
@@ -13889,6 +14327,7 @@ function renderDispatch() {
         + ' &nbsp;·&nbsp; ' + statusBadge(b.status)
         + ' &nbsp;·&nbsp; <span class="dispatch-amount" style="font-family:var(--font-mono);color:var(--gold)">' + fmtC(amountShown) + '</span>'
         + (lastContactStr ? ' &nbsp;·&nbsp; <span style="color:var(--text3);font-size:var(--text-xs)"> ' + lastContactStr + '</span>' : '')
+        + _coRowChip(b)
         + '</div>'
         + '<div class="dispatch-msg" style="font-size:var(--text-sm);color:var(--text2);background:var(--surface2);padding:6px 10px;border-radius:var(--radius-sm);margin-top:5px;line-height:1.5">' + msg + '</div>'
         + '</div>'
@@ -34921,6 +35360,9 @@ html[data-theme="aurora"] .wa-chip-offer{border:none;color:#fff;background:linea
 .btn-offer{border:none;color:#fff;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.25);background:linear-gradient(135deg,#12c48b 0%,#14b0c8 55%,#2f7df0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 12px rgba(20,176,200,.3)}
 .btn-offer:disabled{opacity:.5;box-shadow:none}
 .btn-offer .ico svg{stroke:#fff}
+.wa-chip-outcome{border:none;color:#fff;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.25);background:linear-gradient(135deg,#8b5cf6 0%,#d946ef 55%,#f43f5e 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 12px rgba(168,85,247,.35)}
+.wa-chip-outcome:hover{filter:brightness(1.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 5px 18px rgba(217,70,239,.5)}
+.wa-chip-outcome svg{stroke:#fff}
 .of-card{display:flex;gap:11px;padding:12px;border-radius:14px;background:var(--surface2);border:1.5px solid var(--border2);margin-bottom:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s ease,background-color .15s ease}
 .of-card.on{border-color:var(--gold);background:rgba(255,166,43,.10)}
 .of-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
