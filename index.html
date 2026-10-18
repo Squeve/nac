@@ -8651,7 +8651,19 @@ async function _casWrite(buildData) {
   var id = getSupabaseId();
   for (var attempt = 0; attempt < 3; attempt++) {
     var data = buildData(), nowTs = new Date().toISOString(), res;
-    if (!_remoteStamp || _forcePushOnce || _casBroken) {
+    var plain = !_remoteStamp || _forcePushOnce || _casBroken;
+    if (!plain) {
+      try {
+        res = await withTimeout(_db.from('app_state').update({ data: data, updated_at: nowTs }).eq('id', id).eq('updated_at', _remoteStamp).select('updated_at'), 10000, 'pushCas');
+        if (res && res.error) throw res.error;
+      } catch (e) {
+        // The conditional update itself is unusable here (older API, proxy or stub without it): never lose the save over that.
+        // Use the plain save with the old check for this and later saves.
+        _casBroken = true; plain = true;
+        _diagLog('sync', 'compare-and-swap failed (' + ((e && e.message) || e) + '): using the plain save with the old check');
+      }
+    }
+    if (plain) {
       if (_remoteStamp && !_forcePushOnce && !(await _syncGuardOk())) return { conflict: true };
       _forcePushOnce = false;
       res = await withTimeout(_db.from('app_state').upsert({ id: id, data: data, updated_at: nowTs }).select('updated_at'), 10000, 'pushUpsert');
@@ -8659,8 +8671,6 @@ async function _casWrite(buildData) {
       await _rememberRemoteStamp(res);
       return res;
     }
-    res = await withTimeout(_db.from('app_state').update({ data: data, updated_at: nowTs }).eq('id', id).eq('updated_at', _remoteStamp).select('updated_at'), 10000, 'pushCas');
-    if (res && res.error) throw res.error;
     if (res && res.data && res.data.length) { await _rememberRemoteStamp(res); return res; }
     // Nothing matched: the row changed under us, or the stamp could not be matched by the server.
     var r = await withTimeout(_db.from('app_state').select('data, updated_at').eq('id', id).maybeSingle(), 10000, 'pushCasRead');
