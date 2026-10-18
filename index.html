@@ -8464,50 +8464,229 @@ async function _conflictKeepMine() {
   }
 }
 
-async function _pushToSupabaseIncremental() {
+// ── Safer saving ─────────────────────────────────────────────────────────────────────────
+// 1. Saves from this device go one at a time (a flush on backgrounding can no longer overlap the debounced save).
+// 2. A save only lands if the cloud row is still the one we last saw (compare-and-swap), closing the gap the old
+//    "check, then write" left open.
+// 3. If another device saved in between, the two versions are merged per borrower and per field against the last
+//    version both sides knew (three-way), instead of stopping to ask. Payments recorded on both devices are added.
+//    The old "Sync conflict" sheet remains only for cases the merge cannot handle.
+var _pushChain = Promise.resolve();
+function _serialPush(fn) { var p = _pushChain.then(fn, fn); _pushChain = p.catch(function () {}); return p; }
+var _casBroken = false, _built = null, _m3Stats = { n: 0, paths: [] };
+var _M3_META = { _writer: 1, _lastSaveTs: 1, _lastLocalSave: 1, _pinHash: 1, messageBank: 1 };
+var _M3_MINE = { offlineQueue: 1, pendingSyncCount: 1, undoHistory: 1, _blockRemotePullUntil: 1, _lastAutoBackup: 1 }; // per-device bookkeeping: never merged
+var _M3_ADD = { amountPaid: 1, collected: 1 };                                                                      // two payments on two devices add up
+
+function _m3Strip(o) { var out = {}; Object.keys(o || {}).forEach(function (k) { if (!_M3_META[k]) out[k] = o[k]; }); return out; }
+function _m3Eq(a, b) { return a === b || JSON.stringify(a) === JSON.stringify(b); }
+function _m3IsObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+function _m3KeyField(arrs) {
+  var fields = ['id', 'date', 'month'];
+  for (var f = 0; f < fields.length; f++) {
+    var fld = fields[f], ok = true, any = false;
+    for (var i = 0; i < arrs.length && ok; i++) {
+      var seen = {};
+      for (var j = 0; j < arrs[i].length; j++) {
+        var x = arrs[i][j];
+        if (!_m3IsObj(x) || x[fld] === undefined || x[fld] === null || seen[x[fld]]) { ok = false; break; }
+        seen[x[fld]] = 1; any = true;
+      }
+    }
+    if (ok && any) return fld;
+  }
+  return null;
+}
+function _m3Arr(base, mine, theirs, path) {
+  var kf = _m3KeyField([base, mine, theirs]), out = [], i;
+  if (kf) {
+    var idx = function (a) { var m = {}; a.forEach(function (x) { m[x[kf]] = x; }); return m; };
+    var B = idx(base), M = idx(mine), T = idx(theirs), seen = {};
+    theirs.forEach(function (t) {
+      var id = t[kf]; seen[id] = 1;
+      if (id in M) out.push(_merge3(B[id], M[id], t, path + '[' + id + ']'));
+      else if (id in B) { if (!_m3Eq(B[id], t)) out.push(t); }   // deleted here: keep it only if the other device changed it
+      else out.push(t);                                          // added on the other device
+    });
+    mine.forEach(function (m) {
+      var id = m[kf]; if (seen[id]) return;
+      if (id in B) { if (!_m3Eq(B[id], m)) out.push(m); }        // deleted on the other device: keep only if changed here
+      else out.push(m);                                          // added here
+    });
+    return out;
+  }
+  var bs = {}, ms = {}, have = {};
+  base.forEach(function (x) { bs[JSON.stringify(x)] = 1; });
+  mine.forEach(function (x) { ms[JSON.stringify(x)] = 1; });
+  theirs.forEach(function (t) { var k = JSON.stringify(t); if (bs[k] && !ms[k]) return; out.push(t); have[k] = 1; });   // removed here
+  mine.forEach(function (m) { var k = JSON.stringify(m); if (!bs[k] && !have[k]) { out.push(m); have[k] = 1; } });       // added here
+  return out;
+}
+function _merge3(base, mine, theirs, path) {
+  path = path || '';
+  if (_m3Eq(mine, theirs)) return mine;
+  if (_m3Eq(mine, base)) return theirs;
+  if (_m3Eq(theirs, base)) return mine;
+  if (_m3IsObj(mine) && _m3IsObj(theirs)) {
+    var b = _m3IsObj(base) ? base : {}, out = {}, keys = {};
+    Object.keys(mine).concat(Object.keys(theirs)).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+      var inM = k in mine, inT = k in theirs, inB = k in b;
+      if (path === '' && _M3_MINE[k]) { if (inM) out[k] = mine[k]; return; }
+      if (!inM) { if (!inB || !_m3Eq(theirs[k], b[k])) out[k] = theirs[k]; return; }   // deleted here
+      if (!inT) { if (!inB || !_m3Eq(mine[k], b[k])) out[k] = mine[k]; return; }       // deleted there
+      out[k] = _merge3(b[k], mine[k], theirs[k], path + '.' + k);
+    });
+    return out;
+  }
+  if (Array.isArray(mine) && Array.isArray(theirs)) return _m3Arr(Array.isArray(base) ? base : [], mine, theirs, path);
+  var key = path.slice(path.lastIndexOf('.') + 1);
+  if (_M3_ADD[key] && typeof base === 'number' && typeof mine === 'number' && typeof theirs === 'number') {
+    _m3Stats.n++; if (_m3Stats.paths.length < 6) _m3Stats.paths.push(path + ' (added)');
+    return Math.round((base + (mine - base) + (theirs - base)) * 100) / 100;
+  }
+  _m3Stats.n++; if (_m3Stats.paths.length < 6) _m3Stats.paths.push(path);
+  return mine;   // both devices changed the same value: this device's latest edit wins
+}
+// Make `target` equal `src` while keeping existing objects, so a sheet that holds a borrower keeps working after a merge.
+function _m3Apply(target, src) {
+  if (target === src) return;
+  if (Array.isArray(target) && Array.isArray(src)) {
+    var kf = _m3KeyField([target, src]), old = {};
+    if (kf) target.forEach(function (o) { old[o[kf]] = o; });
+    var next = src.map(function (x) { if (kf && old[x[kf]]) { _m3Apply(old[x[kf]], x); return old[x[kf]]; } return x; });
+    target.length = 0; next.forEach(function (x) { target.push(x); });
+    return;
+  }
+  Object.keys(target).forEach(function (k) { if (k !== 'messageBank' && !(k in src)) delete target[k]; });
+  Object.keys(src).forEach(function (k) {
+    var t = target[k], v = src[k];
+    if ((_m3IsObj(t) && _m3IsObj(v)) || (Array.isArray(t) && Array.isArray(v))) _m3Apply(t, v); else target[k] = v;
+  });
+}
+function _localIsDirty() {
+  if (!_lastFullState) return false;
+  try { return JSON.stringify(_m3Strip(state)) !== JSON.stringify(_m3Strip(_lastFullState)); } catch (e) { return false; }
+}
+// Merge the other device's row (cur = { data, updated_at }) into this device's live state. Returns true when done.
+async function _mergeRemote(cur) {
+  try {
+    if (!_lastFullState || !cur || !cur.data) return false;
+    var mine = _m3Strip(state);
+    _m3Stats = { n: 0, paths: [] };
+    var merged = _merge3(_m3Strip(_lastFullState), mine, _m3Strip(cur.data), '');
+    try { await _saveStateToIndexedDB(getStateKey() + '__premerge', { label: 'before-auto-merge', savedAt: Date.now(), data: JSON.parse(JSON.stringify(mine)) }); } catch (e) {}
+    var m = migrateState(JSON.parse(JSON.stringify(merged)));
+    m.messageBank = state.messageBank;
+    _m3Apply(state, m);
+    _remoteStamp = cur.updated_at || _remoteStamp;
+    _lastFullState = JSON.parse(JSON.stringify(cur.data));   // the version both sides now share: the base for any further merge
+    saveState();
+    try { renderCurrentPage(); updateBadges(); updateDailyPill(); } catch (e) {}
+    _diagLog('sync', 'Merged changes from another device' + (_m3Stats.n ? ' (' + _m3Stats.n + ' value' + (_m3Stats.n === 1 ? '' : 's') + ' changed on both: ' + _m3Stats.paths.join(', ') + ')' : ''));
+    toast('Merged changes saved on another device', 'info');
+    return true;
+  } catch (e) {
+    _diagLog('sync', 'auto-merge failed: ' + e.message);
+    return false;
+  }
+}
+// What gets sent. Also keeps a copy of exactly what was sent: that copy becomes the merge base once the write lands.
+function _buildSyncData(full) {
+  var sp = _stateForSync(state);
+  _built = JSON.parse(JSON.stringify(sp));
+  var agents = getAgentList(), myAgent = agents.find(function (a) { return a.id === (_activeAgent && _activeAgent.id); });
+  var pinHash = (myAgent && myAgent.pinHash) || state._pinHash || null;
+  var data = Object.assign({}, sp, { _writer: _deviceId(), _pinHash: pinHash, _lastSaveTs: Date.now(), _lastLocalSave: state._lastLocalSave });
+  if (full) {
+    data.agentProfile = Object.assign({}, state.agentProfile || {}, {
+      id: (_activeAgent && _activeAgent.id) || (state.agentProfile && state.agentProfile.id),
+      lbCode: (_activeAgent && _activeAgent.lbCode) || (state.agentProfile && state.agentProfile.lbCode),
+      name: (_activeAgent && _activeAgent.name) || (state.agentProfile && state.agentProfile.name),
+      stage: (_activeAgent && _activeAgent.stage) || (state.agentProfile && state.agentProfile.stage)
+    });
+  }
+  return data;
+}
+// Write the cloud row only if nobody else changed it since we last saw it. Returns the server reply, or { conflict: true }.
+async function _casWrite(buildData) {
+  var id = getSupabaseId();
+  for (var attempt = 0; attempt < 3; attempt++) {
+    var data = buildData(), nowTs = new Date().toISOString(), res;
+    if (!_remoteStamp || _forcePushOnce || _casBroken) {
+      if (_remoteStamp && !_forcePushOnce && !(await _syncGuardOk())) return { conflict: true };
+      _forcePushOnce = false;
+      res = await withTimeout(_db.from('app_state').upsert({ id: id, data: data, updated_at: nowTs }).select('updated_at'), 10000, 'pushUpsert');
+      if (res && res.error) throw res.error;
+      await _rememberRemoteStamp(res);
+      return res;
+    }
+    res = await withTimeout(_db.from('app_state').update({ data: data, updated_at: nowTs }).eq('id', id).eq('updated_at', _remoteStamp).select('updated_at'), 10000, 'pushCas');
+    if (res && res.error) throw res.error;
+    if (res && res.data && res.data.length) { await _rememberRemoteStamp(res); return res; }
+    // Nothing matched: the row changed under us, or the stamp could not be matched by the server.
+    var r = await withTimeout(_db.from('app_state').select('data, updated_at').eq('id', id).maybeSingle(), 10000, 'pushCasRead');
+    if (r && r.error) throw r.error;
+    var cur = r && r.data;
+    if (!cur) { _remoteStamp = null; continue; }                                    // row gone: next round creates it
+    if (cur.updated_at === _remoteStamp) {                                            // the very same stamp, so only the matching failed
+      _casBroken = true; _diagLog('sync', 'compare-and-swap not usable here: using the plain save with the old check'); continue;
+    }
+    if (cur.data && cur.data._writer === _deviceId()) { _remoteStamp = cur.updated_at; continue; }   // our own earlier save whose reply was lost
+    if (!(await _mergeRemote(cur))) return { conflict: true };
+  }
+  return { conflict: true };
+}
+async function _pushToSupabaseIncremental() { return _serialPush(_pushIncrementalNow); }
+async function _pushIncrementalNow() {
   if (!_ensureDb()) return;
   setSyncStatus('saving');
   try {
-    const currentState = state;
-    const syncPayload = _stateForSync(currentState);
-    const currentHash = await _hashState(syncPayload);
-    if (currentHash === _lastKnownHash) {
-      setSyncStatus('saved');
-      return;
-    }
-    if (!(await _syncGuardOk())) { setSyncStatus('error'); return; }
-    // Always do a full upsert – simpler and safer
-    // IMPORTANT: must include _pinHash explicitly. Supabase upsert replaces the
-    // entire `data` JSON column rather than deep-merging it, and `state` itself
-    // rarely carries _pinHash (it normally lives on the agent-list record) — so
-    // omitting it here was silently erasing the stored PIN on almost every save,
-    // which then made the next unlock attempt think an admin had reset it.
-    const agents  = getAgentList();
-    const myAgent = agents.find(a => a.id === _activeAgent?.id);
-    const pinHash = myAgent?.pinHash || state._pinHash || null;
-    const _upRes = await withTimeout(_db.from('app_state').upsert({
-  id: getSupabaseId(),
-  data: { 
-    ...syncPayload, 
-    _writer: _deviceId(),
-    _pinHash: pinHash,
-    _lastSaveTs: Date.now(),
-    _lastLocalSave: currentState._lastLocalSave
-  },
-  updated_at: new Date().toISOString()
-}).select('updated_at'), 10000, 'pushIncremental');
-    if (_upRes && _upRes.error) throw _upRes.error; // supabase RETURNS errors instead of throwing — this used to be treated as success
-    await _rememberRemoteStamp(_upRes);
-    _lastFullState = JSON.parse(JSON.stringify(currentState));
-    _lastKnownHash = currentHash;
+    if ((await _hashState(_stateForSync(state))) === _lastKnownHash) { setSyncStatus('saved'); return; }
+    // IMPORTANT: _pinHash must stay in the saved data. The upsert replaces the whole `data` column rather than deep-merging
+    // it, and `state` rarely carries _pinHash (it lives on the agent-list record), so leaving it out used to erase the PIN.
+    var res = await _casWrite(function () { return _buildSyncData(false); });
+    if (res && res.conflict) { _diagLog('sync', 'Another device saved newer data and it could not be merged - this save is on hold until you choose'); setSyncStatus('error'); _showSyncConflict(); return; }
+    _lastFullState = _built; _lastKnownHash = await _hashState(_built);
     setSyncStatus('saved');
-    setTimeout(() => { if (window._lastSyncStatus && window._lastSyncStatus.s === 'saved') setSyncStatus('saved'); }, 2000); // only if nothing failed in the meantime
-  } catch(e) {
+    setTimeout(() => { if (window._lastSyncStatus && window._lastSyncStatus.s === 'saved') setSyncStatus('saved'); }, 2000);
+  } catch (e) {
     setSyncStatus('error');
     _diagLog('sync', 'push failed: ' + e.message);
     console.warn('Supabase sync error:', e.message);
   }
 }
+async function _pushToSupabase(retries = 3) { return _serialPush(function () { return _pushFullNow(retries); }); }
+async function _pushFullNow(retries) {
+  if (!_ensureDb()) {
+    // Previously a silent no-op with zero indication sync was even attempted: if the Supabase client never initialized
+    // (CDN script blocked/failed on this page load), every save just quietly stayed local-only forever.
+    console.warn('Supabase sync unavailable — client failed to initialize (check network/CDN access to cdn.jsdelivr.net)');
+    setSyncStatus('offline');
+    return;
+  }
+  setSyncStatus('saving');
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      var res = await _casWrite(function () { return _buildSyncData(true); });
+      if (res && res.conflict) { _diagLog('sync', 'Another device saved newer data and it could not be merged - this save is on hold until you choose'); setSyncStatus('error'); _showSyncConflict(); return; }
+      _lastFullState = _built; _lastKnownHash = await _hashState(_built);
+      setSyncStatus('saved');
+      setTimeout(() => { if (window._lastSyncStatus && window._lastSyncStatus.s === 'saved') setSyncStatus('saved'); }, 2000);
+      return;
+    } catch (e) {
+      console.warn(`Supabase sync attempt ${attempt} failed:`, e.message);
+      if (attempt === retries) _diagLog('sync', 'push failed after ' + retries + ' tries: ' + e.message);
+      if (attempt === retries) {
+        setSyncStatus('error');
+        toast('Sync failed – will retry later', 'error');
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));   // 1s, 2s before the next try
+      }
+    }
+  }
+}
+
 
 function initState() {
   // Same manual month-name construction used by checkAutoRollover/doRollover
@@ -8916,6 +9095,10 @@ async function pullRemoteState() {
           _pushToSupabaseIncremental();
           return;
         }
+        if (_localIsDirty() && await _mergeRemote({ data: remoteState, updated_at: data.updated_at })) {
+          _pushToSupabaseIncremental();   // send the merged result back so both devices agree
+          return;
+        }
         state = migrateState(remoteState);
         _remoteStamp = data.updated_at || _remoteStamp;
         // Built-in bank always resyncs to this build's data — see comment at initState defaults.
@@ -9037,60 +9220,6 @@ function _doSaveState() {
   _saveTimer = setTimeout(function () { _remotePushDue = false; _pushToSupabaseIncremental(); }, 400);
 }
 
-async function _pushToSupabase(retries = 3) {
-  if (!_ensureDb()) {
-    // Previously a silent no-op with zero indication sync was even attempted —
-    // if the Supabase client never initialized (CDN script blocked/failed on
-    // this page load), every save just quietly stayed local-only forever.
-    console.warn('Supabase sync unavailable — client failed to initialize (check network/CDN access to cdn.jsdelivr.net)');
-    setSyncStatus('offline');
-    return;
-  }
-  setSyncStatus('saving');
-  if (!(await _syncGuardOk())) { setSyncStatus('error'); return; }
-  
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const agents = getAgentList();
-      const myAgent = agents.find(a => a.id === _activeAgent?.id);
-      const pinHash = myAgent?.pinHash || state._pinHash || null;
-      const nowTs = new Date().toISOString();
-      const _r = await withTimeout(_db.from('app_state').upsert({
-        id: getSupabaseId(),
-        data: {
-          ..._stateForSync(state),
-          _writer: _deviceId(),
-          _pinHash: pinHash,
-          _lastSaveTs: Date.now(), // numeric, same as the incremental push (this one used to write an ISO string)
-          agentProfile: {
-            ...(state.agentProfile || {}),
-            id:     _activeAgent?.id     || state.agentProfile?.id,
-            lbCode: _activeAgent?.lbCode || state.agentProfile?.lbCode,
-            name:   _activeAgent?.name   || state.agentProfile?.name,
-            stage:  _activeAgent?.stage  || state.agentProfile?.stage,
-          }
-        },
-        updated_at: nowTs
-      }).select('updated_at'), 10000, 'pushToSupabase-attempt' + attempt);
-      const error = _r && _r.error;
-      if (error) throw error;
-      await _rememberRemoteStamp(_r);
-      setSyncStatus('saved');
-      setTimeout(() => { if (window._lastSyncStatus && window._lastSyncStatus.s === 'saved') setSyncStatus('saved'); }, 2000); // only if nothing failed in the meantime
-      return; // success – exit the function
-    } catch(e) {
-      console.warn(`Supabase sync attempt ${attempt} failed:`, e.message);
-      if (attempt === retries) _diagLog('sync', 'push failed after ' + retries + ' tries: ' + e.message);
-      if (attempt === retries) {
-        setSyncStatus('error');
-        toast('Sync failed – will retry later', 'error');
-      } else {
-        // Wait 1s, 2s, 4s before next attempt
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
-      }
-    }
-  }
-}
 
 // ── COMPUTED ───────────────────────────────────────────
 
@@ -12442,6 +12571,10 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-18c', date: '18 Oct 2026', title: 'Safer saving and styled Excel', items: [
+    ['Two devices, no more stopping', 'If another device saved while you were working, the app now merges the two versions borrower by borrower instead of asking you to pick one. Payments recorded on both devices add up. The sync conflict sheet only appears if a merge is not possible.'],
+    ['One save at a time', 'Saves from this phone now go in a queue, and a save only lands if the cloud copy is the one this phone last saw, so two saves can no longer overwrite each other.'],
+    ['Styled Excel everywhere', 'Export Data and the SMS blast list now come as styled Excel files: summary sheet, dark header, coloured status, frozen header row, filters and print setup.'] ] },
   { id: '2026-10-18b', date: '18 Oct 2026', title: 'Recover every borrower', items: [
     ['Recover All Borrowers', 'Settings \u2192 Data & Backup \u2192 Recover All Borrowers. It reads your live list, archives, aged-out accounts, undo steps and every cloud rollover and weekly backup, then lists each person once in a formatted Excel file.'],
     ['Properly formatted Excel', 'Summary sheet, a full list with coloured outcomes, frozen header, filters and print setup, and a Sources sheet showing which copies were read.'] ] },
@@ -12799,9 +12932,9 @@ function _auEdge() {
 // Excel and scan tools now load on first use (see _loadLib in the head). These wrappers make the existing entry points wait for them.
 (function _lazyLibs() {
   try {
-    var MAP = { xlsx: ['doExportXLSX', 'previewXLSX', 'doSmsExportXLSX', 'obHandleFileUpload'], ocr: ['_runLocalOcr'] };
-    var READY = { xlsx: function () { return !!window.XLSX; }, ocr: function () { return !!window.Tesseract; } };
-    var LABEL = { xlsx: 'Excel tools', ocr: 'scan tool' };
+    var MAP = { xlsx: ['previewXLSX', 'obHandleFileUpload'], exceljs: ['doExportXLSX', 'doSmsExportXLSX'], ocr: ['_runLocalOcr'] };
+    var READY = { xlsx: function () { return !!window.XLSX; }, exceljs: function () { return !!window.ExcelJS; }, ocr: function () { return !!window.Tesseract; } };
+    var LABEL = { xlsx: 'Excel tools', exceljs: 'Excel tools', ocr: 'scan tool' };
     Object.keys(MAP).forEach(function (lib) {
       MAP[lib].forEach(function (name) {
         var orig = window[name];
@@ -15050,85 +15183,119 @@ function _getExportData() {
 }
 
 
-function doExportXLSX() {
+// ── Shared styled Excel writer (ExcelJS) ────────────────────────────────────────────────
+// SheetJS's free build cannot write fonts, fills or borders, so every Excel file the app makes goes through these.
+var _XL = { INK: 'FF1B2437', MUTED: 'FF64748B', LINE: 'FFE2E8F0', BAND: 'FFF6F8FB', GOLD: 'FFE8A020' };
+var _XL_FMT = { money: '#,##0.00', int: '#,##0', date: 'dd mmm yyyy', day: '"Day "0', text: '@', pct: '0.0%' };
+var _XL_TONE = { good: ['FFDCFCE7', 'FF166534'], warn: ['FFFEF3C7', 'FF92400E'], bad: ['FFFEE2E2', 'FF991B1B'] };
+function _xlFill(argb) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: argb } }; }
+function _xlWidth(label, values, min, max) {
+  var m = String(label).length + 4;
+  values.forEach(function (v) { var l = v == null ? 0 : String(v).length; if (l + 2 > m) m = l + 2; });
+  return Math.max(min || 10, Math.min(max || 40, m));
+}
+// defs: [{ h: header, w: width, a: 'left'|'center'|'right', f: 'money'|'int'|'date'|'day'|'text', wrap: bool, bold: bool, tone: function (value) -> 'good'|'warn'|'bad'|null }]
+function _xlTable(wb, name, defs, rows, opt) {
+  opt = opt || {};
+  var thin = { style: 'thin', color: { argb: _XL.LINE } }, box = { top: thin, left: thin, bottom: thin, right: thin };
+  var ws = wb.addWorksheet(name, { views: [{ state: 'frozen', xSplit: opt.freezeCols || 0, ySplit: 1 }], properties: { tabColor: { argb: opt.tab || 'FF4DA3FF' } } });
+  ws.columns = defs.map(function (d, i) { return { header: d.h, key: 'c' + i, width: d.w || 14 }; });
+  rows.forEach(function (r) { var o = {}; r.forEach(function (v, i) { o['c' + i] = (v === undefined || v === '') ? null : v; }); ws.addRow(o); });
+  var last = rows.length + 1, anyWrap = defs.some(function (d) { return d.wrap; });
+  var hr = ws.getRow(1); hr.height = 30;
+  hr.eachCell(function (c, ci) {
+    var a = defs[ci - 1].a || 'left';
+    c.font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+    c.fill = _xlFill(_XL.INK);
+    c.alignment = { horizontal: a === 'left' ? 'left' : 'center', vertical: 'middle', wrapText: true };
+    c.border = { bottom: { style: 'medium', color: { argb: _XL.GOLD } } };
+  });
+  for (var ri = 2; ri <= last; ri++) {
+    var row = ws.getRow(ri);
+    if (!anyWrap) row.height = 20;
+    for (var ci = 0; ci < defs.length; ci++) {
+      var d = defs[ci], c = row.getCell(ci + 1);
+      c.font = { name: 'Calibri', size: 11, bold: !!d.bold, color: { argb: _XL.INK } };
+      c.border = box;
+      c.alignment = { horizontal: d.a || 'left', vertical: anyWrap ? 'top' : 'middle', wrapText: !!d.wrap };
+      if (ri % 2 === 1) c.fill = _xlFill(_XL.BAND);
+      if (d.f && _XL_FMT[d.f]) c.numFmt = _XL_FMT[d.f];
+      if (d.tone) { var pal = _XL_TONE[d.tone(c.value)]; if (pal) { c.fill = _xlFill(pal[0]); c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: pal[1] } }; } }
+    }
+  }
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(2, last), column: defs.length } };
+  ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:1', paperSize: 9 };
+  ws.headerFooter = { oddFooter: '&LSqueveTrack&CPage &P of &N&R&D' };
+  return ws;
+}
+// blocks: [{ heading, kv: [[label, value, fmt, strong]] }]
+function _xlSummary(wb, title, subtitle, blocks) {
+  var thin = { style: 'thin', color: { argb: _XL.LINE } };
+  var sm = wb.addWorksheet('Summary', { views: [{ showGridLines: false }], properties: { tabColor: { argb: _XL.GOLD } } });
+  sm.columns = [{ width: 3 }, { width: 34 }, { width: 20 }, { width: 18 }];
+  sm.mergeCells('B2:D2'); var t = sm.getCell('B2'); t.value = title; t.font = { name: 'Calibri', size: 20, bold: true, color: { argb: _XL.INK } };
+  sm.getRow(2).height = 30;
+  sm.mergeCells('B3:D3'); var t2 = sm.getCell('B3'); t2.value = subtitle; t2.font = { name: 'Calibri', size: 11, color: { argb: _XL.MUTED } };
+  var r = 5;
+  blocks.forEach(function (bl) {
+    sm.getCell('B' + r).value = bl.heading; sm.getCell('B' + r).font = { name: 'Calibri', size: 13, bold: true, color: { argb: _XL.GOLD } }; r++;
+    bl.kv.forEach(function (kv) {
+      var a = sm.getCell('B' + r), b = sm.getCell('C' + r);
+      a.value = kv[0]; a.font = { name: 'Calibri', size: 11, bold: !!kv[3], color: { argb: _XL.INK } }; a.border = { bottom: thin }; a.alignment = { vertical: 'middle' };
+      b.value = kv[1]; b.font = { name: 'Calibri', size: 12, bold: true, color: { argb: _XL.INK } }; b.border = { bottom: thin }; b.alignment = { horizontal: 'right', vertical: 'middle' };
+      if (kv[2] && _XL_FMT[kv[2]]) b.numFmt = _XL_FMT[kv[2]];
+      sm.getRow(r).height = 22; r++;
+    });
+    r++;
+  });
+  sm.pageSetup = { orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 1, paperSize: 9 };
+  return sm;
+}
+async function _xlDownload(wb, filename) {
+  var buf = await wb.xlsx.writeBuffer();
+  var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+}
+
+async function doExportXLSX() {
   const { checkedCols, colDefs, borrowers, descriptor } = _getExportData();
   if (!checkedCols.length) return toast('Select at least one column', 'error');
-  if (!window.XLSX) return toast('SheetJS library not loaded — try refreshing', 'error');
-  const _now = new Date();
-  const month = _now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
-    + '-' + _now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
-
-  // Build worksheet data array
-  const header = checkedCols.map(c => colDefs[c].label);
-  const dataRows = borrowers.map(b => checkedCols.map(c => colDefs[c].raw(b)));
-  const wsData = [header, ...dataRows];
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Column widths
-  ws['!cols'] = checkedCols.map(c => {
-    const maxLen = Math.max(colDefs[c].label.length, ...borrowers.map(b => String(colDefs[c].raw(b)).length));
-    return { wch: Math.min(40, Math.max(10, maxLen + 2)) };
-  });
-
-  // Number-format the monetary columns with thousands separators and 2
-  // decimals — no currency symbol in the cell itself (that's in the column
-  // header instead, "Full Balance (₵)" etc.), so the values stay clean plain
-  // numbers Excel can sum/sort without a currency string in the way.
-  const _moneyCols = new Set(['generous','dueToday','loanDue','paid','remaining','odFee']);
-  checkedCols.forEach((c, ci) => {
-    if (!_moneyCols.has(c)) return;
-    borrowers.forEach((_, ri) => {
-      const cellRef = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
-      if (ws[cellRef]) ws[cellRef].z = '#,##0.00';
-    });
-  });
-
-  // AutoFilter on the header row — confirmed (unlike font/fill styling, which
-  // this build silently drops) this actually persists in the output file, so
-  // it's a real, working way to get Excel's filter/sort dropdown arrows on
-  // every column without relying on cell styling at all.
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: borrowers.length, c: checkedCols.length - 1 } }) };
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Borrowers');
-
-  // Add summary sheet
-  const _totBal  = borrowers.reduce((s,b) => s + getDueToday(b), 0);
-  const _totPaid = borrowers.reduce((s,b) => s + (b.amountPaid||0), 0);
-  const _totOd   = borrowers.reduce((s,b) => s + _getOdFeeCached(b), 0);
-  const _totProm = borrowers.filter(b => b.promisedToPay).length;
-  const summaryData = [
-    ['SqueveTrack Export'],
-    ['Generated', new Date().toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'})],
-    ['Filter applied', (descriptor||'None (all accounts)')],
-    [],
-    ['ACCOUNTS', ''],
-    ['Total exported', borrowers.length],
-    ['Unpaid', borrowers.filter(b => getStatus(b) === 'Unpaid').length],
-    ['Partial', borrowers.filter(b => getStatus(b) === 'Partial').length],
-    ['Fully paid', borrowers.filter(b => getStatus(b) === 'Paid').length],
-    ['Promised to pay', _totProm],
-    [],
-    ['FINANCIALS', ''],
-    ['Total balance owed (₵)', _totBal],
-    ['Total collected (₵)', _totPaid],
-    ['Total OD fees (₵)', _totOd],
-    ['Net outstanding (₵)', Math.max(0, _totBal - _totPaid)],
-  ];
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-  wsSummary['!cols'] = [{wch:22},{wch:18}];
-  // Same clean-number treatment as the main sheet — no currency symbol in the
-  // cell, the unit is already in the row label.
-  [12,13,14,15].forEach(r => {
-    const cellRef = XLSX.utils.encode_cell({ r, c: 1 });
-    if (wsSummary[cellRef]) wsSummary[cellRef].z = '#,##0.00';
-  });
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
-
-  XLSX.writeFile(wb, 'SqueveTrack-' + _agentFileTag() + month + (descriptor||'') + '.xlsx');
-  closeModal();
-  toast('XLSX downloaded (' + borrowers.length + ' accounts)', 'success');
+  try { await window._loadLib('exceljs'); } catch (e) { return toast('Excel tools could not load. Check your connection and try again.', 'error'); }
+  try {
+    const _now = new Date();
+    const month = _now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
+      + '-' + _now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
+    const FMT = { generous: 'money', dueToday: 'money', loanDue: 'money', paid: 'money', remaining: 'money', odFee: 'money', odAge: 'day', serial: 'int' };
+    const CENTER = { odAge: 1, status: 1, serial: 1, stage: 1, promiseDate: 1 };
+    const rows = borrowers.map(b => checkedCols.map(c => colDefs[c].raw(b)));
+    const defs = checkedCols.map((c, i) => ({
+      h: colDefs[c].label, f: FMT[c] || 'text', bold: c === 'name',
+      a: FMT[c] === 'money' ? 'right' : (CENTER[c] ? 'center' : 'left'),
+      wrap: c === 'smsMsg' || c === 'tags',
+      w: c === 'smsMsg' ? 64 : _xlWidth(colDefs[c].label, rows.map(r => r[i]), 10, c === 'name' ? 34 : 30),
+      tone: c === 'status' ? (v => v === 'Paid' ? 'good' : v === 'Partial' ? 'warn' : v === 'Unpaid' ? 'bad' : null) : null
+    }));
+    const wb = new window.ExcelJS.Workbook(); wb.creator = 'SqueveTrack'; wb.created = new Date();
+    const _totBal  = borrowers.reduce((s,b) => s + getDueToday(b), 0);
+    const _totPaid = borrowers.reduce((s,b) => s + (b.amountPaid||0), 0);
+    const _totOd   = borrowers.reduce((s,b) => s + _getOdFeeCached(b), 0);
+    const cnt = st => borrowers.filter(b => getStatus(b) === st).length;
+    _xlSummary(wb, 'SqueveTrack export',
+      _now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) + ' · Filter: ' + (descriptor ? descriptor.replace(/^-/, '') : 'none (all accounts)'),
+      [ { heading: 'Accounts', kv: [['Total exported', borrowers.length, 'int', true], ['Unpaid', cnt('Unpaid'), 'int'], ['Partial', cnt('Partial'), 'int'], ['Fully paid', cnt('Paid'), 'int'], ['Promised to pay', borrowers.filter(b => b.promisedToPay).length, 'int']] },
+        { heading: 'Financials', kv: [['Total balance owed (₵)', _totBal, 'money'], ['Total collected (₵)', _totPaid, 'money'], ['Total OD fees (₵)', _totOd, 'money'], ['Net outstanding (₵)', Math.max(0, _totBal - _totPaid), 'money', true]] } ]);
+    _xlTable(wb, 'Borrowers', defs, rows, { freezeCols: checkedCols.indexOf('name') >= 0 ? checkedCols.indexOf('name') + 1 : 0 });
+    wb.views = [{ activeTab: 1 }];
+    await _xlDownload(wb, 'SqueveTrack-' + _agentFileTag() + month + (descriptor||'') + '.xlsx');
+    closeModal();
+    toast('Excel downloaded (' + borrowers.length + ' accounts)', 'success');
+  } catch (e) {
+    try { _diagLog('error', 'excel export: ' + e.message, 'export'); } catch (e2) {}
+    toast('Could not build the Excel file: ' + e.message, 'error');
+  }
 }
 
 function doExportPDF(mode) {
@@ -18415,32 +18582,45 @@ function doSmsExport() {
   closeModal(); toast('Exported ' + reviewContacts.length + ' contacts', 'success');
 }
 
-function doSmsExportXLSX() {
-  if (!window.XLSX) return toast('SheetJS not loaded — try refreshing', 'error');
-  const includeMsg = document.getElementById('export-sms-msg')?.checked;
-  const headers = ['Name','Phone','OD Age','Loan Due','Paid','Due Today','Loan Type','Status'].concat(includeMsg?['Message']:[]);
-  const dataRows = reviewContacts.map(b => {
-    const row = [b.name, b.phone, 'Day '+getOdAge(b.startDate, b), b.loanDue, b.amountPaid||0, getDueToday(b), b.loanType, getStatus(b)];
-    if (includeMsg) row.push(getSmsBlastMsg(b));
-    return row;
-  });
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
-  ws['!cols'] = headers.map((h,i) => {
-    const maxLen = Math.max(h.length, ...dataRows.map(r => String(r[i]||'').length));
-    return { wch: Math.min(50, Math.max(10, maxLen+2)) };
-  });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'SMS Blast');
-  // Summary sheet
-  const summary = [['SqueveTrack SMS Blast Export'],['Date', new Date().toLocaleDateString('en-GB')],['Contacts', reviewContacts.length],[],['Loan Type','Count','Total Due'],['LoanBase', reviewContacts.filter(b=>b.loanType==='LoanBase').length, reviewContacts.filter(b=>b.loanType==='LoanBase').reduce((s,b)=>s+getDueToday(b),0)],['LoanBase Pro', reviewContacts.filter(b=>b.loanType==='LoanBase Pro').length, reviewContacts.filter(b=>b.loanType==='LoanBase Pro').reduce((s,b)=>s+getDueToday(b),0)]];
-  const ws2 = XLSX.utils.aoa_to_sheet(summary);
-  ws2['!cols'] = [{wch:20},{wch:12},{wch:12}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
-  const _smsNow = new Date();
-  const month = _smsNow.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
-    + '-' + _smsNow.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
-  XLSX.writeFile(wb, 'SMS-Blast-'+month+'.xlsx');
-  closeModal(); toast('Excel exported — ' + reviewContacts.length + ' contacts', 'success');
+async function doSmsExportXLSX() {
+  try { await window._loadLib('exceljs'); } catch (e) { return toast('Excel tools could not load. Check your connection and try again.', 'error'); }
+  try {
+    const includeMsg = document.getElementById('export-sms-msg')?.checked;
+    const rows = reviewContacts.map(b => {
+      const row = [b.name, b.phone, getOdAge(b.startDate, b), b.loanDue, b.amountPaid||0, getDueToday(b), b.loanType, getStatus(b)];
+      if (includeMsg) row.push(getSmsBlastMsg(b));
+      return row;
+    });
+    const col = i => rows.map(r => r[i]);
+    const defs = [
+      { h: 'Name', bold: true, w: _xlWidth('Name', col(0), 14, 34) },
+      { h: 'Phone', f: 'text', w: 16 },
+      { h: 'OD Age', f: 'day', a: 'center', w: 11 },
+      { h: 'Loan Due (₵)', f: 'money', a: 'right', w: 16 },
+      { h: 'Paid (₵)', f: 'money', a: 'right', w: 14 },
+      { h: 'Due Today (₵)', f: 'money', a: 'right', w: 16 },
+      { h: 'Loan Type', w: 16 },
+      { h: 'Status', a: 'center', w: 12, tone: v => v === 'Paid' ? 'good' : v === 'Partial' ? 'warn' : v === 'Unpaid' ? 'bad' : null }
+    ];
+    if (includeMsg) defs.push({ h: 'Message', wrap: true, w: 70 });
+    const wb = new window.ExcelJS.Workbook(); wb.creator = 'SqueveTrack'; wb.created = new Date();
+    const types = {};
+    reviewContacts.forEach(b => { const k = b.loanType || 'Not recorded'; (types[k] = types[k] || { c: 0, d: 0 }); types[k].c++; types[k].d += getDueToday(b); });
+    const kv = [['Contacts', reviewContacts.length, 'int', true]];
+    Object.keys(types).forEach(k => { kv.push([k + ' (' + types[k].c + ')', types[k].d, 'money']); });
+    _xlSummary(wb, 'SMS blast list', new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      [ { heading: 'Contacts and balance due today (₵)', kv: kv } ]);
+    _xlTable(wb, 'SMS Blast', defs, rows, { freezeCols: 1 });
+    wb.views = [{ activeTab: 1 }];
+    const _smsNow = new Date();
+    const stamp = _smsNow.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}).replace(' ','')
+      + '-' + _smsNow.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','');
+    await _xlDownload(wb, 'SMS-Blast-' + stamp + '.xlsx');
+    closeModal(); toast('Excel exported — ' + reviewContacts.length + ' contacts', 'success');
+  } catch (e) {
+    try { _diagLog('error', 'sms excel export: ' + e.message, 'export'); } catch (e2) {}
+    toast('Could not build the Excel file: ' + e.message, 'error');
+  }
 }
 
 // ── NAV ────────────────────────────────────────────────
