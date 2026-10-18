@@ -91,9 +91,10 @@ document.addEventListener('DOMContentLoaded', function () {
 (function () {
   var URL = {
     xlsx: 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js',
-    ocr:  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+    ocr:  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+    exceljs: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
   };
-  var READY = { xlsx: function () { return !!window.XLSX; }, ocr: function () { return !!window.Tesseract; } };
+  var READY = { xlsx: function () { return !!window.XLSX; }, ocr: function () { return !!window.Tesseract; }, exceljs: function () { return !!window.ExcelJS; } };
   var pending = {};
   window._loadLib = function (name) {
     if (!URL[name]) return Promise.reject(new Error('unknown library ' + name));
@@ -6238,6 +6239,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         </div>
         <span class="settings-chevron">›</span>
       </button>
+      <button class="settings-row" onclick="openSwipeSettings()">
+        <div class="settings-row-icon" style="background:rgba(37,211,102,0.14);color:var(--green)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><path d="M3 10h14M13 6l4 4-4 4M7 6l-4 4 4 4"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Swipe actions</div>
+          <div class="settings-row-label-sub" id="swipe-settings-sub">Choose what swiping a borrower card does, or turn it off</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
     </div>
       </div>
     </div>
@@ -6418,6 +6429,16 @@ html[data-theme="aurora"] select option { background: #101838; color: #f2f5ff; }
         <div class="settings-row-label">
           <div class="settings-row-label-main">Export Full Backup</div>
           <div class="settings-row-label-sub">Download all data as JSON</div>
+        </div>
+        <span class="settings-chevron">›</span>
+      </button>
+      <button class="settings-row" onclick="openRecoverBorrowers()">
+        <div class="settings-row-icon" style="background:rgba(232,160,32,0.14);color:var(--gold)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:17px;height:17px"><circle cx="9" cy="9" r="5.5"/><path d="M13.2 13.2L17 17"/></svg>
+        </div>
+        <div class="settings-row-label">
+          <div class="settings-row-label-main">Recover All Borrowers</div>
+          <div class="settings-row-label-sub">Everyone who ever passed through the app, as a formatted Excel file</div>
         </div>
         <span class="settings-chevron">›</span>
       </button>
@@ -8343,14 +8364,32 @@ async function _rememberRemoteStamp(res) {
   } catch (e) { /* next guard check will simply be skipped */ }
 }
 
+// Which device wrote the cloud row last. Stored inside the saved data (_writer) so the guard can tell "someone else saved"
+// from "this device saved and never heard back". The second happens every time the app is sent to the background
+// mid-save (e.g. opening WhatsApp from the batch queue): the write lands, the reply is lost, and on return the row looks
+// newer than our stamp. Two overlapping saves from this device did the same thing to each other.
+function _deviceId() {
+  var id = null;
+  try { id = localStorage.getItem('sq_device_id'); } catch (e) {}
+  if (!id) {
+    id = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    try { localStorage.setItem('sq_device_id', id); } catch (e) {}
+  }
+  return id;
+}
+
 async function _syncGuardOk() {
   if (_forcePushOnce) { _forcePushOnce = false; return true; }
   if (!_remoteStamp || !_ensureDb() || !_activeAgent) return true;
-  var changed = false;
+  var changed = false, writer = null, stamp = null;
   try {
-    var r = await withTimeout(_db.from('app_state').select('updated_at').eq('id', getSupabaseId()).maybeSingle(), 6000, 'conflictCheck');
-    changed = !!(r && !r.error && r.data && r.data.updated_at && r.data.updated_at !== _remoteStamp);
+    var r = await withTimeout(_db.from('app_state').select('updated_at, writer:data->>_writer').eq('id', getSupabaseId()).maybeSingle(), 6000, 'conflictCheck');
+    if (r && r.error) { // older API without JSON paths: fall back to the plain stamp check
+      r = await withTimeout(_db.from('app_state').select('updated_at').eq('id', getSupabaseId()).maybeSingle(), 6000, 'conflictCheck2');
+    }
+    if (r && !r.error && r.data && r.data.updated_at) { stamp = r.data.updated_at; writer = r.data.writer || null; changed = stamp !== _remoteStamp; }
   } catch (e) { changed = false; } // can't tell (offline/slow): never block a save because the check failed
+  if (changed && writer && writer === _deviceId()) { _remoteStamp = stamp; return true; } // our own earlier save, reply lost: not a conflict
   if (!changed) return true;
   _diagLog('sync', 'Another device saved newer data - this save is on hold until you choose');
   _showSyncConflict();
@@ -8450,6 +8489,7 @@ async function _pushToSupabaseIncremental() {
   id: getSupabaseId(),
   data: { 
     ...syncPayload, 
+    _writer: _deviceId(),
     _pinHash: pinHash,
     _lastSaveTs: Date.now(),
     _lastLocalSave: currentState._lastLocalSave
@@ -9019,6 +9059,7 @@ async function _pushToSupabase(retries = 3) {
         id: getSupabaseId(),
         data: {
           ..._stateForSync(state),
+          _writer: _deviceId(),
           _pinHash: pinHash,
           _lastSaveTs: Date.now(), // numeric, same as the incremental push (this one used to write an ISO string)
           agentProfile: {
@@ -12401,6 +12442,13 @@ function _missTexts(b, timeStr) {
 // Add a new entry at the TOP of this list when you ship something. The id is any new string (a date works); the sheet
 // pops up once per device when the newest id has not been seen, and Settings → What's new reopens the whole list.
 const WHATS_NEW = [
+  { id: '2026-10-18b', date: '18 Oct 2026', title: 'Recover every borrower', items: [
+    ['Recover All Borrowers', 'Settings \u2192 Data & Backup \u2192 Recover All Borrowers. It reads your live list, archives, aged-out accounts, undo steps and every cloud rollover and weekly backup, then lists each person once in a formatted Excel file.'],
+    ['Properly formatted Excel', 'Summary sheet, a full list with coloured outcomes, frozen header, filters and print setup, and a Sources sheet showing which copies were read.'] ] },
+  { id: '2026-10-18a', date: '18 Oct 2026', title: 'Your swipes, your way', items: [
+    ['Swipe actions', 'Settings \u2192 Appearance \u2192 Swipe actions. Pick what swiping a borrower card does in each direction: WhatsApp with the Dispatch message, WhatsApp chat only, Call, Promise, Record payment, Offer ladder, Add note, Hit list, or Off.'],
+    ['Turn swipes off', 'Set both directions to Off (or tap Turn both off) and cards no longer move at all. Right now the default is still WhatsApp on a right swipe and Promise on a left swipe.'],
+    ['No more false sync conflicts', 'Sending a batch of WhatsApp messages and coming back no longer shows the \u201cSync conflict\u201d sheet because of your own save. The app now recognises its own writes and only warns when another device really saved.'] ] },
   { id: '2026-10-11a', date: '11 Oct 2026', title: 'Escalate text is easier to read', items: [
     ['Readable level names', 'The dark red legal levels (L31 to L34) and other deep colours were almost invisible on dark themes. Level names now adjust to the theme so they are clear everywhere in the Escalate and Dunning panels and the sending queue.'],
     ['Brighter descriptions', 'The description under each level is now a stronger colour.'] ] },
@@ -12651,8 +12699,8 @@ function _fxAfterRender(fresh, pageId) {
     '.bl-card.au-sw-l .au-swc{background:linear-gradient(270deg,rgba(255,166,43,.34),transparent 65%)}',
     '.au-swc i{position:absolute;top:50%;display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font:700 12px/1 var(--font-body,sans-serif);font-style:normal;opacity:0;transform:translate3d(0,-50%,0) scale(.8);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}',
     '.au-swc i svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}',
-    '.au-swc .l{left:12px;color:#04210f;background:linear-gradient(135deg,#4af08b,#19c37d)}',
-    '.au-swc .r{right:12px;color:#2a1200;background:linear-gradient(135deg,#ffc247,#ff8a2a)}',
+    '.au-swc .l{left:12px;color:#04210f}',
+    '.au-swc .r{right:12px;color:#2a1200}',
     '.au-swc.on i{transform:translate3d(0,-50%,0) scale(1.08)}'
   ];
   for (var i = 1; i <= 8; i++) css.push('html[data-theme="aurora"]:not([data-fx="lite"]) #loans-tbody.au-stagger .bl-card:nth-child(' + i + '){animation:auIn .34s cubic-bezier(.2,.8,.25,1) ' + (i * 30) + 'ms both}');
@@ -12828,30 +12876,125 @@ function _auEdge() {
     scan(document.body);
   } catch (e) { _sw(e, '_auA11y'); }
 })();
-// Swipe a borrower card: right opens WhatsApp, left sets a promise. Drag follows the finger, springs back on release.
+// ── Swipe actions on borrower cards (configurable) ───────────────────────────────
+// Each direction runs the action the user chose in Settings → Appearance → Swipe actions, or nothing.
+// Stored per device (localStorage), so a phone and a laptop can differ. Defaults keep the old behaviour.
+var SWIPE_ACTIONS = [
+  { v: 'off',     t: 'Off',                d: 'Nothing happens in this direction', c: '' },
+  { v: 'wa',      t: 'WhatsApp with message', d: 'Opens WhatsApp with the same message Dispatch would send this borrower', c: 'linear-gradient(135deg,#4af08b,#19c37d)' },
+  { v: 'wa_chat', t: 'WhatsApp chat only', d: 'Opens the chat with no text, so you type your own', c: 'linear-gradient(135deg,#7ff0b0,#35d08a)' },
+  { v: 'call',    t: 'Call',               d: 'Dials the borrower and asks how the call went when you return', c: 'linear-gradient(135deg,#7cc4ff,#4da3ff)' },
+  { v: 'ptp',     t: 'Promise to pay',     d: 'Opens the promise sheet (edit if one is already set)', c: 'linear-gradient(135deg,#ffc247,#ff8a2a)' },
+  { v: 'pay',     t: 'Record payment',     d: 'Opens the quick-pay bar on the card', c: 'linear-gradient(135deg,#9be15d,#3fb950)' },
+  { v: 'offers',  t: 'Offer ladder',       d: 'Opens the settle-offers sheet for this borrower', c: 'linear-gradient(135deg,#d6b3ff,#a971ff)' },
+  { v: 'note',    t: 'Add note',           d: 'Opens the quick note', c: 'linear-gradient(135deg,#ffe08a,#f2b84b)' },
+  { v: 'hitlist', t: 'Add to hit list',    d: 'Stars the borrower on your hit list', c: 'linear-gradient(135deg,#ffd36e,#ffa931)' }
+];
+var SWIPE_DEFAULT = { r: 'wa', l: 'ptp' };   // r = swipe right, l = swipe left
+function _swGet(side) {
+  var v = null; try { v = localStorage.getItem('sq_swipe_' + side); } catch (e) {}
+  for (var i = 0; i < SWIPE_ACTIONS.length; i++) if (SWIPE_ACTIONS[i].v === v) return v;
+  return SWIPE_DEFAULT[side];
+}
+function _swInfo(v) { for (var i = 0; i < SWIPE_ACTIONS.length; i++) if (SWIPE_ACTIONS[i].v === v) return SWIPE_ACTIONS[i]; return SWIPE_ACTIONS[0]; }
+function setSwipePref(side, v) {
+  try { localStorage.setItem('sq_swipe_' + side, v); } catch (e) {}
+  try { haptic('light'); } catch (e) {}
+  closeAllModals(); openSwipeSettings();
+}
+function setSwipeBoth(v) {
+  try { localStorage.setItem('sq_swipe_r', v); localStorage.setItem('sq_swipe_l', v); } catch (e) {}
+  try { haptic('light'); } catch (e) {}
+  closeAllModals(); openSwipeSettings();
+}
+function resetSwipePrefs() {
+  try { localStorage.removeItem('sq_swipe_r'); localStorage.removeItem('sq_swipe_l'); } catch (e) {}
+  try { haptic('light'); } catch (e) {}
+  closeAllModals(); openSwipeSettings();
+}
+function _swSummary() {
+  var r = _swGet('r'), l = _swGet('l');
+  if (r === 'off' && l === 'off') return 'Off';
+  return 'Right: ' + _swInfo(r).t + ' · Left: ' + _swInfo(l).t;
+}
+function _swRefreshRow() { var el = document.getElementById('swipe-settings-sub'); if (el) el.textContent = _swSummary(); }
+function openSwipeSettings() {
+  var group = function (side, title) {
+    var cur = _swGet(side);
+    return '<div style="font-size:var(--text-sm);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">' + title + '</div>'
+      + SWIPE_ACTIONS.map(function (o) {
+        var on = cur === o.v;
+        return '<button type="button" class="btn ' + (on ? 'btn-gold' : 'btn-ghost') + '" style="width:100%;text-align:left;margin-bottom:6px;display:block;white-space:normal;height:auto;line-height:1.35;padding:9px 12px" onclick="setSwipePref(\'' + side + '\',\'' + o.v + '\')"><b>' + o.t + '</b><span style="display:block;font-size:var(--text-sm);opacity:.8;font-weight:400;margin-top:2px">' + o.d + '</span></button>';
+      }).join('');
+  };
+  _pushModalIfOpen();
+  document.getElementById('modal-title').textContent = 'Swipe actions';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-sm);color:var(--text3)">Choose what happens when you swipe a borrower card on your phone. Set a direction to Off, or both, to turn swiping off. Saved on this device only.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="btn btn-ghost" style="flex:1" onclick="setSwipeBoth(\'off\')">Turn both off</button><button type="button" class="btn btn-ghost" style="flex:1" onclick="resetSwipePrefs()">Reset to default</button></div>'
+    + group('r', 'Swipe right →')
+    + group('l', '← Swipe left');
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Done</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+  _swRefreshRow();
+}
+// Run one action for the borrower on this card. Every branch is wrapped: a swipe must never break the list.
+function _swRun(card, act) {
+  var id = card && card.dataset ? card.dataset.bid : null;
+  var b = id ? (state.borrowers || []).find(function (x) { return x.id === id; }) : null;
+  if (!b) return;
+  try {
+    if (act === 'wa') { var w = card.querySelector('[data-action="wa"]'); if (w) w.click(); }
+    else if (act === 'wa_chat') { if (!b.phone) toast('No phone number on file', 'error'); else window.open('https://wa.me/' + toWaPhone(b.phone), '_blank'); }
+    else if (act === 'call') { if (!b.phone) toast('No phone number on file', 'error'); else _acDial(b, b.phone); }
+    else if (act === 'ptp') togglePromise(id);
+    else if (act === 'pay') toggleQuickPayBar(id);
+    else if (act === 'offers') openOfferLadder(id);
+    else if (act === 'note') openQuickNote(id);
+    else if (act === 'hitlist') addToHitList(id);
+  } catch (e) { try { _diagLog('error', 'swipe action ' + act + ': ' + e.message, 'swipe'); } catch (e2) {} }
+}
 (function _auSwipe() {
   try {
     if (!window.matchMedia || !matchMedia('(pointer: coarse)').matches) return;
     var TH = 92, st = null, lastEnd = 0;
-    var ICO_WA = '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>';
-    var ICO_PTP = '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/></svg>';
+    var ICO = {
+      wa: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>',
+      call: '<svg viewBox="0 0 24 24"><path d="M6.5 3h3l1.5 4-2 2a12 12 0 006 6l2-2 4 1.5v3a2 2 0 01-2.2 2A16.5 16.5 0 014.5 5.2 2 2 0 016.5 3z"/></svg>',
+      ptp: '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/></svg>',
+      pay: '<svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>',
+      offers: '<svg viewBox="0 0 24 24"><path d="M4 18h4v-4h4v-4h4V6h4"/></svg>',
+      note: '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></svg>',
+      hitlist: '<svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5 5.5.8-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.5-.8z"/></svg>'
+    };
+    ICO.wa_chat = ICO.wa;
+    function label(act, card) {
+      if (act === 'ptp') return card.querySelector('.bc-btn.ptp.active') ? 'Edit promise' : 'Promise';
+      return ({ wa: 'WhatsApp', wa_chat: 'WhatsApp chat', call: 'Call', pay: 'Payment', offers: 'Offers', note: 'Note', hitlist: 'Hit list' })[act] || '';
+    }
+    function chipHtml(cls, act, card) {
+      if (act === 'off') return '<i class="' + cls + '"></i>';
+      return '<i class="' + cls + '" style="background:' + _swInfo(act).c + '">' + (ICO[act] || '') + label(act, card) + '</i>';
+    }
     function prep(s) {
       var c = s.card; c.style.willChange = 'transform';
       c.style.setProperty('transition', 'none', 'important');
-      var has = c.querySelector('.bc-btn.ptp.active');
       var o = document.createElement('div'); o.className = 'au-swc';
-      o.innerHTML = '<i class="l">' + ICO_WA + 'WhatsApp</i><i class="r">' + ICO_PTP + (has ? 'Edit promise' : 'Promise') + '</i>';
+      // left chip shows when dragging right, right chip when dragging left
+      o.innerHTML = chipHtml('l', s.cfg.r, c) + chipHtml('r', s.cfg.l, c);
       c.appendChild(o); s.chip = o;
     }
     document.addEventListener('touchstart', function (e) {
       window._auSwiped = false; st = null;
       if (e.touches.length !== 1 || (typeof currentPage !== 'undefined' && currentPage !== 'loans')) return;
+      var cfg = { r: _swGet('r'), l: _swGet('l') };
+      if (cfg.r === 'off' && cfg.l === 'off') return;
       var tg = e.target; if (!tg || !tg.closest) return;
       var card = tg.closest('.bl-card');
       if (!card || tg.closest('[data-action],[data-drag],.bl-cb-wrap,input,select,textarea')) return;
       var t = e.touches[0];
       if (t.clientX < 22 || t.clientX > window.innerWidth - 22) return;
-      st = { card: card, x: t.clientX, y: t.clientY, t: performance.now(), intent: '', dx: 0, armed: false, chip: null };
+      st = { card: card, cfg: cfg, x: t.clientX, y: t.clientY, t: performance.now(), intent: '', dx: 0, armed: false, chip: null };
     }, { capture: true, passive: true });
     document.addEventListener('touchmove', function (e) {
       if (!st) return;
@@ -12859,14 +13002,24 @@ function _auEdge() {
       if (!st.intent) {
         if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
         st.intent = (Math.abs(dx) > Math.abs(dy) * 1.5) ? 'h' : 'v';
+        // a direction set to Off is left alone, so the page and edge-swipe drawer behave as if there were no swipe
+        if (st.intent === 'h' && (dx > 0 ? st.cfg.r : st.cfg.l) === 'off') { st = null; return; }
         if (st.intent === 'h') { prep(st); window._auSwiped = true; }
       }
       if (st.intent !== 'h') return;
       st.dx = dx;
+      var act = dx > 0 ? st.cfg.r : st.cfg.l;
       var a = Math.abs(dx), x = a < TH ? a * 0.85 : TH * 0.85 + (a - TH) * 0.25;
       x = Math.min(x, 150); if (dx < 0) x = -x;
+      var o = st.chip;
+      if (act === 'off') { // dragged back past the start into a disabled direction: stay put
+        st.card.style.setProperty('transform', 'translate3d(0,0,0)', 'important');
+        o.style.opacity = 0;
+        if (st.armed) { st.armed = false; o.classList.remove('on'); }
+        return;
+      }
       st.card.style.setProperty('transform', 'translate3d(' + x.toFixed(1) + 'px,0,0)', 'important');
-      var o = st.chip, p = Math.min(1, a / TH);
+      var p = Math.min(1, a / TH);
       st.card.classList.toggle('au-sw-r', dx > 0); st.card.classList.toggle('au-sw-l', dx < 0);
       o.style.opacity = p;
       o.firstChild.style.opacity = dx > 0 ? 1 : 0; o.lastChild.style.opacity = dx < 0 ? 1 : 0;
@@ -12878,8 +13031,9 @@ function _auEdge() {
       if (!s || s.intent !== 'h') return;
       lastEnd = performance.now();
       var dt = Math.max(1, lastEnd - s.t), v = Math.abs(s.dx) / dt;
-      var fire = !cancelled && (Math.abs(s.dx) >= TH || (Math.abs(s.dx) > 54 && v > 0.55));
-      var card = s.card, chip = s.chip, right = s.dx > 0;
+      var right = s.dx > 0, act = right ? s.cfg.r : s.cfg.l;
+      var fire = !cancelled && act !== 'off' && (Math.abs(s.dx) >= TH || (Math.abs(s.dx) > 54 && v > 0.55));
+      var card = s.card, chip = s.chip;
       card.style.setProperty('transition', 'transform .5s cubic-bezier(.34,1.56,.64,1)', 'important');
       card.style.setProperty('transform', 'translate3d(0,0,0)', 'important');
       if (chip) chip.style.opacity = 0;
@@ -12887,10 +13041,7 @@ function _auEdge() {
         card.style.removeProperty('transform'); card.style.removeProperty('transition'); card.style.willChange = '';
         card.classList.remove('au-sw-r', 'au-sw-l'); if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
       }, 540);
-      if (fire) {
-        var act = card.querySelector('[data-action="' + (right ? 'wa' : 'ptp') + '"]');
-        if (act) { try { haptic('medium'); } catch (e2) {} act.click(); }
-      }
+      if (fire) { try { haptic('medium'); } catch (e2) {} _swRun(card, act); }
     }
     document.addEventListener('touchend', function () { finish(false); }, { capture: true, passive: true });
     document.addEventListener('touchcancel', function () { finish(true); }, { capture: true, passive: true });
@@ -22515,6 +22666,275 @@ function exportBackup() {
   haptic('success');
 }
 
+// ── Recover every borrower the app has ever held ───────────────────────────────────────
+// Reads every place a borrower can still survive (live list, archive, aged-out log, undo, conflict backup, and the
+// cloud rollover + weekly backups), merges them into one row per person, and writes a formatted Excel file.
+// Nothing is changed in the app: this only reads.
+function _recKey(b) {
+  var d = String(b.phone || '').replace(/\D/g, '').slice(-9);
+  if (d.length >= 9) return 'p' + d;
+  var n = String(b.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return n ? 'n' + n : null;
+}
+function _recWhen(v) { var t = typeof v === 'number' ? v : Date.parse(v); return isNaN(t) ? 0 : t; }
+function _recMerge(snaps) {
+  snaps.sort(function (a, b) { return a.when - b.when; });
+  var byKey = {}, idKey = {};
+  snaps.forEach(function (sn) {
+    var seen = {};
+    (sn.borrowers || []).forEach(function (b) {
+      if (!b || typeof b !== 'object') return;
+      var key = (b.id && idKey[b.id]) || _recKey(b); if (!key) return;
+      if (b.id) idKey[b.id] = key;
+      var w = b._rwhen || sn.when;
+      var r = byKey[key];
+      if (!r) r = byKey[key] = { key: key, first: w, last: w, snaps: 0, sources: {}, maxPaid: 0, everPaid: false, calls: 0, name: '', phone: '', phone2: '', loanType: '', loanDue: 0, notes: '', promise: '' };
+      if (w && (!r.first || w < r.first)) r.first = w;
+      if (w >= r.last) r.last = w;
+      if (!seen[key]) { seen[key] = 1; r.snaps++; }
+      r.sources[sn.label] = 1;
+      var paid = Number(b.amountPaid) || 0, due = Number(b.loanDue) || 0;
+      if (b.name) r.name = String(b.name).trim();
+      if (b.phone) r.phone = String(b.phone);
+      if (b.phone2) r.phone2 = String(b.phone2);
+      if (b.loanType) r.loanType = String(b.loanType);
+      if (due > 0) r.loanDue = due;
+      if (b.notes) r.notes = String(b.notes);
+      if (b.promiseDate) r.promise = String(b.promiseDate).split(' ')[0];
+      if (paid > r.maxPaid) r.maxPaid = paid;
+      if (b.isPaid || (due > 0 && paid >= due - 0.005)) r.everPaid = true;
+      var cl = (b.callLog || []).length; if (cl > r.calls) r.calls = cl;
+    });
+  });
+  return Object.keys(byKey).map(function (k) {
+    var r = byKey[k], labels = Object.keys(r.sources);
+    r.outcome = r.everPaid ? 'Paid in full' : (r.maxPaid > 0 ? 'Part paid' : 'Never paid');
+    r.balance = r.everPaid ? 0 : Math.max(0, r.loanDue - r.maxPaid);
+    r.foundIn = labels.length > 6 ? labels.slice(0, 6).join('; ') + ' +' + (labels.length - 6) + ' more' : labels.join('; ');
+    return r;
+  }).sort(function (a, b) { return (b.last - a.last) || a.name.localeCompare(b.name); });
+}
+async function _recGather(onP) {
+  var snaps = [], log = [];
+  function add(label, kind, when, list, status) {
+    var n = (list || []).length;
+    log.push({ label: label, kind: kind, when: when, count: n, status: status || 'Read' });
+    if (n) snaps.push({ label: label, kind: kind, when: when, borrowers: list });
+  }
+  function dated(list, field) {
+    var mx = 0;
+    var out = (list || []).map(function (x) { var w = _recWhen(x[field]); if (w > mx) mx = w; return Object.assign({}, x, { _rwhen: w || undefined }); });
+    return { list: out, when: mx };
+  }
+  var now = Date.now();
+  add('Live app', 'Live', now, state.borrowers);
+  var ar = dated(state.archivedBorrowers, 'archivedAt'); add('Archived on Paid page', 'Archive', ar.when || now, ar.list);
+  var ag = dated(state.agedOutLog, 'agedDate'); add('Aged-out log', 'Aged out', ag.when || now, ag.list);
+  try { (_undoStack || []).forEach(function (u, i) { var sb = u && u.snapshot && u.snapshot.borrowers; if (sb) add('Undo step ' + (i + 1), 'Undo', now - 1, sb); }); } catch (e) {}
+  try { (state.undoHistory || []).forEach(function (u, i) { var sb = u && u.snapshot && u.snapshot.borrowers; if (sb) add('Saved undo ' + (i + 1), 'Undo', now - 2, sb); }); } catch (e) {}
+  try {
+    var c = await _loadStateFromIndexedDB(getStateKey() + '__conflict');
+    if (c && c.data) add('Sync-conflict backup (' + c.label + ')', 'Conflict backup', c.savedAt || 0, (c.data.borrowers || []).concat(c.data.archivedBorrowers || []));
+  } catch (e) {}
+  if (_ensureDb()) {
+    var base = getSupabaseId(), ids = [];
+    onP('Looking for cloud backups…');
+    try {
+      var q1 = await withTimeout(_db.from('app_state').select('id').like('id', base + '_rollover_%'), 15000, 'recList1');
+      var q2 = await withTimeout(_db.from('app_state').select('id').like('id', base + '_backup_%'), 15000, 'recList2');
+      var q0 = await withTimeout(_db.from('app_state').select('id').eq('id', base), 15000, 'recList0');
+      [q0, q1, q2].forEach(function (q) { ((q && q.data) || []).forEach(function (r) { if (r.id === base || r.id.indexOf(base + '_') === 0) ids.push(r.id); }); });
+    } catch (e) { log.push({ label: 'Cloud backup list', kind: 'Cloud', when: 0, count: 0, status: 'Could not read: ' + e.message }); }
+    ids = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i];
+      onP('Reading cloud copy ' + (i + 1) + ' of ' + ids.length + '…');
+      var kind = id === base ? 'Cloud (current)' : (id.indexOf('_rollover_') > 0 ? 'Rollover backup' : 'Weekly backup');
+      try {
+        var r = await withTimeout(_db.from('app_state').select('id, updated_at, data').eq('id', id).maybeSingle(), 20000, 'recRead');
+        var d = r && r.data && r.data.data; if (!d) { log.push({ label: id, kind: kind, when: 0, count: 0, status: 'Empty' }); continue; }
+        var st = d.state || d;
+        var dm = id.match(/(\d{4}-\d{2}-\d{2})$/);
+        var when = _recWhen(d.exportedAt) || (dm ? _recWhen(dm[1]) : 0) || _recWhen(r.data.updated_at) || _recWhen(st._lastSaveTs);
+        var shown = when ? new Date(when).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : id;
+        var label = (id === base ? 'Cloud copy' : (kind === 'Rollover backup' ? 'Rollover backup ' : 'Weekly backup ')) + (id === base ? '' : shown);
+        var a1 = dated(st.archivedBorrowers, 'archivedAt'), a2 = dated(st.agedOutLog, 'agedDate');
+        add(label, kind, when, (st.borrowers || []).concat(a1.list, a2.list));
+      } catch (e) { log.push({ label: id, kind: kind, when: 0, count: 0, status: 'Could not read: ' + e.message }); }
+    }
+  } else {
+    log.push({ label: 'Cloud backups', kind: 'Cloud', when: 0, count: 0, status: 'Skipped: no cloud connection' });
+  }
+  return { snaps: snaps, log: log };
+}
+function _recBuildWorkbook(EJ, rows, log, meta) {
+  var wb = new EJ.Workbook(); wb.creator = 'SqueveTrack'; wb.created = new Date();
+  var INK = 'FF1B2437', MUTED = 'FF64748B', LINE = 'FFE2E8F0', BAND = 'FFF6F8FB', GOLD = 'FFE8A020';
+  var OUT = { 'Paid in full': ['FFDCFCE7', 'FF166534'], 'Part paid': ['FFFEF3C7', 'FF92400E'], 'Never paid': ['FFFEE2E2', 'FF991B1B'] };
+  var thin = { style: 'thin', color: { argb: LINE } };
+  var box = { top: thin, left: thin, bottom: thin, right: thin };
+  var money = '#,##0.00', dfmt = 'dd mmm yyyy';
+  var dt = function (ms) { return ms ? new Date(ms) : null; };
+
+  // ---- Summary
+  var sm = wb.addWorksheet('Summary', { views: [{ showGridLines: false }], properties: { tabColor: { argb: GOLD } } });
+  sm.columns = [{ width: 3 }, { width: 34 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }];
+  var n = rows.length, last = n + 1, AB = "'All borrowers'!";
+  sm.mergeCells('B2:F2'); var t = sm.getCell('B2'); t.value = 'Every borrower recovered'; t.font = { name: 'Calibri', size: 20, bold: true, color: { argb: INK } };
+  sm.mergeCells('B3:F3'); var t2 = sm.getCell('B3'); t2.value = (meta.agent ? meta.agent + ' · ' : '') + 'Built ' + new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) + ' from ' + meta.readCount + ' source' + (meta.readCount === 1 ? '' : 's');
+  t2.font = { name: 'Calibri', size: 11, color: { argb: MUTED } };
+  sm.getRow(2).height = 30;
+  sm.pageSetup = { orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 1, paperSize: 9 };
+  var label = function (r, text, formula, result, fmt, strong) {
+    var a = sm.getCell('B' + r), b = sm.getCell('C' + r);
+    a.value = text; a.font = { name: 'Calibri', size: 11, color: { argb: INK }, bold: !!strong }; a.border = { bottom: thin }; a.alignment = { vertical: 'middle' };
+    b.value = { formula: formula, result: result }; b.font = { name: 'Calibri', size: 12, bold: true, color: { argb: INK } }; b.alignment = { horizontal: 'right', vertical: 'middle' }; b.border = { bottom: thin };
+    if (fmt) b.numFmt = fmt;
+    sm.getRow(r).height = 22;
+  };
+  var cnt = function (o) { return rows.filter(function (r) { return r.outcome === o; }).length; };
+  var sum = function (k) { return rows.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
+  var rangeI = AB + '$I$2:$I$' + last, rangeF = AB + '$F$2:$F$' + last, rangeG = AB + '$G$2:$G$' + last, rangeH = AB + '$H$2:$H$' + last;
+  sm.getCell('B5').value = 'Overview'; sm.getCell('B5').font = { name: 'Calibri', size: 13, bold: true, color: { argb: GOLD } };
+  label(6, 'Different borrowers', 'COUNTA(' + AB + '$B$2:$B$' + last + ')', n, '#,##0', true);
+  label(7, 'Paid in full', 'COUNTIF(' + rangeI + ',"Paid in full")', cnt('Paid in full'), '#,##0');
+  label(8, 'Part paid', 'COUNTIF(' + rangeI + ',"Part paid")', cnt('Part paid'), '#,##0');
+  label(9, 'Never paid', 'COUNTIF(' + rangeI + ',"Never paid")', cnt('Never paid'), '#,##0');
+  label(10, 'Total loan amount (₵)', 'SUM(' + rangeF + ')', sum('loanDue'), money);
+  label(11, 'Total paid (₵)', 'SUM(' + rangeG + ')', sum('maxPaid'), money);
+  label(12, 'Still owed when last seen (₵)', 'SUM(' + rangeH + ')', sum('balance'), money);
+  label(13, 'Share of loan amount paid', 'IFERROR(C11/C10,0)', sum('loanDue') ? sum('maxPaid') / sum('loanDue') : 0, '0.0%', true);
+  // by loan type
+  var types = {}; rows.forEach(function (r) { var k = r.loanType || 'Not recorded'; (types[k] = types[k] || { c: 0, d: 0, p: 0 }); types[k].c++; types[k].d += r.loanDue; types[k].p += r.maxPaid; });
+  var tr = 16; sm.getCell('B15').value = 'By loan type'; sm.getCell('B15').font = { name: 'Calibri', size: 13, bold: true, color: { argb: GOLD } };
+  ['Loan type', 'Borrowers', 'Loan amount (₵)', 'Paid (₵)'].forEach(function (h, i) {
+    var c = sm.getCell(tr, 2 + i); c.value = h; c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INK } };
+    c.alignment = { horizontal: i ? 'right' : 'left', vertical: 'middle' };
+  });
+  sm.getRow(tr).height = 22;
+  var E = AB + '$E$2:$E$' + last;
+  Object.keys(types).sort(function (a, b) { return types[b].c - types[a].c; }).forEach(function (k, i) {
+    var r = tr + 1 + i, v = types[k], crit = k === 'Not recorded' ? '""' : '"' + k.replace(/"/g, '""') + '"';
+    sm.getCell(r, 2).value = k;
+    sm.getCell(r, 3).value = { formula: 'COUNTIF(' + E + ',' + crit + ')', result: v.c };
+    sm.getCell(r, 4).value = { formula: 'SUMIF(' + E + ',' + crit + ',' + rangeF + ')', result: v.d };
+    sm.getCell(r, 5).value = { formula: 'SUMIF(' + E + ',' + crit + ',' + rangeG + ')', result: v.p };
+    for (var c = 2; c <= 5; c++) { var cell = sm.getCell(r, c); cell.border = { bottom: thin }; cell.font = { name: 'Calibri', color: { argb: INK } }; if (c > 2) cell.alignment = { horizontal: 'right' }; }
+    sm.getCell(r, 3).numFmt = '#,##0'; sm.getCell(r, 4).numFmt = money; sm.getCell(r, 5).numFmt = money;
+    sm.getRow(r).height = 20;
+  });
+  var nr = tr + Object.keys(types).length + 3;
+  sm.mergeCells('B' + nr + ':F' + (nr + 2));
+  var note = sm.getCell('B' + nr);
+  note.value = 'Each person appears once, matched by phone number (or by name when there is no number). Amounts are the highest paid and the latest loan amount seen in any copy. Balances are not adjusted for overdue fees. The "Sources" sheet lists every copy that was read.';
+  note.font = { name: 'Calibri', size: 10, italic: true, color: { argb: MUTED } }; note.alignment = { wrapText: true, vertical: 'top' };
+
+  // ---- All borrowers
+  var ws = wb.addWorksheet('All borrowers', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }], properties: { tabColor: { argb: 'FF4DA3FF' } } });
+  var defs = [
+    ['#', 5, 'center'], ['Name', 28, 'left'], ['Phone', 15, 'left'], ['Alt phone', 15, 'left'], ['Loan type', 16, 'left'],
+    ['Loan amount (₵)', 16, 'right'], ['Total paid (₵)', 15, 'right'], ['Balance last seen (₵)', 19, 'right'], ['Outcome', 14, 'center'],
+    ['First seen', 13, 'center'], ['Last seen', 13, 'center'], ['Promise date', 13, 'center'], ['Calls logged', 11, 'center'], ['Found in', 44, 'left'], ['Notes', 46, 'left']
+  ];
+  ws.columns = defs.map(function (d, i) { return { header: d[0], key: 'c' + i, width: d[1] }; });
+  rows.forEach(function (r, i) {
+    ws.addRow({ c0: i + 1, c1: r.name, c2: r.phone, c3: r.phone2, c4: r.loanType, c5: r.loanDue || null, c6: r.maxPaid || 0, c7: r.balance, c8: r.outcome,
+      c9: dt(r.first), c10: dt(r.last), c11: r.promise ? new Date(r.promise) : null, c12: r.calls || null, c13: r.foundIn, c14: r.notes });
+  });
+  var hr = ws.getRow(1); hr.height = 30;
+  hr.eachCell(function (c, ci) {
+    c.font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INK } };
+    c.alignment = { horizontal: defs[ci - 1][2] === 'left' ? 'left' : 'center', vertical: 'middle', wrapText: true };
+    c.border = { bottom: { style: 'medium', color: { argb: GOLD } } };
+  });
+  for (var ri = 2; ri <= last; ri++) {
+    var row = ws.getRow(ri); row.height = 20;
+    row.eachCell({ includeEmpty: true }, function (c, ci) {
+      c.font = { name: 'Calibri', size: 11, color: { argb: INK } };
+      c.border = box;
+      c.alignment = { horizontal: defs[ci - 1][2], vertical: 'middle', wrapText: ci === 15 || ci === 14 };
+      if (ri % 2 === 1) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BAND } };
+    });
+    ['C', 'D'].forEach(function (L) { row.getCell(L).numFmt = '@'; });
+    ['F', 'G', 'H'].forEach(function (L) { row.getCell(L).numFmt = money; });
+    ['J', 'K', 'L'].forEach(function (L) { row.getCell(L).numFmt = dfmt; });
+    row.getCell('B').font = { name: 'Calibri', size: 11, bold: true, color: { argb: INK } };
+    var oc = row.getCell('I'), pal = OUT[oc.value];
+    if (pal) { oc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: pal[0] } }; oc.font = { name: 'Calibri', size: 11, bold: true, color: { argb: pal[1] } }; }
+    row.getCell('N').font = { name: 'Calibri', size: 10, color: { argb: MUTED } };
+  }
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(2, last), column: defs.length } };
+  ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:1', paperSize: 9 };
+  ws.headerFooter = { oddFooter: '&LSqueveTrack&CPage &P of &N&R&D' };
+
+  // ---- Sources
+  var sc = wb.addWorksheet('Sources', { views: [{ state: 'frozen', ySplit: 1 }], properties: { tabColor: { argb: 'FF94A3B8' } } });
+  sc.columns = [{ header: 'Copy that was read', key: 'a', width: 40 }, { header: 'Type', key: 'b', width: 20 }, { header: 'Date of copy', key: 'c', width: 16 }, { header: 'Borrowers found', key: 'd', width: 17 }, { header: 'Result', key: 'e', width: 44 }];
+  log.slice().sort(function (a, b) { return (b.when || 0) - (a.when || 0); }).forEach(function (l) { sc.addRow({ a: l.label, b: l.kind, c: l.kind === 'Live' ? new Date() : dt(l.when), d: l.count, e: l.status }); });
+  sc.getRow(1).height = 26;
+  sc.getRow(1).eachCell(function (c, ci) { c.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INK } }; c.alignment = { horizontal: ci === 4 ? 'right' : 'left', vertical: 'middle' }; });
+  for (var si = 2; si <= log.length + 1; si++) {
+    var rw = sc.getRow(si); rw.height = 20;
+    rw.eachCell(function (c) { c.font = { name: 'Calibri', color: { argb: INK } }; c.border = box; c.alignment = { vertical: 'middle' }; });
+    rw.getCell('C').numFmt = dfmt; rw.getCell('D').numFmt = '#,##0'; rw.getCell('D').alignment = { horizontal: 'right', vertical: 'middle' };
+    if (/^Could not|^Skipped|^Empty/.test(String(rw.getCell('E').value))) rw.getCell('E').font = { name: 'Calibri', color: { argb: 'FF991B1B' }, bold: true };
+  }
+  sc.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+  return wb;
+}
+async function _recRun(onP) {
+  await window._loadLib('exceljs');
+  var g = await _recGather(onP);
+  onP('Merging ' + g.snaps.length + ' copies…');
+  var rows = _recMerge(g.snaps);
+  var wb = _recBuildWorkbook(window.ExcelJS, rows, g.log, { agent: (_activeAgent && _activeAgent.name) || '', readCount: g.log.filter(function (l) { return l.status === 'Read'; }).length });
+  var buf = await wb.xlsx.writeBuffer();
+  return { rows: rows, log: g.log, buf: buf };
+}
+var _recLast = null;
+function _recDownload() {
+  if (!_recLast) return;
+  var blob = new Blob([_recLast.buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'SqueveTrack-' + _agentFileTag() + 'all-borrowers-' + new Date().toISOString().split('T')[0] + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+}
+function openRecoverBorrowers() {
+  _pushModalIfOpen();
+  document.getElementById('modal-title').textContent = 'Recover all borrowers';
+  document.getElementById('modal-body').innerHTML =
+    '<div style="font-size:var(--text-md);line-height:1.6">'
+    + '<p style="margin:0 0 10px">This looks through every copy of your data that still exists and lists each borrower once, even if they were removed, paid off, archived or rolled over a long time ago.</p>'
+    + '<p style="margin:0 0 10px;color:var(--text3);font-size:var(--text-base)">It reads: your live list, archived and aged-out accounts, undo steps, the sync-conflict backup, and the cloud copies saved at each rollover and each week. Nothing in the app is changed.</p>'
+    + '<p style="margin:0;color:var(--text3);font-size:var(--text-base)">You get a formatted Excel file with a summary, the full list, and a sheet showing what was read. A borrower who was never in any saved copy cannot be found.</p></div>';
+  document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-gold" onclick="startRecoverBorrowers()">Find everyone</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+async function startRecoverBorrowers() {
+  var body = document.getElementById('modal-body');
+  document.getElementById('modal-footer').innerHTML = '';
+  var say = function (t) { body.innerHTML = '<div style="padding:18px 4px;text-align:center;font-size:var(--text-md);color:var(--text2)">' + escapeHtml(t) + '</div>'; };
+  say('Starting…');
+  try {
+    _recLast = await _recRun(say);
+    var rows = _recLast.rows, c = function (o) { return rows.filter(function (r) { return r.outcome === o; }).length; };
+    var fails = _recLast.log.filter(function (l) { return /^Could not/.test(l.status); }).length;
+    body.innerHTML = '<div style="font-size:var(--text-md);line-height:1.7">'
+      + '<div style="font-size:30px;font-weight:800;color:var(--gold)">' + rows.length.toLocaleString('en-GB') + '</div>'
+      + '<div style="margin-bottom:10px">different borrowers found</div>'
+      + '<div style="color:var(--text2)">' + c('Paid in full') + ' paid in full · ' + c('Part paid') + ' part paid · ' + c('Never paid') + ' never paid</div>'
+      + '<div style="color:var(--text3);font-size:var(--text-base);margin-top:8px">Copies read: ' + _recLast.log.filter(function (l) { return l.status === 'Read'; }).length + (fails ? ' · ' + fails + ' could not be read (listed in the Sources sheet)' : '') + '</div></div>';
+    document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button><button class="btn btn-gold" onclick="_recDownload()">Download Excel</button>';
+    _recDownload(); haptic('success');
+  } catch (e) {
+    try { _diagLog('error', 'recover borrowers: ' + e.message, 'recover'); } catch (e2) {}
+    body.innerHTML = '<div style="font-size:var(--text-md);line-height:1.6;color:var(--red)">Could not finish: ' + escapeHtml(e.message || String(e)) + '</div><div style="margin-top:8px;color:var(--text3);font-size:var(--text-base)">Check your connection and try again. Details are in Settings → Diagnostics.</div>';
+    document.getElementById('modal-footer').innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Close</button><button class="btn btn-gold" onclick="startRecoverBorrowers()">Try again</button>';
+  }
+}
+
 function importBackup() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.json,application/json';
@@ -30426,6 +30846,7 @@ function renderSettingsPage() {
   // Sync auto-lock dropdown to current setting
   const lockSel = document.getElementById('auto-lock-select');
   if (lockSel) lockSel.value = String(_autoLockMinutes || 0);
+  try { _swRefreshRow(); } catch (e) {}
 
   const el = document.getElementById('settings-agent-card');
   if (el && _activeAgent) {
