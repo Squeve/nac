@@ -2499,6 +2499,16 @@ tbody tr:hover td { background: rgba(255,255,255,0.025) !important; }
 /* Faster scroll-triggered render for large lists — skip offscreen layout/paint work */
 .bl-card { content-visibility: auto; contain-intrinsic-size: auto 96px; }
 
+
+/* Snappier taps: no 300ms double-tap-zoom wait and no grey flash on interactive elements */
+button, a, select, summary, label, [onclick], [role="button"], .nav-item, .bl-card, .msg-card { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* Jump to top / bottom of the current page */
+#scroll-jump { position: fixed; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 900; display: flex; flex-direction: column; gap: 8px; }
+#scroll-jump button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border2, rgba(255,255,255,0.2)); background: var(--surface2, #1a1f2b); color: var(--text, #fff); box-shadow: 0 2px 10px rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; padding: 0; cursor: pointer; opacity: 0.92; }
+#scroll-jump button.show { display: flex; }
+#scroll-jump svg { width: 20px; height: 20px; }
+@media (min-width: 900px) { #scroll-jump { bottom: 24px; right: 24px; } }
 </style>
 <style>
 /* ═══ PREMIUM OVERRIDES ═══════════════════════════════════ */
@@ -9209,7 +9219,9 @@ function saveState() {
   // Snapshot which agent we're saving for — checked in _doSaveState
   _saveStateForAgentId = _activeAgent ? _activeAgent.id : null;
   clearTimeout(_saveStateTimer);
-  _saveStateTimer = setTimeout(_doSaveState, 0);
+  // 120ms instead of 0: a burst of edits (ticking several accounts, bulk updates) now costs ONE stringify + encrypt + IndexedDB write
+  // instead of one per tick. Backgrounding/closing still writes immediately through _flushPendingSaves.
+  _saveStateTimer = setTimeout(_doSaveState, 120);
 }
 
 function _doSaveState() {
@@ -35926,5 +35938,40 @@ const DECOY_SECRET = '1047';
 })();
 </script>
   
+
+<div id="scroll-jump" aria-label="Scroll shortcuts">
+  <button type="button" id="sj-top" aria-label="Scroll to top" title="Top" onclick="_scrollJump('top')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/><path d="M6 6h12"/></svg></button>
+  <button type="button" id="sj-bottom" aria-label="Scroll to bottom" title="Bottom" onclick="_scrollJump('bottom')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/><path d="M6 18h12"/></svg></button>
+</div>
+<script>
+// Jump buttons: the top arrow shows once you have scrolled down, the bottom arrow while there is more below.
+(function () {
+  var raf = 0;
+  function main() { return document.getElementById('main'); }
+  function update() {
+    raf = 0;
+    var m = main(), t = document.getElementById('sj-top'), b = document.getElementById('sj-bottom');
+    if (!m || !t || !b) return;
+    var max = m.scrollHeight - m.clientHeight, y = m.scrollTop;
+    t.classList.toggle('show', max > 600 && y > 300);
+    b.classList.toggle('show', max > 600 && max - y > 300);
+  }
+  function queue() { if (!raf) raf = requestAnimationFrame(update); }
+  window._scrollJump = function (where) {
+    var m = main(); if (!m) return;
+    var smooth = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    m.scrollTo({ top: where === 'top' ? 0 : m.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    if (typeof haptic === 'function') { try { haptic('light'); } catch (e) {} }
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    var m = main(); if (!m) return;
+    m.addEventListener('scroll', queue, { passive: true });
+    window.addEventListener('resize', queue, { passive: true });
+    new MutationObserver(queue).observe(m, { childList: true, subtree: true });
+    setInterval(queue, 1500);   // pages that grow after loading
+    queue();
+  });
+})();
+</script>
 </body>
 </html>
